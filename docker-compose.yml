@@ -9,8 +9,8 @@ services:
       - DEV_PORT=${DEV_PORT}
       - NEXTCLOUD_URL=${NEXTCLOUD_URL}
       - NEXT_PUBLIC_ENABLE_LOGIN=${NEXT_PUBLIC_ENABLE_LOGIN}
-      - NEXT_PUBLIC_CHESS_URL=http://stockfish
-      - NEXT_PUBLIC_WORD_URL=http://wordlist
+      - NEXT_PUBLIC_CHESS_URL=http://stockfish:8080
+      - NEXT_PUBLIC_WORD_URL=http://wordlist:5000
     volumes:
       - ./cache/audio/:/app/cache/audio
       - ./cache/database/:/app/cache/database
