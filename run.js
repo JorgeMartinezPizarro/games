@@ -2,19 +2,29 @@ const fs = require("fs");
 const dotenv = require("dotenv");
 const { execSync } = require("child_process");
 
-function getPort() {
-  if (process.env.DEV_PORT) return process.env.DEV_PORT;
-
-  const files = [
-    ".env.local",
-    ".env",
-  ];
+function loadEnvFile() {
+  const files = [".env.local", ".env"];
 
   for (const file of files) {
     if (fs.existsSync(file)) {
-      const env = dotenv.parse(fs.readFileSync(file));
-      if (env.DEV_PORT) return env.DEV_PORT;
+      return dotenv.parse(fs.readFileSync(file));
     }
+  }
+
+  return {};
+}
+
+function getPort(mode, envFromFile) {
+  // prioridad: env runtime > env file > default
+
+  if (mode === "dev") {
+    if (process.env.DEV_PORT) return process.env.DEV_PORT;
+    if (envFromFile.DEV_PORT) return envFromFile.DEV_PORT;
+  }
+
+  if (mode === "start") {
+    if (process.env.PORT) return process.env.PORT;
+    if (envFromFile.PORT) return envFromFile.PORT;
   }
 
   return 3000;
@@ -22,14 +32,15 @@ function getPort() {
 
 const command = process.argv[2];
 
-if (!command) {
-  console.error("Please specify a command: start or dev");
+if (!command || !["dev", "start"].includes(command)) {
+  console.error("Usage: node script.js [dev|start]");
   process.exit(1);
 }
 
-const port = getPort();
+const envFromFile = loadEnvFile();
+const port = getPort(command, envFromFile);
 
-console.log(`Starting Next.js on port ${port}`);
+console.log(`Starting Next.js (${command}) on port ${port}`);
 
 execSync(`next ${command} -p ${port}`, {
   stdio: "inherit",
