@@ -1,0 +1,65 @@
+html, body {
+	background: #333!important;
+	color: #e1e1e1;
+	height: calc(100% - 80px);
+	width: calc(100% - 0px);
+	margin: 0;
+	padding: 0;
+}
+
+img.favorite {
+	filter: brightness(0) invert(1);
+}
+
+a:hover {
+	color: darkgrey;
+}
+
+.intro button {
+	border-radius: 32px;
+}
+
+.intro button img {
+	filter: brightness(0) invert(1);
+	background: transparent;
+}
+
+.intro button:hover {
+	filter: brightness(0) invert(0.4);
+	background: transparent;
+}
+
+button.game-menu {
+	margin: 8px;
+	float: right;
+	margin-top: 54px;
+}
+
+.MuiList-root {
+	background: grey!important;
+	color: white;
+}
+
+.MuiList-root button {
+	color: white;
+	margin: 2px;
+	margin-right: 32px;
+}
+
+.MuiList-root button img {
+	filter: brightness(0) invert(1);
+	margin: 0 16px;
+	margin-right: 32px;
+}
+
+.MuiFormLabel-root {
+	font-size: 1.2rem!important;
+}
+
+.intro > * {
+	margin-top: 32px;
+}
+
+.intro {
+	font-size: 1.4rem;
+}

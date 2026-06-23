@@ -1,0 +1,282 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&family=Share+Tech+Mono&display=swap');
+
+:root {
+  --bg-deep: #0a0118;
+  --bg-panel: #150a2e;
+  --neon-magenta: #ff2e9a;
+  --neon-cyan: #00f6ff;
+  --neon-gold: #ffd84d;
+  --text-primary: #f5f3ff;
+  --text-muted: #9a8fc2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.wording-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100dvh;
+  width: 100%;
+  padding: 16px;
+  color: var(--text-primary);
+  text-align: center;
+  background: radial-gradient(circle at 50% 0%, #1f0f3d 0%, var(--bg-deep) 65%);
+  font-family: 'Space Grotesk', sans-serif;
+  overflow: hidden;
+}
+
+/* Firma visual: scanlines de CRT sutiles sobre toda la pantalla */
+.wording-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0) 0px,
+    rgba(255, 255, 255, 0) 2px,
+    rgba(0, 246, 255, 0.035) 3px,
+    rgba(0, 246, 255, 0) 4px
+  );
+  mix-blend-mode: screen;
+}
+
+.toggle-view-btn {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 24px !important;
+  background-color: transparent !important;
+  color: var(--neon-cyan) !important;
+  font-family: 'Share Tech Mono', monospace !important;
+  font-weight: bold !important;
+  letter-spacing: 1px;
+  border: 2px solid var(--neon-cyan) !important;
+  border-radius: 8px !important;
+  padding: 10px 24px !important;
+  box-shadow: 0 0 12px rgba(0, 246, 255, 0.45);
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.toggle-view-btn:hover {
+  box-shadow: 0 0 20px rgba(0, 246, 255, 0.8);
+  transform: translateY(-1px);
+}
+
+.panel,
+.scoreboard-panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-panel);
+  padding: clamp(16px, 4dvh, 40px) 24px;
+  border-radius: 18px;
+  width: 100%;
+  max-width: 480px;
+  height: min(640px, calc(100dvh - 120px));
+  border: 1px solid rgba(255, 46, 154, 0.4);
+  box-shadow:
+    0 0 0 1px rgba(0, 246, 255, 0.15),
+    0 0 30px rgba(255, 46, 154, 0.25),
+    0 0 60px rgba(0, 246, 255, 0.12),
+    0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.panel {
+  justify-content: center;
+}
+
+.panel-title {
+  margin: 0 0 32px 0;
+  color: var(--neon-gold);
+  font-family: 'Press Start 2P', cursive;
+  font-size: clamp(1.1rem, 4vw, 1.6rem);
+  line-height: 1.6;
+  text-shadow: 0 0 10px rgba(255, 216, 77, 0.6), 0 0 24px rgba(255, 46, 154, 0.35);
+}
+
+.scoreboard-title {
+  flex-shrink: 0;
+  color: var(--neon-magenta);
+  font-family: 'Press Start 2P', cursive;
+  font-size: clamp(0.85rem, 3vw, 1.3rem);
+  margin: 0 0 16px 0;
+  text-shadow: 0 0 10px rgba(255, 46, 154, 0.6);
+}
+
+.word-input {
+  background: #0d0620 !important;
+  border-radius: 10px;
+  margin-bottom: 28px;
+  width: 100%;
+}
+
+.word-input .MuiOutlinedInput-root {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.3rem;
+  color: var(--text-primary);
+  letter-spacing: 2px;
+}
+
+.word-input .MuiOutlinedInput-notchedOutline {
+  border-color: var(--neon-cyan) !important;
+  border-width: 2px !important;
+}
+
+.button-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  color: var(--text-primary) !important;
+  padding: 14px 26px !important;
+  border-radius: 10px !important;
+  font-family: 'Share Tech Mono', monospace !important;
+  font-weight: bold !important;
+  font-size: 1.05rem !important;
+  letter-spacing: 1px;
+  border: 2px solid transparent !important;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+}
+
+.action-btn--play {
+  background-color: var(--neon-magenta) !important;
+  box-shadow: 0 0 18px rgba(255, 46, 154, 0.6);
+}
+
+.action-btn--stopped {
+  background-color: #0f3460 !important;
+  border-color: var(--neon-cyan) !important;
+  box-shadow: 0 0 14px rgba(0, 246, 255, 0.4);
+}
+
+.action-btn--neutral {
+  background-color: #0f3460 !important;
+  border-color: var(--neon-cyan) !important;
+}
+
+.action-btn--submit {
+  background-color: var(--neon-gold) !important;
+  color: #1a1a2e !important;
+  box-shadow: 0 0 18px rgba(255, 216, 77, 0.6);
+}
+
+.action-btn--replay {
+  background-color: transparent !important;
+  border-color: var(--neon-cyan) !important;
+  box-shadow: 0 0 12px rgba(0, 246, 255, 0.35);
+}
+
+.action-btn:disabled {
+  opacity: 0.35;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.stats-line {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.3rem;
+  letter-spacing: 1px;
+  margin: 0 0 16px 0;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px rgba(0, 246, 255, 0.4);
+}
+
+.hidden-audio {
+  display: none;
+}
+
+/* Finished-game summary */
+.finished-summary {
+  flex-shrink: 0;
+  background-color: #0f3460;
+  border: 1px solid var(--neon-magenta);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  box-shadow: 0 0 16px rgba(255, 46, 154, 0.25);
+}
+
+.finished-summary__time {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(16px, 4vw, 22px);
+  font-weight: bold;
+  color: var(--neon-gold);
+  margin: 2px 0;
+}
+
+.finished-summary__rank {
+  font-size: clamp(12px, 3vw, 15px);
+  color: var(--neon-gold);
+  font-weight: bold;
+  margin: 4px 0 0 0;
+}
+
+.finished-summary__rank--outside {
+  color: var(--text-muted);
+  font-weight: normal;
+}
+
+/* Solo este wrapper scrollea, nunca el panel completo */
+.scoreboard-table-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--neon-cyan) transparent;
+}
+
+.scoreboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--text-primary);
+  font-family: 'Share Tech Mono', monospace;
+}
+
+.scoreboard-table thead tr {
+  background-color: #0f3460;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.scoreboard-table th,
+.scoreboard-table td {
+  padding: clamp(4px, 1.2dvh, 10px) 8px;
+  font-size: clamp(0.75rem, 2.5vw, 1rem);
+}
+
+.scoreboard-table tbody tr:nth-child(odd) {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.scoreboard-row--highlight {
+  background-color: var(--neon-gold);
+  color: #1a1a2e;
+  font-weight: bold;
+}
+
+.no-scores {
+  color: var(--text-muted);
+}
+
+@media (max-width: 480px) {
+  .panel,
+  .scoreboard-panel {
+    padding: clamp(12px, 3dvh, 24px) 20px;
+  }
+}
