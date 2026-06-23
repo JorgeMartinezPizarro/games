@@ -17,7 +17,7 @@ Created and tested using `node@22.12`, `npm@11.2.0` and `docker@26.0.1`.
 
 ## SETUP
 
-Copy `.env.local` to `.env` and write your actual values.
+Copy `.env.sample` to `.env` and write your actual values.
 
 ## RUN
 
