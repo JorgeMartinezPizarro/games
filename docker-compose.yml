@@ -2,8 +2,9 @@ services:
   games:
     image: jorgemartinezpizarro/games:latest
     restart: always
+    # Exposed locally to communicate with nginx
     ports:
-      - ${PORT}:${PORT}
+      - 127.0.0.1:${PORT}:${PORT}
     environment:
       - PORT=${PORT}
       - DEV_PORT=${DEV_PORT}
@@ -16,13 +17,13 @@ services:
       - ./cache/database/:/app/cache/database
   wordlist:
     image: jorgemartinezpizarro/wordlist:latest
-    # Exposed to comunicate node, remove later to use docker network communication
+    # Exposed locally to comunicate with node
     ports:
-      - 1009:5000
+      - 127.0.0.1:1009:5000
     volumes:
       - ./cache/audio/:/app/audio
   stockfish:
     image: jorgemartinezpizarro/stockfish:latest
-    # Exposed to comunicate node, remove later to use docker network communication
+    # Exposed locally to comunicate with node
     ports:
-      - 1007:8080
+      - 127.0.0.1:1007:8080
