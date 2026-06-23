@@ -1,6 +1,6 @@
 build:
-	docker build -t jorgemartinezpizarro/bookmarks:latest . 
-	docker push jorgemartinezpizarro/bookmarks:latest
+	docker build -t jorgemartinezpizarro/games:latest . 
+	docker push jorgemartinezpizarro/games:latest
 	cd tools/chess
 	docker build -t jorgemartinezpizarro/stockfish:latest . 
 	docker push jorgemartinezpizarro/stockfish:latest

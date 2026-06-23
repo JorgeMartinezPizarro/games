@@ -1,7 +1,7 @@
 services:
   # Disable bookmarks to use local node development
   #bookmarks:
-  #  image: jorgemartinezpizarro/bookmarks:latest
+  #  image: jorgemartinezpizarro/games:latest
   #  restart: always
   #  ports:
   #    - ${PORT}:3000
