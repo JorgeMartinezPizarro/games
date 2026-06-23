@@ -1,13 +1,12 @@
 services:
-  # Disable bookmarks to use local node development
-  #bookmarks:
-  #  image: jorgemartinezpizarro/games:latest
-  #  restart: always
-  #  ports:
-  #    - ${PORT}:3000
-  #  environment:
-  #    - NEXTCLOUD_URL=${NEXTCLOUD_URL}
-  #    - PORT=${PORT}
+  games:
+    image: jorgemartinezpizarro/games:latest
+    restart: always
+    ports:
+      - ${PORT}:3000
+    environment:
+      - NEXTCLOUD_URL=${NEXTCLOUD_URL}
+      - PORT=${PORT}
   wordlist:
     image: jorgemartinezpizarro/wordlist:latest
     # Exposed to comunicate node, remove later to use docker network communication

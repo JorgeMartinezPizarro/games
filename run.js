@@ -3,7 +3,7 @@ const dotenv = require("dotenv");
 const { execSync } = require("child_process");
 
 function getPort() {
-  if (process.env.PORT) return process.env.PORT;
+  if (process.env.DEV_PORT) return process.env.DEV_PORT;
 
   const files = [
     ".env.local",
@@ -13,7 +13,7 @@ function getPort() {
   for (const file of files) {
     if (fs.existsSync(file)) {
       const env = dotenv.parse(fs.readFileSync(file));
-      if (env.PORT) return env.PORT;
+      if (env.DEV_PORT) return env.DEV_PORT;
     }
   }
 
