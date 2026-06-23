@@ -20,23 +20,3 @@ services:
     # Exposed to comunicate node, remove later to use docker network communication
     ports:
       - 1007:8080
-  gpt:
-    build:
-      context: ./tools/gpt
-      args:
-        USE_GPU: "false"
-    ports:
-      - 1008:5000
-    environment:
-      - MODEL_PATH=/app/models/mistral-7b-instruct.Q4_K_M.gguf
-      - USE_GPU=false
-    volumes:
-      - ./cache/models:/app/models
-      - ./cache/cache:/root/.cache/llama_cpp
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 20s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
-  
