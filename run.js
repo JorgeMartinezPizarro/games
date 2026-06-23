@@ -30,6 +30,10 @@ function getPort(mode, envFromFile) {
   return 3000;
 }
 
+console.log("COMMAND:", process.argv[2]);
+console.log("DEV_PORT:", process.env.DEV_PORT);
+console.log("PORT:", process.env.PORT);
+
 const command = process.argv[2];
 
 if (!command || !["dev", "start"].includes(command)) {
