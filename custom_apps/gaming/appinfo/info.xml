@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<info>
+    <id>gaming</id>
+    <name>Gaming</name>
+    <description>A nextcloud app to play and learn</description>
+    <version>1.0.0</version>
+    <author>George</author>
+    <namespace>Gaming</namespace>
+    <category>productivity</category>
+    <dependencies>
+        <nextcloud min-version="28" max-version="32.*"/>
+    </dependencies>
+    <navigations>
+        <navigation>
+            <route>gaming.page.index</route>
+            <name>Gaming APP</name>
+            <icon>img/icon-test.png</icon>
+        </navigation>
+    </navigations>
+</info>

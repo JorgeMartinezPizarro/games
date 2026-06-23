@@ -1,10 +1,7 @@
 ## TODO
 
-- Add Makefile with build start stop commands.
 - Adapt paths to docker volumes. Build last working version.
 - Use docker network to connect to the dockerized services for security.
-- Move docker spaces to private env variables.
-- Add docker volumne with the helloworld app for nextcloud.
 
 ## ABOUT
 
@@ -65,3 +62,4 @@ It is required to link the app with a nextcloud valid URL, otherwise you can byp
 NEXT_PUBLIC_ENABLE_LOGIN=false
 ```
 
+Otherwise you can link with a nextcloud app, and add the `gaming` app to the `custom_apps` nextcloud folder.
