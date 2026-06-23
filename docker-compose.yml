@@ -5,8 +5,14 @@ services:
     ports:
       - ${PORT}:3000
     environment:
-      - NEXTCLOUD_URL=${NEXTCLOUD_URL}
+      - DEV_PORT=${DEV_PORT}
       - PORT=${PORT}
+      - NEXTCLOUD_URL=${NEXTCLOUD_URL}
+      - NEXT_PUBLIC_ENABLE_LOGIN=${NEXT_PUBLIC_ENABLE_LOGIN}
+      - NEXT_PUBLIC_CHESS_URL=${NEXT_PUBLIC_CHESS_URL}
+      - NEXT_PUBLIC_WORD_URL=${NEXT_PUBLIC_WORD_URL}
+    volumes:
+      - ./cache/audio/:/app/cache/audio
   wordlist:
     image: jorgemartinezpizarro/wordlist:latest
     # Exposed to comunicate node, remove later to use docker network communication
