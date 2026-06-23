@@ -15,16 +15,16 @@ function loadEnvFile() {
 }
 
 function getPort(mode, envFromFile) {
-  // prioridad: env runtime > env file > default
-
   if (mode === "dev") {
-    if (process.env.DEV_PORT) return process.env.DEV_PORT;
-    if (envFromFile.DEV_PORT) return envFromFile.DEV_PORT;
+    return process.env.DEV_PORT
+      || envFromFile.DEV_PORT
+      || 3000;
   }
 
   if (mode === "start") {
-    if (process.env.PORT) return process.env.PORT;
-    if (envFromFile.PORT) return envFromFile.PORT;
+    return process.env.PORT
+      || envFromFile.PORT
+      || 3000;
   }
 
   return 3000;

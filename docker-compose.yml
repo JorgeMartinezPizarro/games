@@ -5,7 +5,6 @@ services:
     ports:
       - ${PORT}:3000
     environment:
-      - DEV_PORT=${DEV_PORT}
       - PORT=${PORT}
       - DEV_PORT=${DEV_PORT}
       - NEXTCLOUD_URL=${NEXTCLOUD_URL}
