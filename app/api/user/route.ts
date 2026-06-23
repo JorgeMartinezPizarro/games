@@ -29,6 +29,8 @@ function parseNextcloudUser(payload: unknown): AuthUser {
 }
 
 export async function GET(request: NextRequest) {
+
+	console.log("get user", process.env.NEXT_PUBLIC_ENABLE_LOGIN);
   if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "false") {
     return NextResponse.json({ id: "dev", name: "Dev User", email: "dev@local" });
   }
