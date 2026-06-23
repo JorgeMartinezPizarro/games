@@ -1,10 +1,10 @@
+import { NextRequest, NextResponse } from "next/server";
+
 export type AuthUser = {
   id: string;
   name: string;
   email: string;
 };
-
-const userCache = new Map<string, { user: AuthUser; expires: number }>();
 
 type NextcloudUserPayload = {
   ocs?: {
@@ -28,27 +28,20 @@ function parseNextcloudUser(payload: unknown): AuthUser {
   };
 }
 
-export async function requireAuth(request: Request): Promise<AuthUser> {
+export async function GET(request: NextRequest) {
   if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "false") {
-    return { id: "dev", name: "Dev User", email: "dev@local" };
+    return NextResponse.json({ id: "dev", name: "Dev User", email: "dev@local" });
   }
 
   const cookie = request.headers.get("cookie") || "";
 
   if (!cookie) {
-    throw new Error("No session cookie");
-  }
-
-  const cached = userCache.get(cookie);
-  const now = Date.now();
-
-  if (cached && cached.expires > now) {
-    return cached.user;
+    return NextResponse.json({ error: "No session cookie" }, { status: 401 });
   }
 
   const nextcloudUrl = process.env.NEXTCLOUD_URL;
   if (!nextcloudUrl) {
-    throw new Error("Server misconfigured: missing NEXTCLOUD_URL");
+    return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
   }
 
   let res: Response;
@@ -61,17 +54,24 @@ export async function requireAuth(request: Request): Promise<AuthUser> {
       },
     });
   } catch {
-    throw new Error("Nextcloud unreachable");
+    return NextResponse.json({ error: "Nextcloud unreachable" }, { status: 502 });
   }
 
   if (!res.ok) {
-    throw new Error("Invalid Nextcloud session");
+    return NextResponse.json({ error: "Invalid Nextcloud session" }, { status: 401 });
   }
 
-  const payload = await res.json();
-  const user = parseNextcloudUser(payload);
+  let payload: unknown;
+  try {
+    payload = await res.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid response from Nextcloud" }, { status: 502 });
+  }
 
-  userCache.set(cookie, { user, expires: now + 60_000 });
-
-  return user;
+  try {
+    const user = parseNextcloudUser(payload);
+    return NextResponse.json(user);
+  } catch {
+    return NextResponse.json({ error: "Invalid user profile" }, { status: 401 });
+  }
 }

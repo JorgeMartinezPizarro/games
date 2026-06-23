@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
   console.log("Nextcloud auth middleware");
@@ -10,58 +10,56 @@ export async function proxy(request: NextRequest) {
 
   const cookie = request.headers.get("cookie") || "";
 
-  console.log("Cookie received:", cookie ? "YES" : "NO");
-
-  // 🔴 Si nginx ya protege, esto ya debería ser suficiente
   if (!cookie) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    console.log("No cookie → redirect login");
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // 🟡 Validación REAL contra Nextcloud (OCS)
-  const res = await fetch(
-    (process.env.NEXTCLOUD_URL || "") + "/ocs/v2.php/cloud/user",
-    {
-      method: "GET",
+  const nextcloudUrl = process.env.NEXTCLOUD_URL;
+  if (!nextcloudUrl) {
+    console.error("Missing NEXTCLOUD_URL");
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${nextcloudUrl}/ocs/v2.php/cloud/user?format=json`, {
       headers: {
         cookie,
-
-        // 🔥 CLAVE en Nextcloud 33
+        Accept: "application/json",
         "OCS-APIRequest": "true",
-        "Accept": "application/json",
       },
-    }
-  );
+    });
+  } catch (e) {
+    console.error("Nextcloud unreachable:", e);
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
 
   console.log("OCS status:", res.status);
 
-  // 🚨 Si Nextcloud rechaza la request
   if (!res.ok) {
     console.log("Auth failed → redirect login");
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // 🟢 Parse seguro
-  let data: any;
+  let data: { ocs?: { data?: { id?: string | number } } };
   try {
     data = await res.json();
-  } catch (e) {
+  } catch {
     console.log("Invalid JSON from Nextcloud");
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   const userId = data?.ocs?.data?.id;
-
   console.log("Nextcloud user:", userId);
 
   if (!userId) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // 🟢 Usuario autenticado
   return NextResponse.next();
 }
 
-// matcher intacto (como pediste)
 export const config = {
-  matcher: ['/pages/:path*'],
+  matcher: ["/pages/:path*"],
 };

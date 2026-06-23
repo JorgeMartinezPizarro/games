@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import MainMenu from "./components/MainMenu";
 import Image from "next/image";
 import { formatGameScore, useBestScores, type GameId } from "./hooks/useBestScores";
+import { useUser } from "./hooks/useUser";
 
 const key = "123213231asdssdadasdas213";
 
@@ -19,6 +20,7 @@ const AgePage = () => {
   const [birthDate, setBirthDate] = useState("");
   const [days, setDays] = useState(0);
 
+  const { user, loading: userLoading } = useUser();
   const { games: bestScores, loading: scoresLoading } = useBestScores();
 
   useEffect(() => {
@@ -51,6 +53,8 @@ const AgePage = () => {
   const bestFor = (gameId: GameId) =>
     bestScores.find((g) => g.gameId === gameId) ?? null;
 
+  const displayName = userLoading ? "..." : user.name;
+
   return (
     <>
       <MainMenu />
@@ -64,19 +68,19 @@ const AgePage = () => {
           justifyContent: "center",
           height: "60vh",
           gap: 4,
-		  m: 4,
+          m: 4,
         }}
       >
         <p>Enter your birthdate as <i>dd-mm-yyyy</i></p>
 
         <TextField
-          style={{ background: "grey"}}
+          style={{ background: "grey" }}
           value={birthDate}
           onChange={(e: any) => setBirthDate(e.target.value)}
         />
 
         <p>
-          Dear <i>user</i>, you are since {days} days on planet Earth, congratulations!
+          Dear <i>{displayName}</i>, you are since {days} days on planet Earth, congratulations!
         </p>
 
         <Box
