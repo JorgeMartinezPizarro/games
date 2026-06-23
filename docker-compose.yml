@@ -3,7 +3,7 @@ services:
     image: jorgemartinezpizarro/games:latest
     restart: always
     ports:
-      - ${PORT}:3000
+      - ${PORT}:${PORT}
     environment:
       - PORT=${PORT}
       - DEV_PORT=${DEV_PORT}
