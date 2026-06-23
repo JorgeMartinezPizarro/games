@@ -7,6 +7,7 @@ services:
     environment:
       - DEV_PORT=${DEV_PORT}
       - PORT=${PORT}
+      - DEV_PORT=${DEV_PORT}
       - NEXTCLOUD_URL=${NEXTCLOUD_URL}
       - NEXT_PUBLIC_ENABLE_LOGIN=${NEXT_PUBLIC_ENABLE_LOGIN}
       - NEXT_PUBLIC_CHESS_URL=${NEXT_PUBLIC_CHESS_URL}
