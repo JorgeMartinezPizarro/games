@@ -17,7 +17,7 @@ export function useUser() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/user")
+    fetch("/bookmarks/api/user")
       .then((res) => (res.ok ? res.json() : ANONYMOUS))
       .then((data) => setUser(data))
       .catch(() => setUser(ANONYMOUS))
