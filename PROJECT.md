@@ -12,15 +12,8 @@ Trabajas sobre un proyecto con arquitectura full-stack basada en Next.js 14, con
 - React 19
 - TypeScript
 - MUI (Material UI) + Emotion (styling)
-- NextAuth (OAuth2 con proveedor Nextcloud + refresh tokens)
 - SQLite (better-sqlite3 + sqlite3)
-- Axios
-- crypto-js
 - chess.js
-- music-metadata
-- fluent-ffmpeg
-- webdav
-- ws (WebSockets)
 - node 22
 
 ---
@@ -46,10 +39,7 @@ El proyecto utiliza basePath:
 
 # AUTENTICACIÓN
 
-- NextAuth con OAuth2 (Nextcloud provider)
-- Refresh tokens automáticos
-- Middleware proxy.ts protege rutas privadas
-- Todas las llamadas API deben usar requireAuth
+- Proxy y requireAuth consultan el endpoint OCS/user para validar el login del usuario. Con ese mismo endpoint de nextcloud obtenemos la informacion del usuario.
 
 REGLA CRÍTICA:
 No modificar lógica de autenticación sin instrucción explícita.

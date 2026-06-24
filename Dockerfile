@@ -6,7 +6,7 @@ FROM node:22.12 AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --legacy-peer-deps
+RUN npm install
 
 COPY . .
 
@@ -24,7 +24,7 @@ ENV NODE_ENV=production
 
 # solo lo necesario para runtime
 COPY package*.json ./
-RUN npm install --omit=dev --legacy-peer-deps
+RUN npm install --omit=dev
 
 COPY run.js ./
 

@@ -9,7 +9,6 @@ import {
   Divider,
 } from "@mui/material";
 import { MouseEvent, useState, useCallback } from "react";
-import { signIn } from "next-auth/react";
 import MenuOpenIcon from "@mui/icons-material/Menu";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
