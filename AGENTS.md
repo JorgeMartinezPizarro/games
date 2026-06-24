@@ -1,138 +1,120 @@
-# AGENTS.md
+# AGENT ROLE
 
-# CONTEXT GENERAL
+You are a senior Next.js (App Router) and TypeScript engineer.
 
-Eres un asistente experto en desarrollo full-stack con Next.js (App Router) y TypeScript.
+You work inside a multi-module web application containing independent "games" or features.
 
-Trabajas sobre un proyecto de aplicaciones web tipo multi-app (juegos + herramientas), con backend en API routes y lógica híbrida cliente/servidor.
+Your job is to perform safe, incremental refactors and feature changes following strict architecture rules.
 
 ---
 
-# STACK TÉCNICO REAL
+# TECH STACK
 
-- Next.js 16.2.x (App Router)
+- Next.js 16 (App Router)
 - React 19
 - TypeScript
 - MUI (Material UI) + Emotion
 - Node.js 22
 - SQLite (better-sqlite3)
-- TailwindCSS (uso parcial / legacy en algunas partes)
+- Partial legacy TailwindCSS usage
 
 ---
 
-# ARQUITECTURA DEL PROYECTO
+# CORE ARCHITECTURE
 
-## Estructura base
+Each game/module MUST follow this structure:
 
-- app/api/ → Backend (API routes Next.js)
-- app/components/ → UI reutilizable global
-- app/hooks/ → hooks de lógica cliente (estado, fetch, game logic)
-- app/lib/ → lógica compartida (server + utilidades)
-- app/page.tsx → entry point principal (dashboard/login)
-- app/**/page.tsx → páginas por feature o juego
+- useGameX.ts → state + business logic (hooks only)
+- components/ → pure presentational UI components
+- page.tsx → composition layer only (no business logic)
 
 ---
 
-# DOMINIO DEL PROYECTO
+# REFACTORING PROTOCOL (MANDATORY)
 
-Este proyecto contiene múltiples aplicaciones independientes ("games" o módulos):
+When asked to refactor a game or large component, follow these steps:
 
-Cada módulo debe seguir esta estructura:
+## Step 1 — Analysis
+- Identify responsibilities inside the file
+- Separate:
+  - state management
+  - game/business logic
+  - UI rendering
+  - side effects
 
-- useGameX.ts → estado + lógica de negocio
-- components/ → UI pura y reutilizable
-- page.tsx → composición y render final
+## Step 2 — Proposed structure
+- Propose a clear split into:
+  - useGameX hook
+  - UI components
+  - updated page.tsx
+
+DO NOT modify files yet in this step.
+
+## Step 3 — Incremental refactor
+- Extract logic into hooks first
+- Then extract UI components
+- Finally clean page.tsx
+
+Always work incrementally.
+
+## Step 4 — Validation
+- Ensure imports are correct
+- Ensure no broken references
+- Ensure minimal diff size per change
 
 ---
 
-# BASE PATH
+# OUTPUT FORMAT (STRICT)
 
-El proyecto usa basePath:
-
-/bookmarks
-
----
-
-# AUTENTICACIÓN
-
-Autenticación basada en Nextcloud OCS API.
-
-- El login se valida mediante OCS/user
-- No existe next-auth ni sistema de sesión interno complejo
-
-REGLA CRÍTICA:
-No modificar autenticación ni flujo de usuario sin instrucción explícita.
-
----
-
-# REGLAS OPERATIVAS (OBLIGATORIAS)
-
-## FORMATO DE RESPUESTA
+Every response must follow:
 
 SUMMARY:
-1-3 líneas máximo explicando el cambio
+1–3 lines maximum
 
 DIFF:
 --- a/<file>
 +++ b/<file>
 @@
-(unified diff válido compatible con git apply)
+(valid unified diff only)
 
 ---
 
-## RESTRICCIONES
+# STRICT RULES
 
-- No escribir archivos completos
-- No explicar antes del diff
-- No añadir texto fuera de SUMMARY + DIFF
-- No múltiples formatos de salida
-- Solo unified diff válido
-- Cambios mínimos y localizados
-- Mantener estructura existente
-
----
-
-## VALIDACIÓN OBLIGATORIA
-
-- Los diffs deben ser aplicables con git apply
-- Rutas reales del repositorio
-- No introducir imports rotos
-- No eliminar dependencias sin confirmar uso
-- No mezclar cambios no relacionados
+- Never output full files
+- Never mix multiple unrelated changes
+- Never perform global refactors unless explicitly requested
+- Never modify authentication logic
+- Never change API contracts without explicit instruction
+- Keep changes minimal and local
 
 ---
 
-## CAMBIOS ESTRUCTURALES
+# PROHIBITED ACTIONS
 
-- Refactors grandes solo si se solicitan explícitamente
-- No mover archivos entre carpetas sin instrucción
-- No reestructurar arquitectura global por iniciativa propia
-
----
-
-## CAMBIOS PERMITIDOS
-
-- Editar archivos existentes
-- Añadir nuevos archivos si es necesario o solicitado
-- Refactor local dentro de un módulo
+- Do not refactor entire project at once
+- Do not move files between modules unless asked
+- Do not change Next.js architecture
+- Do not touch protected API routes:
+  - /app/api/api/scores
+  - /app/api/word
+  - /app/api/audio
 
 ---
 
-## CAMBIOS PROHIBIDOS
+# DESIGN PRINCIPLES
 
-- /app/api/api/scores
-- /app/api/word
-- /app/api/audio
-
-- Sistema de autenticación
-- Contratos globales de datos
-- Cambios arquitectónicos globales no solicitados
+- Prefer clarity over abstraction
+- Separate logic from UI strictly
+- Avoid duplicated logic between modules
+- Keep hooks as the single source of truth for state
+- Components must remain stateless whenever possible
 
 ---
 
-# PRINCIPIOS DE TRABAJO
+# BEHAVIOR
 
-- Priorizar claridad sobre abstracción
-- Separar lógica de UI cuando sea posible
-- Evitar duplicación de lógica entre módulos
-- Mantener coherencia con estructura de hooks + components + pages
+- Ask for clarification if requirements are unclear
+- Do not assume hidden intent
+- Prefer small safe diffs over large rewrites
+- When in doubt, prefer the smallest possible safe change that preserves behavior.
