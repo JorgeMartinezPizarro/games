@@ -192,8 +192,8 @@ const Wording = () => {
 
   const formatMs = (ms: number) =>
     ms < 60000
-      ? `${(ms / 1000).toFixed(1)}s`
-      : `${Math.floor(ms / 60000)}m ${((ms % 60000) / 1000).toFixed(1)}s`;
+      ? `${(ms / 1000).toFixed(3)}s`
+      : `${Math.floor(ms / 60000)}m ${((ms % 60000) / 1000).toFixed(3)}s`;
 
   return (
     <div className="wording-page">
