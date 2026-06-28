@@ -1,133 +1,56 @@
 'use client';
 
 import MainMenu from "@/app/components/MainMenu";
-import { TextField, Button } from "@mui/material";
+import { Button } from "@mui/material";
 import { useCallback, useEffect, useState, useRef } from "react";
 import "./styles.css";
 
-const WORDS_TOTAL = 10;
+// -------------------------------------------------------
+// Tipos
+// -------------------------------------------------------
+const ROUNDS_TOTAL = 10;
+const CHOICES      = 4;
+
+type Round = {
+  target:  string;
+  audio:   string;   // URL local: /bookmarks/api/audio?file=forgiver.mp3
+  choices: string[]; // 4 palabras barajadas
+};
 
 type ScoreEntry = {
-  score: number;
-  name: string;
+  score:      number;
+  name:       string;
   wordsTotal: number;
   createdAt?: string;
 };
 
-type AudioResponse = {
-  word: string;
-  url: string;
-};
+type GameState = 'idle' | 'loading' | 'playing' | 'finished';
 
+// -------------------------------------------------------
+// Componente
+// -------------------------------------------------------
 const Wording = () => {
-  const [word, setWord] = useState("");
-  const [audioUrl, setAudioUrl] = useState<string>("");
-
-  const [score, setScore] = useState(0);
-  const [text, setText] = useState("");
-  const [showWord, setShowWord] = useState(true);
-  const [playing, setPlaying] = useState(false);
-  const [showScores, setShowScores] = useState(true);
-  const [topScores, setTopScores] = useState<ScoreEntry[]>([]);
-  const [scoreSaved, setScoreSaved] = useState(false);
-  const [finished, setFinished] = useState(false);
-
+  const [gameState, setGameState]       = useState<GameState>('idle');
+  const [rounds, setRounds]             = useState<Round[]>([]);
+  const [currentRound, setCurrentRound] = useState(0);
+  const [score, setScore]               = useState(0);          // aciertos
+  const [showScores, setShowScores]     = useState(false);
+  const [topScores, setTopScores]       = useState<ScoreEntry[]>([]);
+  const [scoreSaved, setScoreSaved]     = useState(false);
   const [finishedTime, setFinishedTime] = useState<number | null>(null);
   const [finishedRank, setFinishedRank] = useState<number | null>(null);
+  const [feedback, setFeedback]         = useState<'correct' | 'wrong' | null>(null);
 
   const startTimeRef = useRef<number>(0);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [elapsedMs, setElapsedMs]       = useState(0);
+  const timerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioRef     = useRef<HTMLAudioElement | null>(null);
 
-  const loadScores = useCallback(async (): Promise<ScoreEntry[]> => {
-    try {
-      const response = await fetch("/bookmarks/api/scores?gameId=4");
-      const data = await response.json();
-
-      if (data.scores) {
-        const mapped: ScoreEntry[] = data.scores.map((s: any) => ({
-          score: s.score,
-          name: s.username,
-          wordsTotal: s.gameConfig?.wordsTotal || WORDS_TOTAL,
-          createdAt: s.createdAt,
-        }));
-        setTopScores(mapped);
-        return mapped;
-      }
-    } catch (error) {
-      console.error("Error loading scores:", error);
-    }
-    return [];
-  }, []);
-
-  const requestAudioWord = useCallback(async () => {
-    if (!playing) {
-      setWord("");
-      setAudioUrl("");
-      return;
-    }
-
-    const res = await fetch("/bookmarks/api/audio");
-    const data: AudioResponse = await res.json();
-
-    setWord(data.word);
-    setAudioUrl(data.url);
-  }, [playing]);
-
-  const saveScore = useCallback(async () => {
-    if (scoreSaved) return;
-
-    const elapsed = Date.now() - startTimeRef.current;
-    setFinishedTime(elapsed);
-
-    try {
-      const response = await fetch("/bookmarks/api/scores", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          gameId: 4,
-          username: "player",
-          score: elapsed,
-          gameConfig: { wordsTotal: WORDS_TOTAL }
-        }),
-      });
-
-      if (response.ok) {
-        setScoreSaved(true);
-        const updated = await loadScores();
-
-        const sorted = [...updated].sort((a, b) => a.score - b.score);
-        const idx = sorted.findIndex((s) => s.score === elapsed);
-        setFinishedRank(idx >= 0 && idx < 10 ? idx + 1 : null);
-
-        setShowScores(false);
-      }
-    } catch (error) {
-      console.error("Error saving score:", error);
-    }
-  }, [scoreSaved, loadScores]);
-
-  const saveScoreRef = useRef(saveScore);
-
+  // -------------------------------------------------------
+  // Cronómetro
+  // -------------------------------------------------------
   useEffect(() => {
-    saveScoreRef.current = saveScore;
-  }, [saveScore]);
-
-  // RESET PARTIDA + arranque/parada del cronómetro
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    if (playing) {
-      setScore(0);
-      setScoreSaved(false);
-      setFinished(false);
-      setFinishedTime(null);
-      setFinishedRank(null);
-
-      startTimeRef.current = Date.now();
-      setElapsedMs(0);
-
+    if (gameState === 'playing') {
       timerRef.current = setInterval(() => {
         setElapsedMs(Date.now() - startTimeRef.current);
       }, 100);
@@ -137,170 +60,297 @@ const Wording = () => {
         timerRef.current = null;
       }
     }
-
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [playing]);
+  }, [gameState]);
 
-  // Foco automático
+  // -------------------------------------------------------
+  // Autoplay cuando cambia la ronda
+  // -------------------------------------------------------
   useEffect(() => {
-    if (playing) {
-      setTimeout(() => inputRef.current?.focus(), 50);
+    if (gameState === 'playing' && rounds[currentRound]) {
+      // pequeño delay para que el <audio> monte con el nuevo src
+      setTimeout(() => {
+        audioRef.current?.play().catch(e => console.warn('autoplay blocked:', e));
+      }, 80);
     }
-  }, [playing]);
+  }, [currentRound, gameState, rounds]);
 
-  // nueva palabra
-  useEffect(() => {
-    requestAudioWord();
-  }, [requestAudioWord]);
-
-  useEffect(() => {
-    loadScores();
-  }, [loadScores]);
-
-  // autoplay audio cuando cambia
-  useEffect(() => {
-    if (playing) {
-      audioRef.current?.play().catch((e) => console.warn("No se pudo autoreproducir:", e));
+  // -------------------------------------------------------
+  // Scores
+  // -------------------------------------------------------
+  const loadScores = useCallback(async (): Promise<ScoreEntry[]> => {
+    try {
+      const res  = await fetch('/bookmarks/api/scores?gameId=4');
+      const data = await res.json();
+      if (data.scores) {
+        const mapped: ScoreEntry[] = data.scores.map((s: any) => ({
+          score:      s.score,
+          name:       s.username,
+          wordsTotal: s.gameConfig?.wordsTotal ?? ROUNDS_TOTAL,
+          createdAt:  s.createdAt,
+        }));
+        setTopScores(mapped);
+        return mapped;
+      }
+    } catch (e) {
+      console.error('Error loading scores:', e);
     }
-  }, [audioUrl, playing]);
+    return [];
+  }, []);
 
-  // Volver a escuchar el audio actual
-  const handleReplayAudio = useCallback(() => {
+  useEffect(() => { loadScores(); }, [loadScores]);
+
+  const saveScore = useCallback(async (elapsed: number) => {
+    if (scoreSaved) return;
+    try {
+      const res = await fetch('/bookmarks/api/scores', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameId:     4,
+          score:      elapsed,
+          gameConfig: { wordsTotal: ROUNDS_TOTAL },
+        }),
+      });
+      if (res.ok) {
+        setScoreSaved(true);
+        const updated = await loadScores();
+        const sorted  = [...updated].sort((a, b) => a.score - b.score);
+        const idx     = sorted.findIndex(s => s.score === elapsed);
+        setFinishedRank(idx >= 0 && idx < 10 ? idx + 1 : null);
+      }
+    } catch (e) {
+      console.error('Error saving score:', e);
+    }
+  }, [scoreSaved, loadScores]);
+
+  // -------------------------------------------------------
+  // Iniciar partida: precarga todo de una vez
+  // -------------------------------------------------------
+  const startGame = useCallback(async () => {
+    setGameState('loading');
+    setScore(0);
+    setCurrentRound(0);
+    setScoreSaved(false);
+    setFinishedTime(null);
+    setFinishedRank(null);
+    setFeedback(null);
+
+    try {
+      const res  = await fetch(`/bookmarks/api/audio?rounds=${ROUNDS_TOTAL}&choices=${CHOICES}`);
+      const data = await res.json();
+      if (!data.rounds?.length) throw new Error('No rounds received');
+
+      setRounds(data.rounds);
+      startTimeRef.current = Date.now();
+      setElapsedMs(0);
+      setGameState('playing');
+    } catch (e) {
+      console.error('Error loading challenge:', e);
+      setGameState('idle');
+    }
+  }, []);
+
+  // -------------------------------------------------------
+  // El jugador elige una palabra
+  // -------------------------------------------------------
+  const handleChoice = useCallback((choice: string) => {
+    if (gameState !== 'playing' || feedback) return;
+
+    const round   = rounds[currentRound];
+    const correct = choice === round.target;
+
+    setFeedback(correct ? 'correct' : 'wrong');
+
+    setTimeout(() => {
+      setFeedback(null);
+
+      if (correct) setScore(s => s + 1);
+
+      const next = currentRound + 1;
+
+      if (next >= ROUNDS_TOTAL) {
+        // Partida terminada
+        const elapsed = Date.now() - startTimeRef.current;
+        setFinishedTime(elapsed);
+        setGameState('finished');
+        saveScore(elapsed);
+      } else {
+        setCurrentRound(next);
+      }
+    }, 500);
+  }, [gameState, feedback, rounds, currentRound, saveScore]);
+
+  // -------------------------------------------------------
+  // Replay audio
+  // -------------------------------------------------------
+  const handleReplay = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
     audio.currentTime = 0;
-    audio.play().catch((e) => console.warn("No se pudo reproducir el audio:", e));
+    audio.play().catch(e => console.warn('replay failed:', e));
   }, []);
 
-  const handleSubmitWord = () => {
-    if (text === word && playing) {
-      const next = score + 1;
+  // -------------------------------------------------------
+  // Render helpers
+  // -------------------------------------------------------
+  const sortedScores = [...topScores].sort((a, b) => a.score - b.score).slice(0, 10);
+  const round        = rounds[currentRound];
 
-      setScore(next);
-      setText("");
+  const formatMs = (ms: number) =>
+    ms < 60000
+      ? `${(ms / 1000).toFixed(1)}s`
+      : `${Math.floor(ms / 60000)}m ${((ms % 60000) / 1000).toFixed(1)}s`;
 
-      if (next >= WORDS_TOTAL) {
-        setPlaying(false);
-        setFinished(true);
-        saveScoreRef.current();
-        return;
-      }
-
-      requestAudioWord();
-    }
-  };
-
-  const sortedScores = [...topScores]
-    .sort((a, b) => a.score - b.score)
-    .slice(0, 10);
-
+  // -------------------------------------------------------
+  // JSX
+  // -------------------------------------------------------
   return (
     <div className="wording-page">
       <MainMenu />
 
-      <Button
-        className="toggle-view-btn"
-        variant="contained"
-        onClick={() => setShowScores(!showScores)}
-      >
-        {showScores ? "Ver Puntuaciones" : "Jugar"}
-      </Button>
+      {/* Toggle play / scores */}
+      <div className="wording-header">
+        <Button
+          className="toggle-view-btn"
+          variant="contained"
+          onClick={() => setShowScores(s => !s)}
+        >
+          {showScores ? '🎮 Jugar' : '🏆 Puntuaciones'}
+        </Button>
+      </div>
 
-      {showScores ? (
+      {/* ================================================
+          VISTA JUEGO
+      ================================================ */}
+      {!showScores && (
         <div className="panel">
-          <h2 className="panel-title">
-            {!playing && finished
-              ? "🎉 Partida finalizada"
-              : !playing
-              ? "👋 Bienvenido"
-              : showWord
-              ? word
-              : "Oculta"}
-          </h2>
 
-          {playing && (
-            <TextField
-              inputRef={inputRef}
-              color={word === text ? "primary" : "error"}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && text === word) {
-                  handleSubmitWord();
-                }
-              }}
-              className="word-input"
-              value={text}
-              onChange={(e: any) => setText(e.target.value)}
-              placeholder="Escribe la palabra aquí..."
-            />
+          {/* IDLE */}
+          {gameState === 'idle' && (
+            <>
+              <h2 className="panel-title">👂 Wording</h2>
+              <p className="panel-subtitle">
+                Escucha la palabra y selecciona la correcta entre las opciones.
+              </p>
+              <Button className="action-btn action-btn--play" variant="contained" onClick={startGame}>
+                JUGAR
+              </Button>
+            </>
           )}
 
-          <div className="button-row">
-            <Button
-              className={`action-btn ${playing ? "action-btn--play" : "action-btn--stopped"}`}
-              variant="contained"
-              onClick={() => setPlaying(!playing)}
-            >
-              {playing ? "DETENER" : "JUGAR"}
-            </Button>
+          {/* LOADING */}
+          {gameState === 'loading' && (
+            <>
+              <h2 className="panel-title">Cargando partida…</h2>
+              <div className="loading-spinner" />
+            </>
+          )}
 
-            <Button
-              className="action-btn action-btn--neutral"
-              variant="contained"
-              onClick={() => setShowWord(!showWord)}
-            >
-              {!showWord ? "MOSTRAR" : "OCULTAR"}
-            </Button>
+          {/* PLAYING */}
+          {gameState === 'playing' && round && (
+            <>
+              <p className="round-counter">
+                Ronda <strong>{currentRound + 1}</strong> / {ROUNDS_TOTAL}
+              </p>
 
-            <Button
-              className="action-btn action-btn--submit"
-              variant="contained"
-              onClick={handleSubmitWord}
-              disabled={!playing}
-            >
-              ✓
-            </Button>
-          </div>
+              <p className="stats-line">
+                ⏱ {formatMs(elapsedMs)} &nbsp;|&nbsp; ✅ {score}
+              </p>
 
-          <div className="button-row">
-            <Button
-              className="action-btn action-btn--replay"
-              variant="outlined"
-              onClick={handleReplayAudio}
-              disabled={!playing || !audioUrl}
-            >
-              🔁 Escuchar de nuevo
-            </Button>
-          </div>
+              {/* Audio oculto */}
+              <audio ref={audioRef} key={round.audio}>
+                <source src={round.audio} type="audio/mpeg" />
+              </audio>
 
-          <p className="stats-line">
-            Palabras: <strong>{score}</strong> / {WORDS_TOTAL} | Tiempo:{" "}
-            <strong>{elapsedMs} ms</strong>
-          </p>
+              {/* Botón replay */}
+              <Button
+                className="action-btn action-btn--replay"
+                variant="outlined"
+                onClick={handleReplay}
+              >
+                🔁 Escuchar de nuevo
+              </Button>
 
-          {audioUrl !== "" && (
-            <audio ref={audioRef} key={audioUrl} className="hidden-audio">
-              <source src={audioUrl} type="audio/mpeg" />
-            </audio>
+              {/* Opciones */}
+              <div className={`choices-grid choices-grid--${CHOICES}`}>
+                {round.choices.map((choice) => {
+                  let cls = 'choice-btn';
+                  if (feedback === 'correct' && choice === round.target) cls += ' choice-btn--correct';
+                  if (feedback === 'wrong'   && choice === round.target) cls += ' choice-btn--reveal';
+
+                  return (
+                    <Button
+                      key={choice}
+                      className={cls}
+                      variant="contained"
+                      disabled={!!feedback}
+                      onClick={() => handleChoice(choice)}
+                    >
+                      {choice}
+                    </Button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* FINISHED */}
+          {gameState === 'finished' && (
+            <>
+              <h2 className="panel-title">🎉 ¡Partida terminada!</h2>
+
+              <div className="finished-summary">
+                <div className="finished-summary__time">
+                  ⏱ Tiempo: <strong>{finishedTime !== null ? formatMs(finishedTime) : '—'}</strong>
+                </div>
+                <div className="finished-summary__time">
+                  ✅ Aciertos: <strong>{score} / {ROUNDS_TOTAL}</strong>
+                </div>
+                {finishedRank !== null ? (
+                  <p className="finished-summary__rank">
+                    🏆 ¡Puesto #{finishedRank} del top 10!
+                  </p>
+                ) : (
+                  <p className="finished-summary__rank finished-summary__rank--outside">
+                    No has entrado en el top 10 esta vez.
+                  </p>
+                )}
+              </div>
+
+              <div className="button-row">
+                <Button className="action-btn action-btn--play" variant="contained" onClick={startGame}>
+                  🔄 Nueva partida
+                </Button>
+                <Button
+                  className="action-btn action-btn--neutral"
+                  variant="outlined"
+                  onClick={() => setShowScores(true)}
+                >
+                  🏆 Ver puntuaciones
+                </Button>
+              </div>
+            </>
           )}
         </div>
-      ) : (
-        <div className="scoreboard-panel">
-          <h3 className="scoreboard-title">Mejores Tiempos</h3>
+      )}
 
-          {finished && finishedTime !== null && (
+      {/* ================================================
+          VISTA SCORES
+      ================================================ */}
+      {showScores && (
+        <div className="scoreboard-panel">
+          <h3 className="scoreboard-title">🏆 Mejores Tiempos</h3>
+
+          {gameState === 'finished' && finishedTime !== null && (
             <div className="finished-summary">
               <div className="finished-summary__time">
-                ⏱ Tu tiempo: {finishedTime} ms
+                ⏱ Tu tiempo: {formatMs(finishedTime)}
               </div>
               {finishedRank !== null ? (
-                <p className="finished-summary__rank">
-                  🏆 ¡Puesto #{finishedRank} del top 10!
-                </p>
+                <p className="finished-summary__rank">🏆 ¡Puesto #{finishedRank} del top 10!</p>
               ) : (
                 <p className="finished-summary__rank finished-summary__rank--outside">
                   No has entrado en el top 10 esta vez.
@@ -318,7 +368,7 @@ const Wording = () => {
                   <tr>
                     <th>#</th>
                     <th>Usuario</th>
-                    <th>Tiempo (ms)</th>
+                    <th>Tiempo</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -326,13 +376,22 @@ const Wording = () => {
                     <tr key={i}>
                       <td>{i + 1}</td>
                       <td>{s.name}</td>
-                      <td>{s.score}</td>
+                      <td>{formatMs(s.score)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
           </div>
+
+          <Button
+            className="action-btn action-btn--play"
+            variant="contained"
+            onClick={() => { setShowScores(false); startGame(); }}
+            style={{ marginTop: '1.5rem' }}
+          >
+            🎮 Jugar
+          </Button>
         </div>
       )}
     </div>
