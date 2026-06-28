@@ -4,7 +4,7 @@ import { Box, Button, Paper, Table, TableBody, TableCell, TableContainer, TableH
 import React, { useCallback, useEffect, useState } from "react";
 import "./styles.css";
 import { CellValues } from "./types";
-import { randomArrayCellValues } from "./helpers";
+import { randomArrayCellValues, hasSolution } from "./helpers";
 import MainMenu from "@/app/components/MainMenu";
 import { errorMessage } from "@/app/helpers";
 
@@ -72,39 +72,60 @@ const GamesComponent = () => {
     }
   }, [])
 
+  const isBlocked = useCallback((currentCell: CellValues, updatedNumbers: CellValues[]): boolean => {
+    const jump = currentCell.values.n;
+    const pos = currentCell.values.i;
+    const n = updatedNumbers.length;
+  
+    const next = (pos + jump) % n;
+    const prev = (pos - jump + n) % n;
+
+    return updatedNumbers[next]?.values.b && updatedNumbers[prev]?.values.b;
+  }, []);
+
   const handleClick = useCallback((cell: CellValues): boolean => {
     const clickIsRight = !cell.values.b && isRight && (
       last === undefined ||
-      (20 + last.values.i - cell.values.i) % 20 === last.values.n ||
-      (20 - last.values.i + cell.values.i) % 20 === last.values.n
-    )
+		(20 + last.values.i - cell.values.i) % 20 === last.values.n ||
+		(20 - last.values.i + cell.values.i) % 20 === last.values.n
+	)
 
-    if (!clickIsRight) {
-      saveScore()
-      setIsRight(false)
-      setLast(undefined)
-      return true
-    }
+	if (!clickIsRight) {
+		saveScore()
+		setIsRight(false)
+		setLast(undefined)
+		return true
+	}
 
-    const newNumbers = numbers.map(r => {
-      return r.values.i !== cell.values.i
-        ? { ...r }
-        : { values: { ...r.values, b: true } }
-    })
+	const newNumbers = numbers.map(r =>
+		r.values.i !== cell.values.i
+		? { ...r }
+		: { values: { ...r.values, b: true } }
+	)
 
-    if (last === undefined) setStart(Date.now())
-    setTime(Date.now())
-    setNumbers(newNumbers)
-    setSteps(steps + 1)
-    setLast({ ...cell })
+	if (last === undefined) setStart(Date.now())
+	setTime(Date.now())
+	setNumbers(newNumbers)
+	setSteps(steps + 1)
+	setLast({ ...cell })
 
-    // Si completó todos los números, guardar score
-    if (steps + 1 === 20) {
-      saveScore()
-    }
+	// Completó todas las casillas
+	if (steps + 1 === 20) {
+		saveScore()
+		return false
+	}
 
-    return false
-  }, [last, steps, numbers, isRight, saveScore])
+	// Detectar bloqueo: la celda recién visitada se marca b:true en newNumbers,
+	// pero cell aún tiene b:false, así que usamos cell con los valores actualizados
+	const updatedCell = { values: { ...cell.values, b: true } }
+	if (isBlocked(updatedCell, newNumbers)) {
+		saveScore()
+		setIsRight(false)
+		setLast(undefined)
+	}
+
+	return false
+	}, [last, steps, numbers, isRight, saveScore, isBlocked])
 
   const newNumbers = [...numbers]
   const [topRow, rightCol, bottomRow, leftCol] = [
@@ -115,18 +136,27 @@ const GamesComponent = () => {
   ]
 
   const newGame = useCallback(() => {
-    setLoading(true)
-    setIsRight(true)
-    setLast(undefined)
-    setNumbers(randomArrayCellValues(20))
-    setSteps(0)
-    setScoreSaved(false)
-    setTimeout(() => {
-      setStart(Date.now())
-      setLoading(false)
-      setTime(Date.now())
-    }, 150)
-  }, [])
+  setLoading(true);
+  setIsRight(true);
+  setLast(undefined);
+  setSteps(0);
+  setScoreSaved(false);
+
+  // Regenerar hasta encontrar tablero con solución
+  let cells = randomArrayCellValues(20);
+  let attempts = 0;
+  while (!hasSolution(cells) && attempts < 200) {
+    cells = randomArrayCellValues(20);
+    attempts++;
+  }
+
+  setNumbers(cells);
+  setTimeout(() => {
+    setStart(Date.now());
+    setLoading(false);
+    setTime(Date.now());
+  }, 150);
+}, []);
 
   useEffect(() => {
     loadScores()
@@ -146,10 +176,10 @@ const GamesComponent = () => {
   }
 
   const getCenterButtonText = (rowIndex: number, colIndex: number) => {
-    if (steps === 0 && rowIndex === 0 && colIndex === 0) return "Let's"
-    if (steps === 0 && rowIndex === 0 && colIndex === 1) return "Play"
-    if (!isRight && rowIndex === 0 && colIndex === 0) return "GAME"
-    if (!isRight && rowIndex === 0 && colIndex === 1) return "OVER"
+    if (steps === 0 && rowIndex === 1 && colIndex === 1) return "Let's"
+    if (steps === 0 && rowIndex === 1 && colIndex === 2) return "Play"
+    if (!isRight && rowIndex === 1 && colIndex === 1) return "GAME"
+    if (!isRight && rowIndex === 1 && colIndex === 2) return "OVER"
     return ""
   }
 
