@@ -1,145 +1,34 @@
 'use client'
 
 import { Box, Button, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import "./styles.css";
-import { CellValues } from "./types";
-import { randomArrayCellValues, hasSolution } from "./helpers";
 import MainMenu from "@/app/components/MainMenu";
 import { errorMessage } from "@/app/helpers";
+import { useNumbers, useScoreNumbers } from "./useGameNumbers";
 
 const GamesComponent = () => {
-  const [start, setStart] = useState(Date.now())
   const [view, setView] = useState<'play' | 'scores'>('play')
-  const [loading, setLoading] = useState(false)
-  const [isRight, setIsRight] = useState(true)
-  const [last, setLast] = useState<CellValues | undefined>(undefined)
-  const [numbers, setNumbers] = useState<CellValues[]>([])
-  const [steps, setSteps] = useState<number>(0)
-  const [time, setTime] = useState<number>(Date.now())
-  const [topScores, setTopScores] = useState<any[]>([])
-  const [error, setError] = useState<string | undefined>(undefined)
-  const [scoreSaved, setScoreSaved] = useState(false)
   const [mounted, setMounted] = useState(false)
 
-  // Score visible en UI — sigue dependiendo del estado para el display
-  const currentScore = time - start === 0
-    ? 0
-    : Math.round(steps ** 3 * 1000 / (time - start))
+  const { topScores, error, loadScores, saveScore, resetScore } = useScoreNumbers()
+
+  const {
+    numbers,
+    steps,
+    isRight,
+    loading,
+    currentScore,
+    handleClick,
+    newGame,
+  } = useNumbers({
+    onFinish: saveScore,
+    onReset: resetScore,
+  })
 
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  // Recibe los valores finales como parámetros para evitar el problema de closure
-  const saveScore = useCallback(async (finalScore: number, finalSteps: number) => {
-    if (scoreSaved) return
-
-    try {
-      const response = await fetch("/bookmarks/api/scores", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          gameId: 2,
-          score: finalScore,
-          gameConfig: { steps: finalSteps }
-        }),
-      })
-
-      if (response.ok) {
-        setScoreSaved(true)
-        await loadScores()
-      }
-    } catch (error) {
-      console.error("Error saving score:", error)
-    }
-  }, [scoreSaved]) // loadScores se añade abajo tras definirla
-
-  const loadScores = useCallback(async () => {
-    setError(undefined)
-    try {
-      const response = await fetch("/bookmarks/api/scores?gameId=2")
-      const data = await response.json()
-
-      if (data.scores) {
-        setTopScores(data.scores.map((score: any) => ({
-          score: score.score,
-          steps: score.gameConfig?.steps || 0,
-          name: score.username,
-          time: score.createdAt
-        })))
-      }
-    } catch (e: any) {
-      setError(e.message || "Error loading scores")
-    }
-  }, [])
-
-  const isBlocked = useCallback((currentCell: CellValues, updatedNumbers: CellValues[]): boolean => {
-    const jump = currentCell.values.n
-    const pos = currentCell.values.i
-    const n = updatedNumbers.length
-
-    const next = (pos + jump) % n
-    const prev = (pos - jump + n) % n
-
-    return updatedNumbers[next]?.values.b && updatedNumbers[prev]?.values.b
-  }, [])
-
-  const handleClick = useCallback((cell: CellValues): boolean => {
-    const clickIsRight = !cell.values.b && isRight && (
-      last === undefined ||
-      (20 + last.values.i - cell.values.i) % 20 === last.values.n ||
-      (20 - last.values.i + cell.values.i) % 20 === last.values.n
-    )
-
-    if (!clickIsRight) {
-      // Calcular score final con los valores actuales del closure (sin +1)
-      const finalSteps = steps
-      const finalTime = Date.now()
-      const elapsed = finalTime - start
-      const finalScore = elapsed === 0 ? 0 : Math.round(finalSteps ** 3 * 1000 / elapsed)
-      saveScore(finalScore, finalSteps)
-      setIsRight(false)
-      setLast(undefined)
-      return true
-    }
-
-    const newNumbers = numbers.map(r =>
-      r.values.i !== cell.values.i
-        ? { ...r }
-        : { values: { ...r.values, b: true } }
-    )
-
-    const newStart = last === undefined ? Date.now() : start
-    const newTime = Date.now()
-    const newSteps = steps + 1
-
-    if (last === undefined) setStart(newStart)
-    setTime(newTime)
-    setNumbers(newNumbers)
-    setSteps(newSteps)
-    setLast({ ...cell })
-
-    // Completó todas las casillas
-    if (newSteps === 20) {
-      const elapsed = newTime - newStart
-      const finalScore = elapsed === 0 ? 0 : Math.round(newSteps ** 3 * 1000 / elapsed)
-      saveScore(finalScore, newSteps)
-      return false
-    }
-
-    // Detectar bloqueo
-    const updatedCell = { values: { ...cell.values, b: true } }
-    if (isBlocked(updatedCell, newNumbers)) {
-      const elapsed = newTime - newStart
-      const finalScore = elapsed === 0 ? 0 : Math.round(newSteps ** 3 * 1000 / elapsed)
-      saveScore(finalScore, newSteps)
-      setIsRight(false)
-      setLast(undefined)
-    }
-
-    return false
-  }, [last, steps, start, numbers, isRight, saveScore, isBlocked])
 
   const newNumbers = [...numbers]
   const [topRow, rightCol, bottomRow, leftCol] = [
@@ -148,28 +37,6 @@ const GamesComponent = () => {
     newNumbers.slice(10, 16).reverse(),
     newNumbers.slice(16, 20).reverse()
   ]
-
-  const newGame = useCallback(() => {
-    setLoading(true)
-    setIsRight(true)
-    setLast(undefined)
-    setSteps(0)
-    setScoreSaved(false)
-
-    let cells = randomArrayCellValues(20)
-    let attempts = 0
-    while (!hasSolution(cells) && attempts < 200) {
-      cells = randomArrayCellValues(20)
-      attempts++
-    }
-
-    setNumbers(cells)
-    setTimeout(() => {
-      setStart(Date.now())
-      setLoading(false)
-      setTime(Date.now())
-    }, 150)
-  }, [])
 
   useEffect(() => {
     loadScores()
