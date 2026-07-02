@@ -53,7 +53,7 @@ const AgePage = () => {
   const bestFor = (gameId: GameId) =>
     bestScores.find((g) => g.gameId === gameId) ?? null;
 
-  const displayName = userLoading ? "..." : user.name;
+  const displayName = userLoading ? "..." : user.id;
 
   return (
     <>
