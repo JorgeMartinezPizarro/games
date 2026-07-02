@@ -27,6 +27,7 @@ export type TetrisActionType =
   | "left"
   | "right"
   | "softDrop"
+  | "tick"
   | "rotateLeft"
   | "rotateRight"
   | "pause"
@@ -47,6 +48,13 @@ interface GameState {
   gameOver: boolean;
   lockVisual?: boolean; // pinta el tablero "congelado" un instante al bloquear
   lockBoard?: Board;
+  // La pieza chocó al intentar bajar (gravedad o soft drop): un useEffect
+  // reacciona a este flag y dispara lockAndAdvance con el estado YA
+  // confirmado por React (nunca desde dentro del propio updater: los
+  // updaters de setState no garantizan ejecutarse de forma síncrona, así
+  // que no son sitio seguro para efectos secundarios como llamar a
+  // lockAndAdvance).
+  pendingLock: boolean;
 }
 
 // IMPORTANTE (fix hidratación): esta función se usa también como valor inicial
@@ -63,6 +71,7 @@ const initialGameState = (): GameState => ({
   elapsedMs: 0,
   gameCompleted: false,
   gameOver: false,
+  pendingLock: false,
 });
 
 export interface UseTetrisOptions {
@@ -92,8 +101,6 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
   const [gameState, setGameState] = useState<GameState>(initialGameState());
   const [ready, setReady] = useState(false);
 
-  const gsRef = useRef<GameState>(gameState);
-  gsRef.current = gameState;
   const startTimeRef = useRef<number | null>(null);
   const gameCompletedRef = useRef(false);
   // Mutex: evita que dos locks (gravedad + softDrop, o dos softDrop seguidos
@@ -112,6 +119,13 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
   const pieceGenRef = useRef<(() => Piece) | null>(null);
   const gameStartRef = useRef<number | null>(null); // ancla t=0 para el log de acciones
   const actionsRef = useRef<TetrisAction[]>([]);
+  // Se incrementa en cada llamada a startNewGame. Si dos llamadas se
+  // solapan (StrictMode remontando el efecto de inicio, o un restart
+  // disparado antes de que la petición anterior resolviera), la que NO sea
+  // la más reciente al resolver se descarta entera — sin tocar ninguna ref
+  // compartida — para que nunca se mezclen nonce/seed de dos partidas
+  // distintas.
+  const gameGenerationRef = useRef(0);
 
   const {
     board,
@@ -124,7 +138,19 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
     gameOver,
     lockVisual,
     lockBoard,
+    pendingLock,
   } = gameState;
+
+  // startRepeat (más abajo) captura la función de acción UNA sola vez, al
+  // empezar a mantener pulsada la tecla, y reutiliza esa misma clausura
+  // durante todo el hold vía setInterval — así que si moveLeft/softDrop/etc.
+  // comprueban la variable `pendingLock` capturada en su propio closure,
+  // ese valor queda congelado al momento en que empezó el hold y nunca ve
+  // los bloqueos que ocurren DESPUÉS (justo el caso de mantener "abajo"
+  // pulsado a través de varias piezas). Por eso el guard usa esta ref, que
+  // sí se mantiene al día en cada render sin importar qué closure la lea.
+  const pendingLockRef = useRef(false);
+  pendingLockRef.current = pendingLock;
 
   const logAction = useCallback((type: TetrisActionType) => {
     const t = gameStartRef.current != null ? Date.now() - gameStartRef.current : 0;
@@ -136,11 +162,19 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
   }, []);
 
   const startNewGame = useCallback(async (autoStart: boolean) => {
+    const myGeneration = ++gameGenerationRef.current;
     setReady(false);
     try {
       const res = await fetch("/bookmarks/api/tetris/new-game", { method: "POST" });
       if (!res.ok) throw new Error("Failed to start a new game");
       const data = await res.json();
+
+      if (gameGenerationRef.current !== myGeneration) {
+        // Otra llamada a startNewGame más reciente ya está en curso (o ya
+        // terminó): esta respuesta llegó tarde y se descarta sin tocar
+        // nonceRef/pieceGenRef/gameStartRef/actionsRef.
+        return null;
+      }
 
       nonceRef.current = data.nonce;
       gameStartRef.current = Date.now();
@@ -151,7 +185,7 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
       return pieceGenRef.current();
     } catch (error) {
       console.error("Error starting tetris game:", error);
-      setReady(false);
+      if (gameGenerationRef.current === myGeneration) setReady(false);
       return null;
     }
   }, []);
@@ -287,76 +321,119 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
     return () => clearInterval(id);
   }, [isPaused, gameCompleted, gameOver]);
 
-  // Gravedad
+  // Intenta bajar la pieza una fila (gravedad o soft drop). La decisión
+  // (mover vs. marcar pendingLock) se toma DENTRO del updater funcional,
+  // contra el "prev" que React garantiza fresco — nunca contra una ref que
+  // solo se actualiza en el render (ver bug: gravedad y soft-drop podían
+  // disparar casi a la vez y decidir los dos con la misma posición vieja).
+  // Importante: aquí NO se llama a lockAndAdvance directamente — el updater
+  // de setState no garantiza ejecutarse de forma síncrona, así que llamarlo
+  // desde dentro (o justo después, leyendo una variable que el updater
+  // hubiera mutado) puede no ejecutarse nunca y dejar la pieza congelada.
+  // En su lugar, solo se marca pendingLock:true en el estado, y un
+  // useEffect aparte (que sí ve el estado ya confirmado) dispara el lock.
+  const attemptDescend = useCallback(() => {
+    setGameState((prev) => {
+      if (prev.isPaused || prev.gameCompleted || prev.gameOver || prev.pendingLock) return prev;
+      const nextY = prev.pos.y + 1;
+      if (!checkCollision(prev.board, prev.piece, prev.pos.x, nextY)) {
+        return { ...prev, pos: { ...prev.pos, y: nextY } };
+      }
+      return { ...prev, pendingLock: true };
+    });
+  }, []);
+
+  // Dispara el lock en cuanto pendingLock se confirma en el estado (nunca
+  // desde dentro del propio updater de setGameState, ver comentario arriba).
+  useEffect(() => {
+    if (!pendingLock) return;
+    setGameState((prev) => (prev.pendingLock ? { ...prev, pendingLock: false } : prev));
+    lockAndAdvance(board, piece, pos, lines, elapsedMs);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingLock]);
+
+  // Gravedad. Cada caída automática se registra como una acción "tick" más
+  // en el mismo log que left/right/softDrop — el servidor NO infiere la
+  // gravedad a partir del tiempo transcurrido (el setInterval real del
+  // navegador no es perfectamente preciso: en partidas largas, cientos de
+  // ticks acumulando unos pocos ms de retraso cada uno hacían que el
+  // replay aplicase más caídas de las que realmente hubo). Se ignora igual
+  // que el resto de acciones si hay un lock pendiente de procesar.
   useEffect(() => {
     if (isPaused || gameCompleted || gameOver) return;
     const id = setInterval(() => {
-      const gs = gsRef.current;
-      if (gs.isPaused || gs.gameCompleted || gs.gameOver || lockingRef.current) return;
-      if (!checkCollision(gs.board, gs.piece, gs.pos.x, gs.pos.y + 1)) {
-        setGameState((prev) => ({
-          ...prev,
-          pos: { ...prev.pos, y: prev.pos.y + 1 },
-        }));
-      } else {
-        lockAndAdvance(gs.board, gs.piece, gs.pos, gs.lines, gs.elapsedMs);
-      }
+      if (pendingLockRef.current) return;
+      logAction("tick");
+      attemptDescend();
     }, DROP_SPEED_MS);
     return () => clearInterval(id);
-  }, [isPaused, gameCompleted, gameOver, lockAndAdvance]);
+  }, [isPaused, gameCompleted, gameOver, attemptDescend, logAction]);
 
-  // Acciones
+  // Acciones. Se registra la acción siempre que el juego esté listo Y no haya
+  // un lock pendiente de procesar. Ese "pendingLock" abre una ventana real
+  // (el useEffect que lo procesa no es síncrono) en la que el jugador puede
+  // seguir soltando teclas sin que hagan nada visible en el cliente — pero
+  // el replay del servidor SÍ es síncrono, así que si registrásemos esas
+  // acciones igualmente, el servidor las aplicaría de verdad a la pieza
+  // siguiente (que en el cliente nunca las recibió), desincronizando el
+  // tablero. Por eso hay que ignorarlas (ni loggear ni tocar el estado)
+  // exactamente igual en el cliente que en el servidor. El guard usa
+  // pendingLockRef (no la variable pendingLock del closure): con la tecla
+  // mantenida pulsada, startRepeat reutiliza la misma función durante todo
+  // el hold, así que un guard basado en el closure quedaría congelado en el
+  // valor de cuando empezó a mantenerse pulsada y nunca vería los bloqueos
+  // ocurridos después — justo el caso real de mantener "abajo" pulsado.
   const moveLeft = useCallback(() => {
-    const gs = gsRef.current;
-    if (!ready || gs.isPaused || gs.gameCompleted || gs.gameOver) return;
+    if (!ready || pendingLockRef.current) return;
     logAction("left");
-    if (!checkCollision(gs.board, gs.piece, gs.pos.x - 1, gs.pos.y)) {
-      setGameState((prev) => ({ ...prev, pos: { ...prev.pos, x: prev.pos.x - 1 } }));
-    }
+    setGameState((prev) => {
+      if (prev.isPaused || prev.gameCompleted || prev.gameOver || prev.pendingLock) return prev;
+      if (!checkCollision(prev.board, prev.piece, prev.pos.x - 1, prev.pos.y)) {
+        return { ...prev, pos: { ...prev.pos, x: prev.pos.x - 1 } };
+      }
+      return prev;
+    });
   }, [ready, logAction]);
 
   const moveRight = useCallback(() => {
-    const gs = gsRef.current;
-    if (!ready || gs.isPaused || gs.gameCompleted || gs.gameOver) return;
+    if (!ready || pendingLockRef.current) return;
     logAction("right");
-    if (!checkCollision(gs.board, gs.piece, gs.pos.x + 1, gs.pos.y)) {
-      setGameState((prev) => ({ ...prev, pos: { ...prev.pos, x: prev.pos.x + 1 } }));
-    }
+    setGameState((prev) => {
+      if (prev.isPaused || prev.gameCompleted || prev.gameOver || prev.pendingLock) return prev;
+      if (!checkCollision(prev.board, prev.piece, prev.pos.x + 1, prev.pos.y)) {
+        return { ...prev, pos: { ...prev.pos, x: prev.pos.x + 1 } };
+      }
+      return prev;
+    });
   }, [ready, logAction]);
 
-  // Si lines+1 supera LINES_TARGET, fuerza lockVisual sí o sí
   const softDrop = useCallback(() => {
-    const gs = gsRef.current;
-    if (!ready || gs.isPaused || gs.gameCompleted || gs.gameOver || lockingRef.current) return;
+    if (!ready || pendingLockRef.current) return;
     logAction("softDrop");
-    const nextY = gs.pos.y + 1;
-    if (!checkCollision(gs.board, gs.piece, gs.pos.x, nextY)) {
-      setGameState((prev) => ({ ...prev, pos: { ...prev.pos, y: nextY } }));
-    } else {
-      lockAndAdvance(gs.board, gs.piece, gs.pos, gs.lines, gs.elapsedMs);
-      // sin pasar forceLockVisual=true: lockAndAdvance ya evalúa isCompleted internamente
-    }
-  }, [ready, logAction, lockAndAdvance]);
+    attemptDescend();
+  }, [ready, logAction, attemptDescend]);
 
   const rotatePiece = useCallback(
     (direction: 1 | -1) => {
-      const gs = gsRef.current;
-      if (!ready || gs.isPaused || gs.gameCompleted || gs.gameOver) return;
+      if (!ready || pendingLockRef.current) return;
       logAction(direction === 1 ? "rotateRight" : "rotateLeft");
-      const times = direction === 1 ? 1 : 3;
-      let rotated = gs.piece.shape;
-      for (let i = 0; i < times; i++) rotated = rotate(rotated);
-      const rotatedPiece = { ...gs.piece, shape: rotated };
-      for (const kick of [0, -1, 1, -2, 2]) {
-        if (!checkCollision(gs.board, rotatedPiece, gs.pos.x + kick, gs.pos.y)) {
-          setGameState((prev) => ({
-            ...prev,
-            piece: rotatedPiece,
-            pos: { ...prev.pos, x: prev.pos.x + kick },
-          }));
-          return;
+      setGameState((prev) => {
+        if (prev.isPaused || prev.gameCompleted || prev.gameOver || prev.pendingLock) return prev;
+        const times = direction === 1 ? 1 : 3;
+        let rotated = prev.piece.shape;
+        for (let i = 0; i < times; i++) rotated = rotate(rotated);
+        const rotatedPiece = { ...prev.piece, shape: rotated };
+        for (const kick of [0, -1, 1, -2, 2]) {
+          if (!checkCollision(prev.board, rotatedPiece, prev.pos.x + kick, prev.pos.y)) {
+            return {
+              ...prev,
+              piece: rotatedPiece,
+              pos: { ...prev.pos, x: prev.pos.x + kick },
+            };
+          }
         }
-      }
+        return prev;
+      });
     },
     [ready, logAction]
   );
@@ -390,19 +467,25 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
     }
   }, []);
 
+  // Igual que el resto de acciones: nada de efectos secundarios (logAction,
+  // mutar startTimeRef) dentro del updater de setGameState — React
+  // StrictMode invoca los updaters dos veces a propósito para detectar
+  // impurezas, y aquí duplicaba la acción "resume"/"pause" en el log
+  // (single-user-action, no hay carrera real con isPaused/gameCompleted del
+  // último render: togglePause solo lo dispara una pulsación humana).
   const togglePause = useCallback(() => {
-    if (!ready) return;
+    if (!ready || gameCompleted || gameOver) return;
+    if (isPaused) {
+      startTimeRef.current = Date.now() - elapsedMs;
+      logAction("resume");
+    } else {
+      logAction("pause");
+    }
     setGameState((prev) => {
       if (prev.gameCompleted || prev.gameOver) return prev;
-      if (prev.isPaused) {
-        startTimeRef.current = Date.now() - prev.elapsedMs;
-        logAction("resume");
-        return { ...prev, isPaused: false };
-      }
-      logAction("pause");
-      return { ...prev, isPaused: true };
+      return { ...prev, isPaused: !prev.isPaused };
     });
-  }, [ready, logAction]);
+  }, [ready, gameCompleted, gameOver, isPaused, elapsedMs, logAction]);
 
   // Keyboard handler
   useEffect(() => {

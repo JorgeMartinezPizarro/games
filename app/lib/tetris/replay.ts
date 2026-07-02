@@ -1,7 +1,6 @@
 import {
   Board,
   COLS,
-  DROP_SPEED_MS,
   LINES_TARGET,
   Piece,
   checkCollision,
@@ -16,6 +15,7 @@ const ACTION_TYPES = new Set([
   "left",
   "right",
   "softDrop",
+  "tick",
   "rotateLeft",
   "rotateRight",
   "pause",
@@ -28,6 +28,7 @@ export type TetrisAction = {
     | "left"
     | "right"
     | "softDrop"
+    | "tick"
     | "rotateLeft"
     | "rotateRight"
     | "pause"
@@ -39,7 +40,7 @@ export type TetrisAction = {
 // Cotas de cordura: nada que ver con partidas reales, solo evitan que un
 // payload absurdo (array gigante o duración disparatada) haga trabajar de
 // más al servidor.
-const MAX_ACTIONS = 20000;
+const MAX_ACTIONS = 40000;
 const MAX_DURATION_MS = 60 * 60 * 1000; // 1h
 
 export type ReplayResult =
@@ -75,10 +76,20 @@ function parseActions(raw: unknown): TetrisAction[] | null {
   return actions;
 }
 
-// Reproduce la partida entera (piezas derivadas del seed + acciones con
-// timestamp) con el mismo motor que usa el cliente en tiempo real
-// (app/lib/tetris/engine.ts), incluyendo la gravedad automática. Solo se
-// considera válida si el replay llega de forma legal a LINES_TARGET.
+// Reproduce la partida entera (piezas derivadas del seed + acciones
+// registradas por el cliente) con el mismo motor que usa el cliente en
+// tiempo real (app/lib/tetris/engine.ts). Solo se considera válida si el
+// replay llega de forma legal a LINES_TARGET.
+//
+// Importante: la gravedad NO se infiere a partir de los timestamps. El
+// setInterval real del navegador no es perfectamente preciso (el hilo
+// principal se ocupa renderizando, atendiendo el teclado, etc.), así que
+// asumir una cadencia exacta de DROP_SPEED_MS aquí divergía del cliente en
+// partidas largas (cientos de ticks acumulando unos pocos ms de retraso
+// cada uno). En su lugar, el cliente registra cada caída por gravedad como
+// una acción "tick" más, en el mismo log que left/right/softDrop — el
+// replay simplemente procesa la secuencia tal cual se registró, sin
+// suponer nada sobre cuánto tiempo real debería haber pasado entre acciones.
 export function replayTetris(seed: number, rawActions: unknown): ReplayResult {
   const actions = parseActions(rawActions);
   if (!actions) {
@@ -94,7 +105,6 @@ export function replayTetris(seed: number, rawActions: unknown): ReplayResult {
   let paused = true; // la partida real también arranca en pausa
   let gameOver = false;
   let completed = false;
-  let lastGravityAt = 0;
 
   function lockAndAdvance() {
     const placed = placePieceOnBoardPure(board, piece, pos);
@@ -118,21 +128,16 @@ export function replayTetris(seed: number, rawActions: unknown): ReplayResult {
     pos = nextPos;
   }
 
-  function applyGravityUpTo(t: number) {
-    while (!paused && !gameOver && !completed && t - lastGravityAt >= DROP_SPEED_MS) {
-      lastGravityAt += DROP_SPEED_MS;
-      if (!checkCollision(board, piece, pos.x, pos.y + 1)) {
-        pos = { ...pos, y: pos.y + 1 };
-      } else {
-        lockAndAdvance();
-      }
+  function descendOrLock() {
+    const nextY = pos.y + 1;
+    if (!checkCollision(board, piece, pos.x, nextY)) {
+      pos = { ...pos, y: nextY };
+    } else {
+      lockAndAdvance();
     }
   }
 
   for (const action of actions) {
-    if (completed || gameOver) break;
-
-    applyGravityUpTo(action.t);
     if (completed || gameOver) break;
 
     switch (action.type) {
@@ -141,7 +146,6 @@ export function replayTetris(seed: number, rawActions: unknown): ReplayResult {
         break;
       case "resume":
         paused = false;
-        lastGravityAt = action.t;
         break;
       case "left":
         if (!paused && !checkCollision(board, piece, pos.x - 1, pos.y)) {
@@ -169,19 +173,12 @@ export function replayTetris(seed: number, rawActions: unknown): ReplayResult {
         }
         break;
       }
-      case "softDrop": {
-        if (paused) break;
-        const nextY = pos.y + 1;
-        if (!checkCollision(board, piece, pos.x, nextY)) {
-          pos = { ...pos, y: nextY };
-        } else {
-          lockAndAdvance();
-        }
+      case "softDrop":
+      case "tick":
+        if (!paused) descendOrLock();
         break;
-      }
       case "end":
-        // marcador sin efecto propio: solo fuerza el applyGravityUpTo de
-        // más arriba a ponerse al día hasta el instante final reportado.
+        // marcador sin efecto propio: solo cierra el log.
         break;
     }
   }
