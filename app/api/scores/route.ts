@@ -40,7 +40,17 @@ function errorResponse(error: unknown): Response {
 // una contra /api/chess (legalidad vía chess.js, IA invocada server-side
 // contra Stockfish con el elo guardado bajo el nonce, nunca el del
 // cliente). Aquí solo hace falta reproducir el log de jugadas desde cero y
-// comprobar que la partida realmente llegó a un estado de fin de partida.
+// comprobar que la partida realmente terminó en victoria del jugador.
+//
+// El jugador siempre juega con blancas (las negras las mueve el propio
+// servidor vía Stockfish, nunca el cliente). isGameOver() por sí solo NO
+// basta: también es true en tablas, ahogado o cuando es el JUGADOR quien
+// recibe jaque mate — sin comprobar isCheckmate() + de qué color, cualquier
+// final de partida (incluida una derrota autoinfligida en un par de
+// jugadas) puntuaba igual que una victoria real. Solo se puntúa si, al
+// terminar la partida, es a las negras a quien le toca mover y están en
+// jaque mate (turn() === "b" && isCheckmate()): eso es lo único que
+// significa que las blancas (el jugador) dieron mate. Las tablas no puntúan.
 function saveChessScore(user: AuthUser, params: any): Response {
   const { nonce } = params;
 
@@ -62,6 +72,13 @@ function saveChessScore(user: AuthUser, params: any): Response {
   }
   if (!replay.gameOver) {
     return Response.json({ error: "Game is not complete." }, { status: 400 });
+  }
+  const playerWon = replay.chess.isCheckmate() && replay.chess.turn() === "b";
+  if (!playerWon) {
+    return Response.json(
+      { error: "Game did not end in a win for the player." },
+      { status: 400 }
+    );
   }
 
   const score = stored.elo;

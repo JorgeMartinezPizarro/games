@@ -293,8 +293,17 @@ const ChessGame: React.FC = () => {
         // carrera: /api/scores consumía el nonce (de un solo uso) mientras
         // esta petición seguía en vuelo, y luego esta petición fallaba
         // porque el nonce ya no existía.
+        //
+        // Solo se llama a saveScore() si el jugador (blancas) dio jaque mate:
+        // /api/scores es quien impone esto de verdad (recalcula isCheckmate()
+        // sobre su propio log, nunca confía en este chequeo local), pero
+        // evitamos aquí la llamada -y el error genérico "inténtalo de
+        // nuevo"- en tablas o derrota, que nunca podrán guardarse.
         if (data.gameOver) {
-          saveScore();
+          const playerWon = game.isCheckmate() && game.turn() === "b";
+          if (playerWon) {
+            saveScore();
+          }
         }
       } catch (error) {
         console.error("Error validando la jugada con el servidor:", error);

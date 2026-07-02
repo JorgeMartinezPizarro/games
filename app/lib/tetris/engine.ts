@@ -8,7 +8,7 @@ export type Cell = [string, string];
 export type Board = Cell[][];
 export type Piece = { shape: number[][]; color: string };
 
-export const LINES_TARGET = 8;
+export const LINES_TARGET = 25;
 export const DROP_SPEED_MS = 184;
 export const ROWS = 20;
 export const COLS = 10;
