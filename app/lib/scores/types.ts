@@ -27,6 +27,7 @@ export type GetScoresResponse = {
 export type SaveScoreResponse = {
   message: string;
   id: number;
+  score: number;
 };
 
 export type ScoresErrorResponse = {

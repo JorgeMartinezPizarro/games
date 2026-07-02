@@ -7,7 +7,7 @@ import path from "node:path";
 
 let _db: Database.Database | null = null;
 
-function getDb(): Database.Database {
+export function getDb(): Database.Database {
   if (_db) return _db;
 
   const dbPath = path.join(process.cwd(), "cache/database/scores.db");

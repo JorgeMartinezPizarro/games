@@ -11,7 +11,7 @@ const GamesComponent = () => {
   const [view, setView] = useState<'play' | 'scores'>('play')
   const [mounted, setMounted] = useState(false)
 
-  const { topScores, error, loadScores, saveScore, resetScore } = useScoreNumbers()
+  const { topScores, error, loadScores, saveScore, resetScore, recordEntry } = useScoreNumbers()
 
   const {
     numbers,
@@ -210,7 +210,10 @@ const GamesComponent = () => {
                           key={i}
                           sx={{
                             '&:nth-of-type(odd)': { bgcolor: 'rgba(255,255,255,0.03)' },
-                            '&:hover': { bgcolor: 'rgba(21, 101, 192, 0.12)' }
+                            '&:hover': { bgcolor: 'rgba(21, 101, 192, 0.12)' },
+                            ...(recordEntry && entry.score === recordEntry.score && entry.steps === recordEntry.steps
+                              ? { bgcolor: '#fff59d !important' }
+                              : {}),
                           }}
                         >
                           <TableCell align="center" sx={{ color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{i + 1}</TableCell>
@@ -247,7 +250,10 @@ const GamesComponent = () => {
                           key={i}
                           sx={{
                             '&:nth-of-type(odd)': { bgcolor: 'rgba(255,255,255,0.03)' },
-                            '&:hover': { bgcolor: 'rgba(123, 31, 162, 0.12)' }
+                            '&:hover': { bgcolor: 'rgba(123, 31, 162, 0.12)' },
+                            ...(recordEntry && entry.score === recordEntry.score && entry.steps === recordEntry.steps
+                              ? { bgcolor: '#fff59d !important' }
+                              : {}),
                           }}
                         >
                           <TableCell align="center" sx={{ color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{i + 1}</TableCell>
