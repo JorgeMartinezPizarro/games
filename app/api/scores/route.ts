@@ -111,7 +111,7 @@ export async function GET(request: NextRequest): Promise<Response> {
           );
         }
 
-        const best = getPlayerBestScoreForGame(user.name, parsedGameId);
+        const best = getPlayerBestScoreForGame(user.id, parsedGameId);
         const body: GetPlayerScoresResponse = {
           username: user.name,
           games: [toPlayerGameBest(parsedGameId, best)],
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         return Response.json(body, { status: 200 });
       }
 
-      const results = getPlayerBestScores(user.name);
+      const results = getPlayerBestScores(user.id);
       const body: GetPlayerScoresResponse = {
         username: user.name,
         games: results.map((best, i) => toPlayerGameBest((i + 1) as GameId, best)),

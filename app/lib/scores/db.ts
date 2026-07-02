@@ -60,7 +60,7 @@ type ScoreRow = {
   createdAt: string;
 };
 
-type RankedScoreRow = ScoreRow & { rank: number };
+type RankedScoreRow = ScoreRow & { userId: string | null; rank: number };
 
 // Dirección "ganadora" por juego: 'desc' = mayor score es mejor (Chess, Numbers),
 // 'asc' = menor score es mejor (Tetris y Wording guardan tiempo en ms).
@@ -111,8 +111,9 @@ function getPreparedStmts() {
 // en SQLite, así que preparamos las dos variantes una sola vez).
 function getRankStmts(db: Database.Database) {
   const buildQuery = (direction: "ASC" | "DESC") => `
-    SELECT username, score, gameConfig, createdAt, rank FROM (
+    SELECT userId, username, score, gameConfig, createdAt, rank FROM (
       SELECT
+        s.userId,
         COALESCE(u.name, s.username) AS username,
         s.score,
         s.gameConfig,
@@ -122,7 +123,7 @@ function getRankStmts(db: Database.Database) {
       LEFT JOIN users u ON s.userId = u.id
       WHERE s.gameId = ?
     ) ranked
-    WHERE username = ?
+    WHERE userId = ?
     ORDER BY rank ASC
     LIMIT 1
   `;
@@ -186,7 +187,7 @@ export type PlayerBestScore = {
 };
 
 export function getPlayerBestScoreForGame(
-  username: string,
+  userId: string,
   gameId: GameId
 ): PlayerBestScore | null {
   const direction = GAME_DIRECTIONS[gameId];
@@ -195,7 +196,7 @@ export function getPlayerBestScoreForGame(
       ? getPreparedRankStmts().asc
       : getPreparedRankStmts().desc;
 
-  const row = stmt.get(gameId, username) as RankedScoreRow | undefined;
+  const row = stmt.get(gameId, userId) as RankedScoreRow | undefined;
   if (!row) return null;
 
   return {
@@ -209,9 +210,9 @@ export function getPlayerBestScoreForGame(
 }
 
 export function getPlayerBestScores(
-  username: string
+  userId: string
 ): (PlayerBestScore | null)[] {
   return ALL_GAME_IDS.map((gameId) =>
-    getPlayerBestScoreForGame(username, gameId)
+    getPlayerBestScoreForGame(userId, gameId)
   );
 }
