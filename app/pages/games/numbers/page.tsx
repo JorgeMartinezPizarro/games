@@ -205,23 +205,29 @@ const GamesComponent = () => {
                     {topScores
                       .sort((a, b) => b.score - a.score)
                       .slice(0, 10)
-                      .map((entry, i) => (
-                        <TableRow
-                          key={i}
-                          sx={{
-                            '&:nth-of-type(odd)': { bgcolor: 'rgba(255,255,255,0.03)' },
-                            '&:hover': { bgcolor: 'rgba(21, 101, 192, 0.12)' },
-                            ...(recordEntry && entry.score === recordEntry.score && entry.steps === recordEntry.steps
-                              ? { bgcolor: '#fff59d !important' }
-                              : {}),
-                          }}
-                        >
-                          <TableCell align="center" sx={{ color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{i + 1}</TableCell>
-                          <TableCell sx={{ color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.userId}</TableCell>
-                          <TableCell align="right" sx={{ color: '#4caf50', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.score}</TableCell>
-                          <TableCell align="right" sx={{ color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.steps}</TableCell>
-                        </TableRow>
-                      ))}
+                      .map((entry, i) => {
+                        const isRecord = Boolean(
+                          recordEntry && entry.score === recordEntry.score && entry.steps === recordEntry.steps
+                        );
+                        // Fila de récord: fondo dorado sólido + texto marino oscuro,
+                        // no gris claro (#e0e0e0 sobre amarillo pastel era casi ilegible).
+                        const cellColor = isRecord ? '#1a1a2e' : '#e0e0e0';
+                        return (
+                          <TableRow
+                            key={i}
+                            sx={{
+                              '&:nth-of-type(odd)': { bgcolor: 'rgba(255,255,255,0.03)' },
+                              '&:hover': { bgcolor: 'rgba(21, 101, 192, 0.12)' },
+                              ...(isRecord ? { bgcolor: '#ffc400 !important' } : {}),
+                            }}
+                          >
+                            <TableCell align="center" sx={{ color: cellColor, fontWeight: isRecord ? 700 : 400, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{i + 1}</TableCell>
+                            <TableCell sx={{ color: cellColor, fontWeight: isRecord ? 700 : 400, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.userId}</TableCell>
+                            <TableCell align="right" sx={{ color: isRecord ? cellColor : '#4caf50', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.score}</TableCell>
+                            <TableCell align="right" sx={{ color: cellColor, fontWeight: isRecord ? 700 : 400, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.steps}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -245,23 +251,29 @@ const GamesComponent = () => {
                     {topScores
                       .sort((a, b) => b.steps - a.steps)
                       .slice(0, 10)
-                      .map((entry, i) => (
-                        <TableRow
-                          key={i}
-                          sx={{
-                            '&:nth-of-type(odd)': { bgcolor: 'rgba(255,255,255,0.03)' },
-                            '&:hover': { bgcolor: 'rgba(123, 31, 162, 0.12)' },
-                            ...(recordEntry && entry.score === recordEntry.score && entry.steps === recordEntry.steps
-                              ? { bgcolor: '#fff59d !important' }
-                              : {}),
-                          }}
-                        >
-                          <TableCell align="center" sx={{ color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{i + 1}</TableCell>
-                          <TableCell sx={{ color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.userId}</TableCell>
-                          <TableCell align="right" sx={{ color: '#ff9800', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.steps}</TableCell>
-                          <TableCell align="right" sx={{ color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.score}</TableCell>
-                        </TableRow>
-                      ))}
+                      .map((entry, i) => {
+                        const isRecord = Boolean(
+                          recordEntry && entry.score === recordEntry.score && entry.steps === recordEntry.steps
+                        );
+                        // Fila de récord: fondo dorado sólido + texto marino oscuro,
+                        // no gris claro (#e0e0e0 sobre amarillo pastel era casi ilegible).
+                        const cellColor = isRecord ? '#1a1a2e' : '#e0e0e0';
+                        return (
+                          <TableRow
+                            key={i}
+                            sx={{
+                              '&:nth-of-type(odd)': { bgcolor: 'rgba(255,255,255,0.03)' },
+                              '&:hover': { bgcolor: 'rgba(123, 31, 162, 0.12)' },
+                              ...(isRecord ? { bgcolor: '#ffc400 !important' } : {}),
+                            }}
+                          >
+                            <TableCell align="center" sx={{ color: cellColor, fontWeight: isRecord ? 700 : 400, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{i + 1}</TableCell>
+                            <TableCell sx={{ color: cellColor, fontWeight: isRecord ? 700 : 400, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.userId}</TableCell>
+                            <TableCell align="right" sx={{ color: isRecord ? cellColor : '#ff9800', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.steps}</TableCell>
+                            <TableCell align="right" sx={{ color: cellColor, fontWeight: isRecord ? 700 : 400, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.score}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                   </TableBody>
                 </Table>
               </TableContainer>
