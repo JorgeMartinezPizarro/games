@@ -22,8 +22,9 @@ import MainMenu from "@/app/components/MainMenu";
 
 const ChessGame: React.FC = () => {
   const gameRef = useRef<Chess | null>(null);
+  const nonceRef = useRef<string | null>(null);
   const [fen, setFen] = useState("start");
-  const [elo, setElo] = useState(800);
+  const [elo, setElo] = useState(400);
   const [gameResult, setGameResult] = useState<string | null>(null);
   const [topScores, setTopScores] = useState<any[]>([]);
   const [showScores, setShowScores] = useState(false);
@@ -141,18 +142,25 @@ const ChessGame: React.FC = () => {
     }
   }, []);
 
-  // Guardar puntuación
+  // Guardar puntuación: el score ya no lo manda el cliente, solo el nonce
+  // de la partida. El servidor reproduce el log de jugadas guardado bajo
+  // ese nonce (grabado jugada a jugada por /api/chess) y calcula el score
+  // él mismo a partir del elo con el que realmente se jugó.
   const saveScore = useCallback(async () => {
     if (scoreSaved) return;
     setScoreError(null);
+    const currentNonce = nonceRef.current;
+    if (!currentNonce) {
+      setScoreError("No se pudo guardar la puntuación: no hay partida registrada.");
+      return;
+    }
     try {
       const response = await fetch("/bookmarks/api/scores", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           gameId: 1,
-          score: elo,
-          gameConfig: { elo },
+          nonce: currentNonce,
         }),
       });
       if (!response.ok) {
@@ -160,12 +168,13 @@ const ChessGame: React.FC = () => {
         throw new Error(errorData.error || "Error al guardar la puntuación");
       }
       setScoreSaved(true);
+      nonceRef.current = null;
       await loadScores(); // Actualiza la tabla de puntuaciones
     } catch (error) {
       console.error("Error saving score:", error);
       setScoreError("No se pudo guardar la puntuación. Inténtalo de nuevo.");
     }
-  }, [scoreSaved, elo, loadScores]);
+  }, [scoreSaved, loadScores]);
 
   // Manejar fin de partida (guarda automáticamente)
   const handleGameOver = useCallback((game: Chess) => {
@@ -187,68 +196,120 @@ const ChessGame: React.FC = () => {
     }
   }, []);
 
-  // Efecto para guardar puntuación cuando termine la partida
-  useEffect(() => {
-    if (gameResult && !scoreSaved && isGameOver) {
-      saveScore();
-    }
-  }, [gameResult, scoreSaved, isGameOver, saveScore]);
-
-  // Movimiento de la IA
-  const makeAIMove = useCallback(async () => {
-    const game = gameRef.current;
-    if (!game || isGameOver || isAIThinking) return;
-
-    setIsAIThinking(true);
-    const currentFen = game.fen();
-
-    try {
-      const response = await fetch("/bookmarks/api/chess", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fen: currentFen, elo }),
-      });
-
-      const data = await response.json();
-
-      if (data.bestmove) {
-        const from = data.bestmove.slice(0, 2);
-        const to = data.bestmove.slice(2, 4);
-
-        try {
-          const move = game.move({
-            from,
-            to,
-            promotion: "q",
-          });
-
-          if (move) {
-            const newFen = game.fen();
-            setFen(newFen);
-
-            if (game.isGameOver()) {
-              handleGameOver(game);
-            }
-          }
-        } catch (moveError) {
-          // La IA no debería proponer jugadas ilegales, pero por si acaso lo capturamos
-          console.error("Movimiento de IA inválido, ignorado:", moveError);
-        }
-      }
-    } catch (error) {
-      console.error("Error making AI move:", error);
-    } finally {
-      setIsAIThinking(false);
-    }
-  }, [elo, isAIThinking, isGameOver, handleGameOver]);
-
   // Limpia selección y resaltado de casillas (común a drag y a clic)
   const clearSelection = useCallback(() => {
     setSelectedSquare(null);
     setOptionSquares({});
   }, []);
 
-  // Intenta realizar un movimiento; ignora silenciosamente si es inválido (misclick)
+  // Reiniciar partida
+  const resetGame = useCallback(() => {
+    const newGame = new Chess();
+    gameRef.current = newGame;
+    nonceRef.current = null;
+    setFen("start");
+    setGameResult(null);
+    setGameStarted(false);
+    setScoreSaved(false);
+    setIsAIThinking(false);
+    setIsGameOver(false);
+    setScoreError(null);
+    clearSelection();
+  }, [clearSelection]);
+
+  // Se llama antes de la primera jugada: pide al servidor un nonce que ata
+  // la partida al elo elegido. A partir de aquí el servidor es la única
+  // autoridad sobre el elo real de la IA y sobre el log de jugadas.
+  const ensureGameSession = useCallback(async (): Promise<string> => {
+    if (nonceRef.current) return nonceRef.current;
+
+    const response = await fetch("/bookmarks/api/chess/new-game", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ elo }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.nonce) {
+      throw new Error(data.error || "No se pudo iniciar la partida.");
+    }
+    nonceRef.current = data.nonce;
+    return data.nonce;
+  }, [elo]);
+
+  // Manda la jugada del jugador a /api/chess: el servidor la valida contra
+  // su propia reconstrucción del tablero (nunca confía en el FEN local),
+  // la graba, y si la partida sigue en curso invoca a Stockfish él mismo y
+  // devuelve su respuesta ya grabada también. Si el servidor y el cliente
+  // llegasen a discrepar (nonce caducado, red, etc.) no hay forma segura de
+  // reconciliar el tablero local con el registro del servidor, así que se
+  // trata como error fatal y se reinicia la partida.
+  const submitPlayerMove = useCallback(
+    async (from: string, to: string) => {
+      const game = gameRef.current;
+      if (!game) return;
+
+      setIsAIThinking(true);
+      try {
+        const currentNonce = await ensureGameSession();
+
+        const response = await fetch("/bookmarks/api/chess", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nonce: currentNonce, move: { from, to, promotion: "q" } }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "No se pudo validar la jugada.");
+        }
+
+        if (data.bestmove) {
+          const aiFrom = data.bestmove.slice(0, 2);
+          const aiTo = data.bestmove.slice(2, 4);
+          const aiPromotion = data.bestmove.length === 5 ? data.bestmove.slice(4) : "q";
+
+          try {
+            const move = game.move({ from: aiFrom, to: aiTo, promotion: aiPromotion });
+
+            if (move) {
+              const newFen = game.fen();
+              setFen(newFen);
+
+              if (game.isGameOver()) {
+                handleGameOver(game);
+              }
+            }
+          } catch (moveError) {
+            // El servidor ya validó esta jugada con chess.js antes de
+            // devolverla; si aun así no se puede aplicar aquí, el estado
+            // local y el del servidor han divergido.
+            throw moveError;
+          }
+        }
+
+        // El nonce solo puede guardarse una vez el servidor confirma que la
+        // jugada final quedó grabada (data.gameOver, presente tanto si el
+        // mate lo dio el jugador -bestmove null- como si lo dio la IA).
+        // Disparar el guardado antes de esta respuesta es lo que causaba la
+        // carrera: /api/scores consumía el nonce (de un solo uso) mientras
+        // esta petición seguía en vuelo, y luego esta petición fallaba
+        // porque el nonce ya no existía.
+        if (data.gameOver) {
+          saveScore();
+        }
+      } catch (error) {
+        console.error("Error validando la jugada con el servidor:", error);
+        setScoreError("La partida se desincronizó con el servidor. Reiniciando la partida.");
+        resetGame();
+      } finally {
+        setIsAIThinking(false);
+      }
+    },
+    [ensureGameSession, handleGameOver, resetGame, saveScore]
+  );
+
+  // Intenta realizar un movimiento local; ignora silenciosamente si es
+  // inválido (misclick). La validación real y autoritativa ocurre en el
+  // servidor via submitPlayerMove — esto solo da feedback visual instantáneo.
   const tryMove = useCallback(
     (from: string, to: string): boolean => {
       const game = gameRef.current;
@@ -270,11 +331,16 @@ const ChessGame: React.FC = () => {
         setFen(newFen);
         if (!gameStarted) setGameStarted(true);
 
-        if (game.isGameOver()) {
+        const isOver = game.isGameOver();
+        if (isOver) {
           handleGameOver(game);
         } else {
-          setTimeout(() => makeAIMove(), 300);
+          setIsAIThinking(true);
         }
+        // Siempre se manda la jugada al servidor, incluso si la partida
+        // termina localmente: es la única forma de que quede grabada en el
+        // log autoritativo antes de poder guardar el score.
+        setTimeout(() => submitPlayerMove(from, to), isOver ? 0 : 300);
         return true;
       } catch (e) {
         // chess.js (v1+) lanza excepción en movimientos ilegales: la capturamos
@@ -283,7 +349,7 @@ const ChessGame: React.FC = () => {
         return false;
       }
     },
-    [gameStarted, handleGameOver, makeAIMove]
+    [gameStarted, handleGameOver, submitPlayerMove]
   );
 
   // Muestra las casillas de destino legales para la pieza seleccionada
@@ -376,20 +442,6 @@ const ChessGame: React.FC = () => {
     },
     [isGameOver, isAIThinking, tryMove, clearSelection]
   );
-
-  // Reiniciar partida
-  const resetGame = useCallback(() => {
-    const newGame = new Chess();
-    gameRef.current = newGame;
-    setFen("start");
-    setGameResult(null);
-    setGameStarted(false);
-    setScoreSaved(false);
-    setIsAIThinking(false);
-    setIsGameOver(false);
-    setScoreError(null);
-    clearSelection();
-  }, [clearSelection]);
 
   // Inicializar partida y cargar puntuaciones
   useEffect(() => {
@@ -500,14 +552,14 @@ const ChessGame: React.FC = () => {
               <Slider
                 value={elo}
                 onChange={handleEloChange}
-                min={800}
-                max={2200}
+                min={400}
+                max={3000}
                 step={1}
                 valueLabelDisplay="auto"
                 disabled={gameStarted}
                 marks={[
-                  { value: 800, label: "800" },
-                  { value: 2200, label: "2200" },
+                  { value: 400, label: "400" },
+                  { value: 3000, label: "3000" },
                 ]}
                 sx={{
                   color: theme.palette.primary.main,

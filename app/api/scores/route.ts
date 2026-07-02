@@ -26,12 +26,58 @@ import { consumeWordsGame } from "@/app/lib/words/db";
 import { replayTetris } from "@/app/lib/tetris/replay";
 import { consumeTetrisGame } from "@/app/lib/tetris/db";
 import { LINES_TARGET as TETRIS_LINES_TARGET } from "@/app/lib/tetris/engine";
+import { consumeChessGame } from "@/app/lib/chess/db";
+import { replayChessMoves } from "@/app/lib/chess/replay";
 import { NextRequest } from "next/server";
 import type { GameId } from "@/app/lib/scores/types";
 
 function errorResponse(error: unknown): Response {
   const body: ScoresErrorResponse = { error: getErrorResponseMessage(error) };
   return Response.json(body, { status: getErrorStatus(error) });
+}
+
+// Chess tampoco manda un score de confianza: cada jugada ya se validó una a
+// una contra /api/chess (legalidad vía chess.js, IA invocada server-side
+// contra Stockfish con el elo guardado bajo el nonce, nunca el del
+// cliente). Aquí solo hace falta reproducir el log de jugadas desde cero y
+// comprobar que la partida realmente llegó a un estado de fin de partida.
+function saveChessScore(user: AuthUser, params: any): Response {
+  const { nonce } = params;
+
+  if (typeof nonce !== "string" || nonce.trim() === "") {
+    return Response.json({ error: "nonce is required." }, { status: 400 });
+  }
+
+  const stored = consumeChessGame(nonce);
+  if (!stored || stored.userId !== user.id) {
+    return Response.json(
+      { error: "Invalid, expired or already used nonce." },
+      { status: 400 }
+    );
+  }
+
+  const replay = replayChessMoves(stored.moves);
+  if (!replay.valid) {
+    return Response.json({ error: `Invalid game: ${replay.reason}` }, { status: 400 });
+  }
+  if (!replay.gameOver) {
+    return Response.json({ error: "Game is not complete." }, { status: 400 });
+  }
+
+  const score = stored.elo;
+  const serializedConfig = serializeGameConfig({ elo: stored.elo, plies: stored.moves.length });
+  if (!serializedConfig.ok) {
+    return Response.json({ error: serializedConfig.error }, { status: 400 });
+  }
+
+  const id = insertScore(user, GAME_IDS.CHESS, score, serializedConfig.value);
+
+  const body: SaveScoreResponse = {
+    message: "Score saved successfully.",
+    id,
+    score,
+  };
+  return Response.json(body, { status: 200 });
 }
 
 // Numbers no manda un score de confianza: manda el nonce de la partida
@@ -201,6 +247,9 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
+    if (parsedGameId === GAME_IDS.CHESS) {
+      return saveChessScore(user, params);
+    }
     if (parsedGameId === GAME_IDS.NUMBERS) {
       return saveNumbersScore(user, params);
     }

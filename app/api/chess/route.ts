@@ -1,85 +1,148 @@
 import { errorMessage } from "@/app/helpers";
-import { requireAuth } from "@/app/lib/auth";
-import { Chess } from "chess.js";
+import { getCurrentUser } from "@/app/lib/auth";
+import { appendChessMove, deleteChessGame, getChessGame } from "@/app/lib/chess/db";
+import { MAX_PLIES, moveToUci, replayChessMoves } from "@/app/lib/chess/replay";
 import { NextRequest } from "next/server";
 
-const isValidFEN = (fen: string) => {
-  try {
-    const game = new Chess(fen); // Intenta cargar el FEN
-    return "";
-  } catch (error) {
-    return errorMessage(error);
-  }
-};
+// La URL correcta para Stockfish, basada en la configuración de Nginx
+const STOCKFISH_API_URL = process.env.NEXT_PUBLIC_CHESS_URL
+  ? process.env.NEXT_PUBLIC_CHESS_URL + "/chess"
+  : `${process.env.NEXTCLOUD_URL}/chess`;
 
-export async function POST(req: NextRequest): Promise<Response> {
-  // La URL correcta para Stockfish, basada en tu configuración de Nginx
-  const STOCKFISH_API_URL = process.env.NEXT_PUBLIC_CHESS_URL
-  	? (process.env.NEXT_PUBLIC_CHESS_URL + "/chess")
-	: `${process.env.NEXTCLOUD_URL}/chess`;
-
-  try {
-
-    if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "true")
-		await requireAuth(req);
-
-    // Parseamos los datos del cuerpo de la solicitud
-    const params = await req.json();
-    const { fen, elo } = params;
-
-    if (!fen) {
-      return Response.json({ error: "FEN position is required" }, { status: 400 });
-    }
-
-    const cleanFEN = fen.trim().replace(/\s+/g, ' ');
-
-    const validateFEN = isValidFEN(cleanFEN)
-
-    if (validateFEN !== "") {
-      throw new Error("FEN inválido: " + cleanFEN + ", error: " + validateFEN);
-    }
-    // Formato UCI correcto
-    const payload = `uci
+async function fetchStockfishMove(fen: string, elo: number): Promise<string> {
+  const payload = `uci
 setoption name UCI_LimitStrength value true
 setoption name UCI_Elo value ${elo}
 setoption name Hash value 1024
 setoption name Threads value 2
 isready
-position fen ${cleanFEN}
+position fen ${fen}
 go movetime 150
 `.trim();
 
-    console.log("Payload limpio enviado a Stockfish:", JSON.stringify(payload));
-    // Enviamos el comando al servidor Flask
-    const response = await fetch(STOCKFISH_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain" },
-      body: payload,
-    });
-    
+  const response = await fetch(STOCKFISH_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: payload,
+  });
 
-    //console.log(response, "cojones!")
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Stockfish API error: ${response.status}: ${errorText}`);
+  }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Error en Stockfish API: ${response.status}`);
-      throw new Error(`Stockfish API error: ${response.status}: ${errorText}`);
+  const { response: stockfishResponse } = await response.json();
+  const bestMoveLine = stockfishResponse.find((line: string) => line.startsWith("bestmove"));
+  if (!bestMoveLine) {
+    throw new Error(`No se encontró 'bestmove' en la respuesta de Stockfish: ${stockfishResponse}`);
+  }
+
+  const match = bestMoveLine.match(/bestmove\s(\S+)/);
+  const bestmove = match?.[1];
+  if (!bestmove || bestmove === "(none)") {
+    throw new Error(`Stockfish no devolvió una jugada válida: ${bestMoveLine}`);
+  }
+
+  return bestmove;
+}
+
+// El servidor es la única autoridad: reconstruye la posición actual a
+// partir del log de jugadas guardado bajo el nonce (nunca de un FEN mandado
+// por el cliente), valida la jugada del jugador con chess.js, y solo si la
+// partida sigue en curso invoca a Stockfish él mismo con el elo fijado al
+// crear la partida (nunca el que mande el cliente). Tanto la jugada del
+// jugador como la de la IA quedan grabadas en game_chess antes de
+// responder, para poder reproducir y validar la partida entera al guardar
+// el score en /api/scores.
+export async function POST(req: NextRequest): Promise<Response> {
+  try {
+    const user = await getCurrentUser(req);
+
+    const params = await req.json();
+    const { nonce, move } = params;
+
+    if (typeof nonce !== "string" || nonce.trim() === "") {
+      return Response.json({ error: "nonce is required." }, { status: 400 });
+    }
+    if (
+      typeof move !== "object" ||
+      move === null ||
+      typeof move.from !== "string" ||
+      typeof move.to !== "string"
+    ) {
+      return Response.json({ error: "move must be an object with from/to." }, { status: 400 });
     }
 
-    // Procesamos la respuesta del servidor Flask
-    const t = await response.json();
-    const { response: stockfishResponse } = t
-    console.log("Respuesta preliminar de Stockfish:", stockfishResponse);
-
-    // Extraemos el mejor movimiento de la respuesta de Stockfish
-    const bestMoveLine = stockfishResponse.find((line: string) => line.startsWith("bestmove"));
-    if (!bestMoveLine) {
-      throw new Error(`No se encontró 'bestmove' en la respuesta de Stockfish: ${stockfishResponse}`);
+    const stored = getChessGame(nonce);
+    if (!stored || stored.userId !== user.id) {
+      return Response.json({ error: "Invalid or expired nonce." }, { status: 400 });
     }
-    const match = bestMoveLine.match(/bestmove\s(\S+)/);
 
-    const bestmove = match[1];
-    return Response.json({ bestmove, request: payload, response: stockfishResponse }, { status: 200 });
+    if (stored.moves.length >= MAX_PLIES) {
+      deleteChessGame(nonce);
+      return Response.json({ error: "Game exceeded maximum length." }, { status: 400 });
+    }
+
+    const replay = replayChessMoves(stored.moves);
+    if (!replay.valid) {
+      // El propio servidor escribió este log: si está corrupto no hay forma
+      // de recuperar la partida.
+      deleteChessGame(nonce);
+      return Response.json({ error: `Corrupted game state: ${replay.reason}` }, { status: 500 });
+    }
+    if (replay.gameOver) {
+      return Response.json({ error: "Game already over." }, { status: 400 });
+    }
+
+    let playerMove;
+    try {
+      playerMove = replay.chess.move({
+        from: move.from,
+        to: move.to,
+        promotion: typeof move.promotion === "string" ? move.promotion : undefined,
+      });
+    } catch (moveError) {
+      return Response.json({ error: `Illegal move: ${errorMessage(moveError)}` }, { status: 400 });
+    }
+
+    const playerUci = moveToUci(playerMove);
+    if (!appendChessMove(nonce, stored.movesJson, playerUci)) {
+      return Response.json({ error: "Game state changed, please retry." }, { status: 409 });
+    }
+
+    if (replay.chess.isGameOver()) {
+      return Response.json({ bestmove: null, gameOver: true }, { status: 200 });
+    }
+
+    const bestmove = await fetchStockfishMove(replay.chess.fen(), stored.elo);
+
+    let aiMove;
+    try {
+      aiMove = replay.chess.move({
+        from: bestmove.slice(0, 2),
+        to: bestmove.slice(2, 4),
+        promotion: bestmove.length === 5 ? bestmove.slice(4) : undefined,
+      });
+    } catch (moveError) {
+      // La jugada del jugador ya quedó grabada; no grabamos nada más para
+      // esta jugada de la IA y dejamos el estado consistente para que el
+      // cliente trate esto como un error fatal (igual que un fallo de red).
+      return Response.json(
+        { error: `Stockfish proposed an illegal move: ${errorMessage(moveError)}` },
+        { status: 500 }
+      );
+    }
+
+    const aiUci = moveToUci(aiMove);
+    const movesJsonAfterPlayer = JSON.stringify([...stored.moves, playerUci]);
+    if (!appendChessMove(nonce, movesJsonAfterPlayer, aiUci)) {
+      return Response.json({ error: "Game state changed, please retry." }, { status: 409 });
+    }
+
+    return Response.json(
+      { bestmove: aiUci, gameOver: replay.chess.isGameOver() },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Error en /bookmarks/api/chess:", error);
     return Response.json({ error: errorMessage(error) }, { status: 500 });
