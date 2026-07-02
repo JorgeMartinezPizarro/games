@@ -149,6 +149,12 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
   // los bloqueos que ocurren DESPUÉS (justo el caso de mantener "abajo"
   // pulsado a través de varias piezas). Por eso el guard usa esta ref, que
   // sí se mantiene al día en cada render sin importar qué closure la lea.
+  //
+  // Esta reasignación en el render solo cubre la transición a false (cuando la
+  // partida vuelve a un estado sin lock pendiente). La transición a true la
+  // hace attemptDescend de forma SÍNCRONA en el instante en que detecta el
+  // lock (ver allí), porque esperar al render dejaba una ventana en la que se
+  // colaban acciones al log que el cliente no aplicaba pero el servidor sí.
   const pendingLockRef = useRef(false);
   pendingLockRef.current = pendingLock;
 
@@ -339,6 +345,21 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
       if (!checkCollision(prev.board, prev.piece, prev.pos.x, nextY)) {
         return { ...prev, pos: { ...prev.pos, y: nextY } };
       }
+      // Marcamos pendingLockRef SÍNCRONAMENTE aquí, no solo en el estado. El
+      // estado pendingLock (y con él la reasignación de pendingLockRef en el
+      // render) no se confirma hasta que React renderiza, que es asíncrono
+      // respecto a este updater. En esa ventana (entre detectar el lock y que
+      // el useEffect lo resuelva) los guards de las acciones seguían leyendo
+      // pendingLockRef=false y REGISTRABAN en el log inputs que el cliente
+      // trataba como no-op (por prev.pendingLock) — típico al mantener "abajo"
+      // pulsado mientras la gravedad también baja la pieza: gravity y softDrop
+      // se disparan casi a la vez alrededor del lock. El servidor, que no
+      // tiene pendingLock y bloquea de forma síncrona, SÍ aplicaba esas
+      // acciones a la pieza siguiente, desincronizando el tablero y haciendo
+      // que el replay no alcanzase LINES_TARGET ("Target not reached").
+      // Ponerlo a true ya mismo cierra esa ventana; el render (line ~153) lo
+      // devuelve a false cuando la partida vuelve a un estado sin lock.
+      pendingLockRef.current = true;
       return { ...prev, pendingLock: true };
     });
   }, []);
