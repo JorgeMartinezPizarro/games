@@ -23,6 +23,9 @@ import {
 import { boardsMatch, computeNumbersScore, validateMoves } from "@/app/lib/numbers/board";
 import { consumeNumbersGame } from "@/app/lib/numbers/db";
 import { consumeWordsGame } from "@/app/lib/words/db";
+import { replayTetris } from "@/app/lib/tetris/replay";
+import { consumeTetrisGame } from "@/app/lib/tetris/db";
+import { LINES_TARGET as TETRIS_LINES_TARGET } from "@/app/lib/tetris/engine";
 import { NextRequest } from "next/server";
 import type { GameId } from "@/app/lib/scores/types";
 
@@ -126,6 +129,48 @@ function saveWordsScore(user: AuthUser, params: any): Response {
   return Response.json(body, { status: 200 });
 }
 
+// Tetris tampoco manda un score de confianza: manda el nonce (que ata la
+// partida a un seed de piezas fijo, emitido por /api/tetris/new-game) y el
+// log de acciones con marca de tiempo relativa al inicio. El servidor
+// reproduce la partida entera con el mismo motor que el cliente
+// (app/lib/tetris/replay.ts) y solo si el replay llega de forma legal a
+// LINES_TARGET calcula el tiempo final con su propio reloj.
+function saveTetrisScore(user: AuthUser, params: any): Response {
+  const { nonce, actions } = params;
+
+  if (typeof nonce !== "string" || nonce.trim() === "") {
+    return Response.json({ error: "nonce is required." }, { status: 400 });
+  }
+
+  const stored = consumeTetrisGame(nonce);
+  if (!stored || stored.userId !== user.id) {
+    return Response.json(
+      { error: "Invalid, expired or already used nonce." },
+      { status: 400 }
+    );
+  }
+
+  const replay = replayTetris(stored.seed, actions);
+  if (!replay.valid) {
+    return Response.json({ error: `Invalid game: ${replay.reason}` }, { status: 400 });
+  }
+
+  const elapsed = Date.now() - stored.createdAt;
+  const serializedConfig = serializeGameConfig({ linesTarget: TETRIS_LINES_TARGET });
+  if (!serializedConfig.ok) {
+    return Response.json({ error: serializedConfig.error }, { status: 400 });
+  }
+
+  const id = insertScore(user, GAME_IDS.TETRIS, elapsed, serializedConfig.value);
+
+  const body: SaveScoreResponse = {
+    message: "Score saved successfully.",
+    id,
+    score: elapsed,
+  };
+  return Response.json(body, { status: 200 });
+}
+
 function toPlayerGameBest(
   gameId: GameId,
   best: ReturnType<typeof getPlayerBestScoreForGame>
@@ -161,6 +206,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
     if (parsedGameId === GAME_IDS.WORDS) {
       return saveWordsScore(user, params);
+    }
+    if (parsedGameId === GAME_IDS.TETRIS) {
+      return saveTetrisScore(user, params);
     }
 
     const parsedScore = parseScoreValue(score);

@@ -1,104 +1,39 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Board,
+  COLS,
+  DROP_SPEED_MS,
+  LINES_TARGET,
+  Piece,
+  ROWS,
+  TETROMINOS,
+  checkCollision,
+  clearLinesPure,
+  createBoard,
+  hardDropDistance,
+  placePieceOnBoardPure,
+  rotate,
+} from "@/app/lib/tetris/engine";
+import { createPieceGenerator } from "@/app/lib/tetris/rng";
 
-export type Cell = [string, string];
-export type Board = Cell[][];
-export type Piece = { shape: number[][]; color: string };
+export type { Cell, Board, Piece } from "@/app/lib/tetris/engine";
+export { LINES_TARGET, hardDropDistance, ROWS, COLS };
 
-export const LINES_TARGET = 25;
-export const DROP_SPEED_MS = 184;
 export const TIMER_TICK_MS = 10;
 export const HOLD_INITIAL_DELAY = 300;
 export const HOLD_REPEAT_RATE = 100;
 
-export const ROWS = 20;
-export const COLS = 10;
+export type TetrisActionType =
+  | "left"
+  | "right"
+  | "softDrop"
+  | "rotateLeft"
+  | "rotateRight"
+  | "pause"
+  | "resume"
+  | "end";
 
-const createBoard = (rows: number = ROWS, cols: number = COLS): Board =>
-  Array.from({ length: rows }, () =>
-    Array.from({ length: cols }, () => ["0", "clear"] as Cell)
-  );
-
-const rotate = (matrix: number[][]): number[][] =>
-  matrix[0].map((_, colIndex) => matrix.map((row) => row[colIndex]).reverse());
-
-const checkCollision = (
-  board: Board,
-  piece: Piece,
-  x: number,
-  y: number
-): boolean => {
-  return piece.shape.some((row, rowIndex) =>
-    row.some((cell, colIndex) => {
-      if (cell !== 0) {
-        const newX = x + colIndex;
-        const newY = y + rowIndex;
-        if (
-          newY >= board.length ||
-          newX < 0 ||
-          newX >= board[0].length ||
-          (newY >= 0 && board[newY][newX][1] !== "clear")
-        ) {
-          return true;
-        }
-      }
-      return false;
-    })
-  );
-};
-
-const TETROMINOS: Piece[] = [
-  { shape: [[1, 1, 1], [0, 1, 0]], color: "#e03030" }, // T - red
-  { shape: [[1, 1], [1, 1]], color: "#e0c030" }, // O - yellow
-  { shape: [[1, 1, 0], [0, 1, 1]], color: "#30c030" }, // S - green
-  { shape: [[0, 1, 1], [1, 1, 0]], color: "#3070e0" }, // Z - blue
-  { shape: [[1, 1, 1, 1]], color: "#30d0d0" }, // I - cyan
-  { shape: [[1, 1, 1], [1, 0, 0]], color: "#e07030" }, // L - orange
-  { shape: [[1, 1, 1], [0, 0, 1]], color: "#a030e0" }, // J - purple
-];
-
-const getRandomPiece = (): Piece =>
-  TETROMINOS[Math.floor(Math.random() * TETROMINOS.length)];
-
-// ─── Puras helpers ──────────────────
-function placePieceOnBoardPure(
-  board: Board,
-  piece: Piece,
-  pos: { x: number; y: number }
-): Board {
-  const newBoard = board.map((row) => row.map((cell) => [...cell] as Cell));
-  piece.shape.forEach((row, rowIndex) =>
-    row.forEach((cell, colIndex) => {
-      if (cell !== 0) {
-        const ny = pos.y + rowIndex;
-        const nx = pos.x + colIndex;
-        if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS) {
-          newBoard[ny][nx] = [piece.color, "filled"];
-        }
-      }
-    })
-  );
-  return newBoard;
-}
-
-function clearLinesPure(board: Board): { newBoard: Board; cleared: number } {
-  const kept = board.filter((row) => row.some((cell) => cell[1] === "clear"));
-  const cleared = board.length - kept.length;
-  if (cleared === 0) return { newBoard: board, cleared: 0 };
-  const newRows = Array.from({ length: cleared }, () =>
-    Array.from({ length: board[0].length }, () => ["0", "clear"] as Cell)
-  );
-  return { newBoard: [...newRows, ...kept], cleared };
-}
-
-export function hardDropDistance(
-  board: Board,
-  piece: Piece,
-  pos: { x: number; y: number }
-): number {
-  let dist = 0;
-  while (!checkCollision(board, piece, pos.x, pos.y + dist + 1)) dist++;
-  return dist;
-}
+export type TetrisAction = { type: TetrisActionType; t: number };
 
 // ───── GameState ──────────
 interface GameState {
@@ -116,10 +51,9 @@ interface GameState {
 
 // IMPORTANTE (fix hidratación): esta función se usa también como valor inicial
 // de useState, que se ejecuta tanto en el servidor (SSR) como en el primer
-// render del cliente. Si usáramos getRandomPiece() aquí, el servidor y el
-// cliente generarían piezas distintas y React lanzaría un error de
-// hidratación. Por eso la pieza inicial es SIEMPRE determinista
-// (TETROMINOS[0]); la pieza aleatoria real se asigna después del montaje.
+// render del cliente. La pieza inicial es SIEMPRE determinista
+// (TETROMINOS[0]); la pieza real (derivada del seed que emite el servidor)
+// se asigna después del montaje, cuando llega /api/tetris/new-game.
 const initialGameState = (): GameState => ({
   board: createBoard(),
   piece: TETROMINOS[0],
@@ -131,24 +65,32 @@ const initialGameState = (): GameState => ({
   gameOver: false,
 });
 
-// Solo se debe llamar en el cliente (useEffect / handlers), nunca como
-// valor inicial de useState ni durante el render.
-const randomizedInitialState = (): GameState => ({
-  ...initialGameState(),
-  piece: getRandomPiece(),
-});
-
 export interface UseTetrisOptions {
-  /** Se llama una única vez cuando se completa la partida, con el tiempo final en ms */
-  onComplete?: (timeMs: number) => void;
+  /**
+   * Se llama una única vez cuando se completa la partida, con el nonce y el
+   * log de acciones para que el backend la reproduzca y valide. Puede
+   * devolver (o resolver a) el tiempo confirmado por el servidor, que se
+   * adopta como elapsedMs final.
+   */
+  onComplete?: (
+    nonce: string,
+    actions: TetrisAction[]
+  ) => void | Promise<number | null>;
 }
 
 /**
  * Hook con toda la lógica y los efectos del juego (tablero, pieza activa,
  * gravedad, temporizador, teclado, pausa/restart). No contiene nada de UI.
+ *
+ * Las piezas ya no salen de Math.random(): se generan con un PRNG con seed
+ * que emite /api/tetris/new-game (app/lib/tetris/rng.ts), y cada acción del
+ * jugador se registra con su timestamp relativo al inicio de la partida
+ * (app/lib/tetris/replay.ts la usa para reproducir y validar la partida
+ * completa en el backend antes de guardar el score).
  */
 export function useTetris({ onComplete }: UseTetrisOptions = {}) {
   const [gameState, setGameState] = useState<GameState>(initialGameState());
+  const [ready, setReady] = useState(false);
 
   const gsRef = useRef<GameState>(gameState);
   gsRef.current = gameState;
@@ -164,6 +106,13 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
     Map<string, ReturnType<typeof setTimeout | typeof setInterval>>
   >(new Map());
 
+  // Nonce/seed de la partida actual (emitidos por el servidor) y log de
+  // acciones para el replay de validación.
+  const nonceRef = useRef<string | null>(null);
+  const pieceGenRef = useRef<(() => Piece) | null>(null);
+  const gameStartRef = useRef<number | null>(null); // ancla t=0 para el log de acciones
+  const actionsRef = useRef<TetrisAction[]>([]);
+
   const {
     board,
     piece,
@@ -177,9 +126,47 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
     lockBoard,
   } = gameState;
 
-  // Init: genera la primera pieza aleatoria solo en cliente
+  const logAction = useCallback((type: TetrisActionType) => {
+    const t = gameStartRef.current != null ? Date.now() - gameStartRef.current : 0;
+    actionsRef.current.push({ type, t });
+  }, []);
+
+  const nextPiece = useCallback((): Piece => {
+    return pieceGenRef.current ? pieceGenRef.current() : TETROMINOS[0];
+  }, []);
+
+  const startNewGame = useCallback(async (autoStart: boolean) => {
+    setReady(false);
+    try {
+      const res = await fetch("/bookmarks/api/tetris/new-game", { method: "POST" });
+      if (!res.ok) throw new Error("Failed to start a new game");
+      const data = await res.json();
+
+      nonceRef.current = data.nonce;
+      gameStartRef.current = Date.now();
+      pieceGenRef.current = createPieceGenerator(data.seed);
+      actionsRef.current = autoStart ? [{ type: "resume", t: 0 }] : [];
+      setReady(true);
+
+      return pieceGenRef.current();
+    } catch (error) {
+      console.error("Error starting tetris game:", error);
+      setReady(false);
+      return null;
+    }
+  }, []);
+
+  // Init: pide la partida (nonce + seed) al servidor solo en cliente
   useEffect(() => {
-    setGameState(randomizedInitialState());
+    let cancelled = false;
+    startNewGame(false).then((firstPiece) => {
+      if (cancelled || !firstPiece) return;
+      setGameState((prev) => ({ ...prev, piece: firstPiece }));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -201,11 +188,11 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
       const { newBoard: clearedBoard, cleared } = clearLinesPure(newBoard);
       const totalLines = currentLines + cleared;
 
-      const nextPiece = getRandomPiece();
+      const spawnedPiece = nextPiece();
       const nextPos = { x: Math.floor(COLS / 2) - 1, y: 0 };
       const isGameOver = checkCollision(
         clearedBoard,
-        nextPiece,
+        spawnedPiece,
         nextPos.x,
         nextPos.y
       );
@@ -229,7 +216,7 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
             ...prev,
             board: clearedBoard,
             lines: totalLines,
-            piece: nextPiece,
+            piece: spawnedPiece,
             pos: nextPos,
             isPaused: true,
             gameCompleted: isCompleted,
@@ -238,7 +225,19 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
             lockVisual: false,
             lockBoard: undefined,
           }));
-          if (isCompleted) onComplete?.(finalMs);
+          if (isCompleted && nonceRef.current) {
+            logAction("end");
+            const nonce = nonceRef.current;
+            const actions = [...actionsRef.current];
+            const result = onComplete?.(nonce, actions);
+            if (result && typeof (result as Promise<number | null>).then === "function") {
+              (result as Promise<number | null>).then((confirmed) => {
+                if (typeof confirmed === "number") {
+                  setGameState((prev) => ({ ...prev, elapsedMs: confirmed }));
+                }
+              });
+            }
+          }
           lockingRef.current = false; // liberar el mutex al terminar el flash
         }, 80); // flash lock visual breve
         return;
@@ -260,14 +259,14 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
         ...prev,
         board: clearedBoard,
         lines: totalLines,
-        piece: nextPiece,
+        piece: spawnedPiece,
         pos: nextPos,
         lockVisual: false,
         lockBoard: undefined,
       }));
       lockingRef.current = false;
     },
-    [onComplete]
+    [nextPiece, logAction, onComplete]
   );
 
   // Timer tick
@@ -309,51 +308,58 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
   // Acciones
   const moveLeft = useCallback(() => {
     const gs = gsRef.current;
-    if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
+    if (!ready || gs.isPaused || gs.gameCompleted || gs.gameOver) return;
+    logAction("left");
     if (!checkCollision(gs.board, gs.piece, gs.pos.x - 1, gs.pos.y)) {
       setGameState((prev) => ({ ...prev, pos: { ...prev.pos, x: prev.pos.x - 1 } }));
     }
-  }, []);
+  }, [ready, logAction]);
 
   const moveRight = useCallback(() => {
     const gs = gsRef.current;
-    if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
+    if (!ready || gs.isPaused || gs.gameCompleted || gs.gameOver) return;
+    logAction("right");
     if (!checkCollision(gs.board, gs.piece, gs.pos.x + 1, gs.pos.y)) {
       setGameState((prev) => ({ ...prev, pos: { ...prev.pos, x: prev.pos.x + 1 } }));
     }
-  }, []);
+  }, [ready, logAction]);
 
   // Si lines+1 supera LINES_TARGET, fuerza lockVisual sí o sí
   const softDrop = useCallback(() => {
-  const gs = gsRef.current;
-  if (gs.isPaused || gs.gameCompleted || gs.gameOver || lockingRef.current) return;
-  const nextY = gs.pos.y + 1;
-  if (!checkCollision(gs.board, gs.piece, gs.pos.x, nextY)) {
-    setGameState((prev) => ({ ...prev, pos: { ...prev.pos, y: nextY } }));
-  } else {
-    lockAndAdvance(gs.board, gs.piece, gs.pos, gs.lines, gs.elapsedMs);
-    // sin pasar forceLockVisual=true: lockAndAdvance ya evalúa isCompleted internamente
-  }
-}, [lockAndAdvance]);
-
-  const rotatePiece = useCallback((direction: 1 | -1) => {
     const gs = gsRef.current;
-    if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
-    const times = direction === 1 ? 1 : 3;
-    let rotated = gs.piece.shape;
-    for (let i = 0; i < times; i++) rotated = rotate(rotated);
-    const rotatedPiece = { ...gs.piece, shape: rotated };
-    for (const kick of [0, -1, 1, -2, 2]) {
-      if (!checkCollision(gs.board, rotatedPiece, gs.pos.x + kick, gs.pos.y)) {
-        setGameState((prev) => ({
-          ...prev,
-          piece: rotatedPiece,
-          pos: { ...prev.pos, x: prev.pos.x + kick },
-        }));
-        return;
-      }
+    if (!ready || gs.isPaused || gs.gameCompleted || gs.gameOver || lockingRef.current) return;
+    logAction("softDrop");
+    const nextY = gs.pos.y + 1;
+    if (!checkCollision(gs.board, gs.piece, gs.pos.x, nextY)) {
+      setGameState((prev) => ({ ...prev, pos: { ...prev.pos, y: nextY } }));
+    } else {
+      lockAndAdvance(gs.board, gs.piece, gs.pos, gs.lines, gs.elapsedMs);
+      // sin pasar forceLockVisual=true: lockAndAdvance ya evalúa isCompleted internamente
     }
-  }, []);
+  }, [ready, logAction, lockAndAdvance]);
+
+  const rotatePiece = useCallback(
+    (direction: 1 | -1) => {
+      const gs = gsRef.current;
+      if (!ready || gs.isPaused || gs.gameCompleted || gs.gameOver) return;
+      logAction(direction === 1 ? "rotateRight" : "rotateLeft");
+      const times = direction === 1 ? 1 : 3;
+      let rotated = gs.piece.shape;
+      for (let i = 0; i < times; i++) rotated = rotate(rotated);
+      const rotatedPiece = { ...gs.piece, shape: rotated };
+      for (const kick of [0, -1, 1, -2, 2]) {
+        if (!checkCollision(gs.board, rotatedPiece, gs.pos.x + kick, gs.pos.y)) {
+          setGameState((prev) => ({
+            ...prev,
+            piece: rotatedPiece,
+            pos: { ...prev.pos, x: prev.pos.x + kick },
+          }));
+          return;
+        }
+      }
+    },
+    [ready, logAction]
+  );
 
   const rotateLeft = useCallback(() => rotatePiece(-1), [rotatePiece]);
   const rotateRight = useCallback(() => rotatePiece(1), [rotatePiece]);
@@ -385,15 +391,18 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
   }, []);
 
   const togglePause = useCallback(() => {
+    if (!ready) return;
     setGameState((prev) => {
       if (prev.gameCompleted || prev.gameOver) return prev;
       if (prev.isPaused) {
         startTimeRef.current = Date.now() - prev.elapsedMs;
+        logAction("resume");
         return { ...prev, isPaused: false };
       }
+      logAction("pause");
       return { ...prev, isPaused: true };
     });
-  }, []);
+  }, [ready, logAction]);
 
   // Keyboard handler
   useEffect(() => {
@@ -474,10 +483,17 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
     });
     holdTimersRef.current.clear();
     activeKeysRef.current.clear();
-    startTimeRef.current = Date.now();
-    const state = randomizedInitialState();
-    setGameState({ ...state, isPaused: false });
-  }, []);
+
+    startNewGame(true).then((firstPiece) => {
+      if (!firstPiece) return;
+      startTimeRef.current = Date.now();
+      setGameState({
+        ...initialGameState(),
+        piece: firstPiece,
+        isPaused: false,
+      });
+    });
+  }, [startNewGame]);
 
   return {
     // estado
@@ -492,6 +508,7 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
     gameOver,
     lockVisual,
     lockBoard,
+    ready,
     // acciones
     moveLeft,
     moveRight,

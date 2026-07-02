@@ -293,6 +293,7 @@ const Tetris: React.FC = () => {
     gameOver,
     lockVisual,
     lockBoard,
+    ready,
     moveLeft,
     moveRight,
     softDrop,
@@ -322,7 +323,7 @@ const Tetris: React.FC = () => {
           onRestart={handleRestart}
           onTogglePause={togglePause}
           isPaused={isPaused}
-          isLocked={gameCompleted || gameOver}
+          isLocked={!ready || gameCompleted || gameOver}
         />
 
         <Box className="tetris-panel-width tetris-stats-row">
@@ -331,9 +332,9 @@ const Tetris: React.FC = () => {
 			</Typography>
 			<Typography
 				className="tetris-stat tetris-stat--paused"
-				style={{ visibility: isPaused && !gameCompleted && !gameOver ? "visible" : "hidden" }}
+				style={{ visibility: !gameCompleted && !gameOver && (!ready || isPaused) ? "visible" : "hidden" }}
 			>
-				PAUSED
+				{!ready ? "LOADING…" : "PAUSED"}
 			</Typography>
 			<Typography className="tetris-stat tetris-stat--time">TIME: {formatTimeMs(elapsedMs)}</Typography>
 			</Box>

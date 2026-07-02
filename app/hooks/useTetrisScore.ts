@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GAME_IDS, GetScoresResponse, ScoreEntry } from "@/app/lib/scores/types";
-import { LINES_TARGET } from "./useTetris";
+import { LINES_TARGET, TetrisAction } from "./useTetris";
 
 export type LeaderboardEntry = {
   name: string;
@@ -62,9 +62,14 @@ export function useScore() {
     }
   }, []);
 
+  // El tiempo final lo decide siempre el backend: reproduce la partida a
+  // partir del seed y el log de acciones (app/lib/tetris/replay.ts) y solo
+  // si llega de forma legal a LINES_TARGET calcula el tiempo con su propio
+  // reloj. Devolvemos ese valor para que useTetris lo adopte como
+  // elapsedMs final.
   const saveScore = useCallback(
-    async (timeMs: number) => {
-      if (scoreSavedRef.current) return;
+    async (nonce: string, actions: TetrisAction[]): Promise<number | null> => {
+      if (scoreSavedRef.current) return null;
       scoreSavedRef.current = true;
       try {
         const response = await fetch("/bookmarks/api/scores", {
@@ -72,17 +77,20 @@ export function useScore() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             gameId: GAME_IDS.TETRIS,
-            score: timeMs,
-            gameConfig: { linesTarget: LINES_TARGET },
+            nonce,
+            actions,
           }),
         });
         if (response.ok) {
+          const data = await response.json();
           await loadScores();
-        } else {
-          scoreSavedRef.current = false;
+          return typeof data.score === "number" ? data.score : null;
         }
+        scoreSavedRef.current = false;
+        return null;
       } catch {
         scoreSavedRef.current = false;
+        return null;
       }
     },
     [loadScores]
