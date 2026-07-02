@@ -15,7 +15,7 @@ const ANONYMOUS: AuthUser = {
 export function useUser() {
   const [user, setUser] = useState<AuthUser>(ANONYMOUS);
   const [loading, setLoading] = useState(true);
-
+  console.log(user);
   useEffect(() => {
     fetch("/bookmarks/api/user")
       .then((res) => (res.ok ? res.json() : ANONYMOUS))

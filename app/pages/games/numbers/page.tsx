@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import "./styles.css";
 import MainMenu from "@/app/components/MainMenu";
 import { errorMessage } from "@/app/helpers";
-import { useNumbers, useScoreNumbers } from "./useGameNumbers";
+import { useNumbers, useScoreNumbers } from "./useNumbers";
 
 const GamesComponent = () => {
   const [view, setView] = useState<'play' | 'scores'>('play')

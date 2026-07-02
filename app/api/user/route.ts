@@ -72,6 +72,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const user = parseNextcloudUser(payload);
+	console.log(user);
     return NextResponse.json(user);
   } catch {
     return NextResponse.json({ error: "Invalid user profile" }, { status: 401 });
