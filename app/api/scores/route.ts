@@ -22,6 +22,7 @@ import {
 } from "@/app/lib/scores/types";
 import { boardsMatch, computeNumbersScore, validateMoves } from "@/app/lib/numbers/board";
 import { consumeNumbersGame } from "@/app/lib/numbers/db";
+import { consumeWordsGame } from "@/app/lib/words/db";
 import { NextRequest } from "next/server";
 import type { GameId } from "@/app/lib/scores/types";
 
@@ -83,6 +84,48 @@ function saveNumbersScore(user: AuthUser, params: any): Response {
   return Response.json(body, { status: 200 });
 }
 
+// Words tampoco manda un score de confianza: cada ronda ya se validó una a
+// una contra /api/words/answer (single-use), así que aquí solo hace falta
+// comprobar que el nonce existe, es del usuario y llegó a completar todas
+// las rondas antes de calcular el tiempo final con el reloj del servidor.
+function saveWordsScore(user: AuthUser, params: any): Response {
+  const { nonce } = params;
+
+  if (typeof nonce !== "string" || nonce.trim() === "") {
+    return Response.json({ error: "nonce is required." }, { status: 400 });
+  }
+
+  const stored = consumeWordsGame(nonce);
+  if (!stored || stored.userId !== user.id) {
+    return Response.json(
+      { error: "Invalid, expired or already used nonce." },
+      { status: 400 }
+    );
+  }
+
+  if (stored.answeredCount < stored.rounds.length) {
+    return Response.json({ error: "Game is not complete." }, { status: 400 });
+  }
+
+  const elapsed = Date.now() - stored.createdAt;
+  const serializedConfig = serializeGameConfig({
+    wordsTotal: stored.rounds.length,
+    correctAnswers: stored.answeredCount,
+  });
+  if (!serializedConfig.ok) {
+    return Response.json({ error: serializedConfig.error }, { status: 400 });
+  }
+
+  const id = insertScore(user, GAME_IDS.WORDS, elapsed, serializedConfig.value);
+
+  const body: SaveScoreResponse = {
+    message: "Score saved successfully.",
+    id,
+    score: elapsed,
+  };
+  return Response.json(body, { status: 200 });
+}
+
 function toPlayerGameBest(
   gameId: GameId,
   best: ReturnType<typeof getPlayerBestScoreForGame>
@@ -115,6 +158,9 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     if (parsedGameId === GAME_IDS.NUMBERS) {
       return saveNumbersScore(user, params);
+    }
+    if (parsedGameId === GAME_IDS.WORDS) {
+      return saveWordsScore(user, params);
     }
 
     const parsedScore = parseScoreValue(score);

@@ -8,8 +8,9 @@ import "./styles.css";
 const ROUNDS_TOTAL = 10;
 const CHOICES      = 4;
 
+// El backend nunca manda el target: solo audio + choices. La corrección de
+// cada ronda se valida en /api/words/answer, de una en una y de un solo uso.
 type Round = {
-  target:  string;
   audio:   string;
   choices: string[];
 };
@@ -23,6 +24,28 @@ type ScoreEntry = {
 
 type GameState = 'idle' | 'loading' | 'playing' | 'finished';
 
+// Precarga un audio en el navegador (no solo en el servidor) para que la
+// primera reproducción de cada ronda sea instantánea. No bloquea el juego
+// indefinidamente si un archivo tarda o falla.
+function preloadAudio(url: string, timeoutMs = 6000): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    const audio = new Audio();
+    audio.preload = 'auto';
+    audio.addEventListener('canplaythrough', done, { once: true });
+    audio.addEventListener('error', done, { once: true });
+    audio.src = url;
+    audio.load();
+    setTimeout(done, timeoutMs);
+  });
+}
+
 const Wording = () => {
   const [gameState, setGameState]       = useState<GameState>('idle');
   const [rounds, setRounds]             = useState<Round[]>([]);
@@ -35,6 +58,10 @@ const Wording = () => {
   const [finishedTime, setFinishedTime] = useState<number | null>(null);
   const [finishedRank, setFinishedRank] = useState<number | null>(null);
   const [feedback, setFeedback]         = useState<'correct' | 'wrong' | null>(null);
+  const [pickedChoice, setPickedChoice] = useState<string | null>(null);
+  const [revealedTarget, setRevealedTarget] = useState<string | null>(null);
+  const [checking, setChecking]         = useState(false);
+  const [nonce, setNonce]               = useState<string | null>(null);
 
   const startTimeRef = useRef<number>(0);
   const [elapsedMs, setElapsedMs]       = useState(0);
@@ -90,24 +117,29 @@ const Wording = () => {
 
   useEffect(() => { loadScores(); }, [loadScores]);
 
-  const saveScore = useCallback(async (elapsed: number, finalScore: number) => {
+  // El score final lo calcula siempre el backend (nonce creado en
+  // /api/words/new-game, cada ronda validada en /api/words/answer): esto
+  // solo confirma la partida y adopta el tiempo que devuelve el servidor.
+  const saveScore = useCallback(async (nonceValue: string) => {
     if (scoreSaved) return;
     try {
       const res = await fetch('/bookmarks/api/scores', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          gameId:     4,
-          score:      elapsed,
-          gameConfig: { wordsTotal: ROUNDS_TOTAL, correctAnswers: finalScore },
-        }),
+        body: JSON.stringify({ gameId: 4, nonce: nonceValue }),
       });
+      const data = await res.json();
       if (res.ok) {
         setScoreSaved(true);
         const updated = await loadScores();
-        const sorted  = [...updated].sort((a, b) => a.score - b.score);
-        const idx     = sorted.findIndex(s => s.score === elapsed);
-        setFinishedRank(idx >= 0 && idx < 10 ? idx + 1 : null);
+        const confirmedScore = typeof data.score === 'number' ? data.score : null;
+
+        if (confirmedScore !== null) {
+          setFinishedTime(confirmedScore);
+          const sorted = [...updated].sort((a, b) => a.score - b.score);
+          const idx    = sorted.findIndex(s => s.score === confirmedScore);
+          setFinishedRank(idx >= 0 && idx < 10 ? idx + 1 : null);
+        }
       }
     } catch (e) {
       console.error('Error saving score:', e);
@@ -124,15 +156,30 @@ const Wording = () => {
     setFinishedTime(null);
     setFinishedRank(null);
     setFeedback(null);
+    setPickedChoice(null);
+    setRevealedTarget(null);
+    setNonce(null);
 
     try {
-      const res  = await fetch(`/bookmarks/api/audio?rounds=${ROUNDS_TOTAL}&choices=${CHOICES}`);
+      const res  = await fetch(
+        `/bookmarks/api/words/new-game?rounds=${ROUNDS_TOTAL}&choices=${CHOICES}`,
+        { method: 'POST' }
+      );
       const data = await res.json();
-      if (!data.rounds?.length) throw new Error('No rounds received');
+      if (!res.ok || !data.rounds?.length) throw new Error('No rounds received');
 
-      setRounds(data.rounds);
+      // El cronómetro arranca en cuanto el servidor crea la partida (mismo
+      // instante que usará para calcular el tiempo final), no cuando
+      // termina de precargarse el audio.
       startTimeRef.current = Date.now();
       setElapsedMs(0);
+      setNonce(data.nonce);
+      setRounds(data.rounds);
+
+      // Precachea los 10 audios en el navegador mientras se ve la pantalla
+      // de carga, para que no haya que esperar red al reproducir cada ronda.
+      await Promise.all((data.rounds as Round[]).map(r => preloadAudio(r.audio)));
+
       setGameState('playing');
     } catch (e) {
       console.error('Error loading challenge:', e);
@@ -140,44 +187,60 @@ const Wording = () => {
     }
   }, []);
 
-  // El jugador elige una palabra
-  const handleChoice = useCallback((choice: string) => {
-    if (gameState !== 'playing' || feedback) return;
+  // El jugador elige una palabra: se valida contra el backend, de una ronda
+  // en una y de un solo intento (un fallo termina la partida ahí mismo).
+  const handleChoice = useCallback(async (choice: string) => {
+    if (gameState !== 'playing' || feedback || checking || !nonce) return;
 
-    const round    = rounds[currentRound];
-    const correct  = choice === round.target;
-    const newScore = correct ? score + 1 : score;
+    setChecking(true);
+    setPickedChoice(choice);
 
-    setFeedback(correct ? 'correct' : 'wrong');
+    try {
+      const res = await fetch('/bookmarks/api/words/answer', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nonce, roundIndex: currentRound, answer: choice }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Answer check failed');
 
-    setTimeout(() => {
-      setFeedback(null);
+      setChecking(false);
 
-      if (!correct) {
-        // Fallo → game over sin guardar score
-        const elapsed = Date.now() - startTimeRef.current;
-        setFinishedTime(elapsed);
-        setWon(false);
-        setScore(newScore);
-        setGameState('finished');
+      if (!data.correct) {
+        setRevealedTarget(typeof data.target === 'string' ? data.target : null);
+        setFeedback('wrong');
+
+        setTimeout(() => {
+          setFeedback(null);
+          const elapsed = Date.now() - startTimeRef.current;
+          setFinishedTime(elapsed);
+          setWon(false);
+          setGameState('finished');
+        }, 500);
         return;
       }
 
-      setScore(newScore);
-      const next = currentRound + 1;
+      setFeedback('correct');
 
-      if (next >= ROUNDS_TOTAL) {
-        // Completó las 10 → guardar score
-        const elapsed = Date.now() - startTimeRef.current;
-        setFinishedTime(elapsed);
-        setWon(true);
-        setGameState('finished');
-        saveScore(elapsed, newScore);
-      } else {
-        setCurrentRound(next);
-      }
-    }, 500);
-  }, [gameState, feedback, rounds, currentRound, score, saveScore]);
+      setTimeout(() => {
+        setFeedback(null);
+        setScore(s => s + 1);
+
+        if (data.finished) {
+          const elapsed = Date.now() - startTimeRef.current;
+          setFinishedTime(elapsed);
+          setWon(true);
+          setGameState('finished');
+          saveScore(nonce);
+        } else {
+          setCurrentRound(c => c + 1);
+        }
+      }, 500);
+    } catch (e) {
+      console.error('Error checking answer:', e);
+      setChecking(false);
+    }
+  }, [gameState, feedback, checking, nonce, currentRound, saveScore]);
 
   // Replay audio
   const handleReplay = useCallback(() => {
@@ -259,16 +322,16 @@ const Wording = () => {
               <div className={`choices-grid choices-grid--${CHOICES}`}>
                 {round.choices.map((choice) => {
                   let cls = 'choice-btn';
-                  if (feedback === 'correct' && choice === round.target) cls += ' choice-btn--correct';
-                  if (feedback === 'wrong'   && choice === round.target) cls += ' choice-btn--reveal';
-                  if (feedback === 'wrong'   && choice !== round.target) cls += ' choice-btn--wrong';
+                  if (feedback === 'correct' && choice === pickedChoice) cls += ' choice-btn--correct';
+                  if (feedback === 'wrong'   && choice === revealedTarget) cls += ' choice-btn--reveal';
+                  if (feedback === 'wrong'   && choice !== revealedTarget) cls += ' choice-btn--wrong';
 
                   return (
                     <Button
                       key={choice}
                       className={cls}
                       variant="contained"
-                      disabled={!!feedback}
+                      disabled={!!feedback || checking}
                       onClick={() => handleChoice(choice)}
                     >
                       {choice}
