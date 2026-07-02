@@ -132,7 +132,7 @@ const ChessGame: React.FC = () => {
           data.scores.map((score: any) => ({
             elo: score.score, // La API devuelve `score`
             time: score.createdAt, // La API devuelve `createdAt`
-            name: score.username,
+            userId: score.userId ?? score.username,
           }))
         );
       }
@@ -661,7 +661,7 @@ const ChessGame: React.FC = () => {
                         .map((score, index) => (
                           <TableRow key={index} hover>
                             <TableCell>{index + 1}</TableCell>
-                            <TableCell>{score.name}</TableCell>
+                            <TableCell>{score.userId}</TableCell>
                             <TableCell>{score.elo}</TableCell>
                             <TableCell>
                               {new Date(score.time).toLocaleDateString()}

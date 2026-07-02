@@ -55,6 +55,7 @@ export function getDb(): Database.Database {
 
 type ScoreRow = {
   username: string;
+  userId: string | null;
   score: number;
   gameConfig: string | null;
   createdAt: string;
@@ -89,7 +90,7 @@ function getStmts(db: Database.Database) {
       VALUES (?, ?, ?, ?, ?)
     `),
     selectScores: db.prepare(`
-      SELECT COALESCE(u.name, s.username) AS username, s.score, s.gameConfig, s.createdAt
+      SELECT COALESCE(u.name, s.username) AS username, s.userId, s.score, s.gameConfig, s.createdAt
       FROM scores s
       LEFT JOIN users u ON s.userId = u.id
       WHERE s.gameId = ?
@@ -171,6 +172,7 @@ export function getScoresForGame(gameId: GameId): ScoreEntry[] {
 
   return rows.map((row) => ({
     username: row.username,
+    userId: row.userId,
     score: row.score,
     gameConfig: parseStoredGameConfig(row.gameConfig),
     createdAt: row.createdAt,

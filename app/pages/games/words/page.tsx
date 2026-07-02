@@ -17,7 +17,7 @@ type Round = {
 
 type ScoreEntry = {
   score:      number;
-  name:       string;
+  userId:     string;
   wordsTotal: number;
   createdAt?: string;
 };
@@ -102,7 +102,7 @@ const Wording = () => {
       if (data.scores) {
         const mapped: ScoreEntry[] = data.scores.map((s: any) => ({
           score:      s.score,
-          name:       s.username,
+          userId:     s.userId ?? s.username,
           wordsTotal: s.gameConfig?.wordsTotal ?? ROUNDS_TOTAL,
           createdAt:  s.createdAt,
         }));
@@ -427,7 +427,7 @@ const Wording = () => {
                   {sortedScores.map((s, i) => (
                     <tr key={i}>
                       <td>{i + 1}</td>
-                      <td>{s.name}</td>
+                      <td>{s.userId}</td>
                       <td>{formatMs(s.score)}</td>
                     </tr>
                   ))}

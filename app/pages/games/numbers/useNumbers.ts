@@ -38,7 +38,7 @@ export function useScoreNumbers() {
           data.scores.map((score: any) => ({
             score: score.score,
             steps: score.gameConfig?.steps || 0,
-            name: score.username,
+            userId: score.userId ?? score.username,
             time: score.createdAt,
           })),
         )

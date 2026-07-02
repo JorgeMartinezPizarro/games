@@ -217,7 +217,7 @@ const GamesComponent = () => {
                           }}
                         >
                           <TableCell align="center" sx={{ color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{i + 1}</TableCell>
-                          <TableCell sx={{ color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.name}</TableCell>
+                          <TableCell sx={{ color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.userId}</TableCell>
                           <TableCell align="right" sx={{ color: '#4caf50', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.score}</TableCell>
                           <TableCell align="right" sx={{ color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.steps}</TableCell>
                         </TableRow>
@@ -257,7 +257,7 @@ const GamesComponent = () => {
                           }}
                         >
                           <TableCell align="center" sx={{ color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{i + 1}</TableCell>
-                          <TableCell sx={{ color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.name}</TableCell>
+                          <TableCell sx={{ color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.userId}</TableCell>
                           <TableCell align="right" sx={{ color: '#ff9800', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.steps}</TableCell>
                           <TableCell align="right" sx={{ color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{entry.score}</TableCell>
                         </TableRow>

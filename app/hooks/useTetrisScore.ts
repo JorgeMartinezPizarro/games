@@ -3,7 +3,7 @@ import { GAME_IDS, GetScoresResponse, ScoreEntry } from "@/app/lib/scores/types"
 import { LINES_TARGET, TetrisAction } from "./useTetris";
 
 export type LeaderboardEntry = {
-  name: string;
+  userId: string;
   timeMs: number;
   linesTarget: number;
 };
@@ -28,7 +28,7 @@ function parseLeaderboardEntry(entry: ScoreEntry): LeaderboardEntry {
       : LINES_TARGET;
   if (typeof entry.gameConfig?.linesTarget === "number" || entry.score >= 1000) {
     return {
-      name: entry.username,
+      userId: entry.userId ?? entry.username,
       timeMs: entry.score,
       linesTarget,
     };
@@ -36,7 +36,7 @@ function parseLeaderboardEntry(entry: ScoreEntry): LeaderboardEntry {
   const legacySeconds =
     typeof entry.gameConfig?.timer === "number" ? entry.gameConfig.timer : 0;
   return {
-    name: entry.username,
+    userId: entry.userId ?? entry.username,
     timeMs: legacySeconds * 1000,
     linesTarget: entry.score,
   };

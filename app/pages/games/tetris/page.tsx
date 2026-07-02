@@ -260,9 +260,9 @@ const Scoreboard = React.memo(function Scoreboard({ topScores }: { topScores: Le
           </thead>
           <tbody>
             {sorted.map((entry, i) => (
-              <tr key={`${entry.name}-${entry.timeMs}-${i}`} className={i === 0 ? "is-first" : "is-rest"}>
+              <tr key={`${entry.userId}-${entry.timeMs}-${i}`} className={i === 0 ? "is-first" : "is-rest"}>
                 <td>{i + 1}</td>
-                <td>{entry.name}</td>
+                <td>{entry.userId}</td>
                 <td>{formatTimeMs(entry.timeMs)}</td>
                 <td>{entry.linesTarget}</td>
               </tr>

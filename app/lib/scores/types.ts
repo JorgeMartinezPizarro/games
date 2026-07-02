@@ -13,6 +13,7 @@ export const VALID_GAME_IDS: readonly GameId[] = Object.values(GAME_IDS);
 
 export type ScoreEntry = {
   username: string;
+  userId: string | null;
   score: number;
   gameConfig: Record<string, unknown> | null;
   createdAt: string;
