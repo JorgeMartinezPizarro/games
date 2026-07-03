@@ -5,7 +5,8 @@ import React, { useEffect, useState } from "react";
 import "./styles.css";
 import MainMenu from "@/app/components/MainMenu";
 import { errorMessage } from "@/app/helpers";
-import { useNumbers, useScoreNumbers } from "./useNumbers";
+import { useNumbers } from "@/app/hooks/useNumbers";
+import {useScoreNumbers} from "@/app/hooks/useScoreNumbers"
 
 const GamesComponent = () => {
   const [view, setView] = useState<'play' | 'scores'>('play')
@@ -111,11 +112,11 @@ const GamesComponent = () => {
         {view === 'play' && numbers.length === 20 && (
           <Box className={"box" + (loading ? " loading" : "")}>
             <Box className="controls">
-              <Button className={"arcade-btn" + (!isRight ? " danger" : "")} onClick={newGame}>Reset</Button>
+              <Button data-testid="reset-btn" className={"arcade-btn" + (!isRight ? " danger" : "")} onClick={newGame}>Reset</Button>
               <Button className="arcade-btn" disabled>Score</Button>
-              <Button className="arcade-btn" disabled>{currentScore}</Button>
+              <Button data-testid="score-value" className="arcade-btn" disabled>{currentScore}</Button>
               <Button className="arcade-btn" disabled>Steps</Button>
-              <Button className="arcade-btn" disabled>{steps}</Button>
+              <Button data-testid="steps-value" className="arcade-btn" disabled>{steps}</Button>
               {isRight ? (
                 <Button className="arcade-btn" disabled>{}</Button>
               ) : (
@@ -126,6 +127,7 @@ const GamesComponent = () => {
             {topRow.map(number => (
               <Box key={`top-${number.values.i}`} className="cell-border">
                 <Button
+                  data-testid={`cell-${number.values.i}`}
                   className={"arcade-btn" + (!isRight ? " danger" : "")}
                   color={number.values.b ? "secondary" : "primary"}
                   disabled={loading || !isRight || number.values.b}
@@ -140,6 +142,7 @@ const GamesComponent = () => {
               <React.Fragment key={`mid-row-${rowIndex}`}>
                 <Box key={`left-${rowIndex}`} className="cell-border">
                   <Button
+                    data-testid={`cell-${leftCol[rowIndex].values.i}`}
                     className={"arcade-btn" + (!isRight ? " danger" : "")}
                     color={leftCol[rowIndex].values.b ? "secondary" : "primary"}
                     disabled={loading || !isRight || leftCol[rowIndex].values.b}
@@ -159,6 +162,7 @@ const GamesComponent = () => {
 
                 <Box key={`right-${rowIndex}`} className="cell-border">
                   <Button
+                    data-testid={`cell-${rightCol[rowIndex].values.i}`}
                     className={"arcade-btn" + (!isRight ? " danger" : "")}
                     color={rightCol[rowIndex].values.b ? "secondary" : "primary"}
                     disabled={loading || !isRight || rightCol[rowIndex].values.b}
@@ -173,6 +177,7 @@ const GamesComponent = () => {
             {bottomRow.map(number => (
               <Box key={`bot-${number.values.i}`} className="cell-border">
                 <Button
+                  data-testid={`cell-${number.values.i}`}
                   className={"arcade-btn" + (!isRight ? " danger" : "")}
                   color={number.values.b ? "secondary" : "primary"}
                   disabled={loading || !isRight || number.values.b}

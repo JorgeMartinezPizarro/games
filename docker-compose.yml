@@ -19,11 +19,11 @@ services:
     image: jorgemartinezpizarro/wordlist:latest
     # Exposed locally to comunicate with node
     ports:
-      - 127.0.0.1:1009:5000
+      - 127.0.0.1:${WORDLIST_PORT:-1009}:5000
     volumes:
       - ./cache/audio/:/app/audio
   stockfish:
     image: jorgemartinezpizarro/stockfish:latest
     # Exposed locally to comunicate with node
     ports:
-      - 127.0.0.1:1007:8080
+      - 127.0.0.1:${STOCKFISH_PORT:-1007}:8080

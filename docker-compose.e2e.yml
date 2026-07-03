@@ -1,0 +1,25 @@
+# Override de docker-compose.yml SOLO para las pruebas E2E (Playwright).
+#
+# Uso (lo hace playwright.config.ts automáticamente, no hace falta a mano):
+#   docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+#     --env-file .env.e2e -p games-e2e up --build -d
+#
+# Qué aísla de tu stack de desarrollo normal:
+#  - build local del Dockerfile (no la imagen :latest publicada), para
+#    probar siempre el código que tienes en el working tree.
+#  - cache/e2e/* propio (audio + sqlite) para que las partidas de test
+#    nunca se mezclen con tus datos reales de dev.
+#  - puertos distintos: salen de .env.e2e (PORT/STOCKFISH_PORT/WORDLIST_PORT),
+#    así puede convivir con un `docker compose up` de dev ya corriendo.
+services:
+  games:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: games-e2e:local
+    volumes:
+      - ./cache/e2e/audio/:/app/cache/audio
+      - ./cache/e2e/database/:/app/cache/database
+  wordlist:
+    volumes:
+      - ./cache/e2e/audio/:/app/audio

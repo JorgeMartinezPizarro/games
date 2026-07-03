@@ -1,6 +1,6 @@
 import { getDb } from "@/app/lib/scores/db";
 import { generateBoard } from "@/app/lib/numbers/board";
-import type { CellValues } from "@/app/pages/games/numbers/types";
+import type { CellValues } from "@/app/types";
 import crypto from "node:crypto";
 
 // Nonces caducan a los 15 minutos: tiempo de sobra para jugar una partida,

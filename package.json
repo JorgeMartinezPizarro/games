@@ -6,7 +6,11 @@
     "dev": "node run.js dev",
     "build": "next build",
     "start": "node run.js start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:down": "docker compose -f docker-compose.yml -f docker-compose.e2e.yml --env-file .env.e2e -p games-e2e down -v"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -35,6 +39,8 @@
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@testing-library/react": "^16.3.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/fluent-ffmpeg": "^2.1.25",
     "@types/node": "^20",
@@ -42,12 +48,15 @@
     "@types/react-dom": "^19.2.3",
     "@types/simple-oauth2": "^5.0.7",
     "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^6.0.3",
     "concurrently": "^10.0.3",
     "cross-env": "^7.0.3",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.1.1",
+    "jsdom": "^29.1.1",
     "tailwindcss": "^3.4.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.9"
   }
 }

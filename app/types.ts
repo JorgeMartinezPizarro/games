@@ -101,3 +101,29 @@ export interface Piece {
   shape: number[][];
   color: string;
 }
+
+export interface CellValues {
+    values: {
+      n: number;
+      b: boolean;
+      i: number;
+    }
+}
+export interface CellProps extends CellValues {
+    handleClick: (x: CellValues) => void;
+}
+
+
+
+export interface UseNumbersConfig {
+  onFinish?: (
+	finalScore: number,
+	finalSteps: number,
+	moves: number[],
+	nonce: string | null,
+	board: CellValues[],
+  ) => void | Promise<number | null>
+  onReset?: () => void
+}
+
+export type RecordEntry = { score: number; steps: number }

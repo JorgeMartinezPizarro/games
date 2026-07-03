@@ -1,4 +1,4 @@
-import type { CellValues } from "@/app/pages/games/numbers/types";
+import type { CellValues } from "@/app/types";
 
 export const BOARD_SIZE = 20;
 

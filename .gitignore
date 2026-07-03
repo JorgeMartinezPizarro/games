@@ -37,7 +37,14 @@ volume/
 
 # environment variables
 .env
+.env.e2e
 
 cachedata/
 
 cache/
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
