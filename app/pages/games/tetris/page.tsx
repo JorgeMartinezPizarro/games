@@ -13,6 +13,7 @@ interface BoardViewProps {
   board: Board;
   piece: Piece;
   pos: { x: number; y: number };
+  active: boolean;
   lockVisual?: boolean;
   lockBoard?: Board;
 }
@@ -21,6 +22,7 @@ const BoardView = React.memo(function BoardView({
   board,
   piece,
   pos,
+  active,
   lockVisual,
   lockBoard,
 }: BoardViewProps) {
@@ -30,7 +32,7 @@ const BoardView = React.memo(function BoardView({
     row.map((cell) => (cell[1] === "clear" ? "black" : cell[0]))
   );
 
-  if (!showingLock) {
+  if (!showingLock && active) {
     piece.shape.forEach((row, py) =>
       row.forEach((cell, px) => {
         if (cell !== 0) {
@@ -80,24 +82,68 @@ const BoardView = React.memo(function BoardView({
   );
 });
 
+// ───────────────────────── Siguiente pieza (memoizado) ─────────────────────────
+
+// Rejilla fija 4×2: cabe cualquier tetrominó (máx. 4 columnas para la I,
+// máx. 2 filas para el resto) sin que el tamaño del panel cambie entre
+// piezas distintas.
+const NEXT_PIECE_GRID_COLS = 4;
+const NEXT_PIECE_GRID_ROWS = 2;
+
+const NextPiecePreview = React.memo(function NextPiecePreview({
+  piece,
+  ready,
+}: {
+  piece: Piece;
+  ready: boolean;
+}) {
+  const offsetX = Math.floor((NEXT_PIECE_GRID_COLS - piece.shape[0].length) / 2);
+  const offsetY = Math.floor((NEXT_PIECE_GRID_ROWS - piece.shape.length) / 2);
+  const cells: boolean[][] = Array.from({ length: NEXT_PIECE_GRID_ROWS }, () =>
+    Array.from({ length: NEXT_PIECE_GRID_COLS }, () => false)
+  );
+  if (ready) {
+    piece.shape.forEach((row, y) =>
+      row.forEach((cell, x) => {
+        if (cell !== 0) cells[y + offsetY][x + offsetX] = true;
+      })
+    );
+  }
+
+  return (
+    <Box className="tetris-menu-next">
+      <Typography className="tetris-next-piece-label">NEXT</Typography>
+      <Box className="tetris-next-piece-grid">
+        {cells.map((row, y) =>
+          row.map((filled, x) => (
+            <div
+              key={`${y}-${x}`}
+              className="tetris-next-piece-cell"
+              style={{ backgroundColor: filled ? piece.color : "transparent" }}
+            />
+          ))
+        )}
+      </Box>
+    </Box>
+  );
+});
+
 // ───────────────────────── Menú superior (memoizado) ─────────────────────────
 
 interface MenuBarProps {
   showGame: boolean;
   onToggleView: () => void;
-  onRestart: () => void;
-  onTogglePause: () => void;
-  isPaused: boolean;
-  isLocked: boolean; // gameCompleted || gameOver
+  onStartStop: () => void;
+  isActive: boolean;
+  nextPiece: Piece;
 }
 
 const MenuBar = React.memo(function MenuBar({
   showGame,
   onToggleView,
-  onRestart,
-  onTogglePause,
-  isPaused,
-  isLocked,
+  onStartStop,
+  isActive,
+  nextPiece,
 }: MenuBarProps) {
   return (
     <Box className="tetris-panel-width tetris-menu-bar">
@@ -109,25 +155,17 @@ const MenuBar = React.memo(function MenuBar({
       >
         {showGame ? "SCORES" : "PLAY"}
       </Button>
-      {showGame && <Button
-        size="small"
-        variant="outlined"
-        onClick={onRestart}
-        className="tetris-menu-btn tetris-menu-btn--restart"
-      >
-        RESTART
-      </Button>}
-      {showGame && <Button
-        size="small"
-        variant="outlined"
-        onClick={onTogglePause}
-        disabled={isLocked}
-        className={`tetris-menu-btn tetris-menu-btn--pause ${isPaused ? "is-paused" : ""} ${
-          isLocked ? "is-disabled" : ""
-        }`}
-      >
-        {isPaused ? "RESUME" : "PAUSE"}
-      </Button>}
+      {showGame && (
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={onStartStop}
+          className="tetris-menu-btn tetris-menu-btn--startstop"
+        >
+          {isActive ? "STOP" : "START"}
+        </Button>
+      )}
+      {showGame && <NextPiecePreview piece={nextPiece} ready={isActive} />}
     </Box>
   );
 });
@@ -284,31 +322,38 @@ const Tetris: React.FC = () => {
   const {
     board,
     piece,
+    nextPiece,
     pos,
     lines,
     linesTarget,
-    isPaused,
     elapsedMs,
     gameCompleted,
     gameOver,
     lockVisual,
     lockBoard,
     ready,
+    loading,
     moveLeft,
     moveRight,
     softDrop,
     rotateLeft,
     rotateRight,
-    restartGame,
-    togglePause,
+    startGame,
+    stopGame,
     startRepeat,
     stopRepeat,
   } = tetris;
 
-  const handleRestart = useCallback(() => {
-    score.resetSaveGuard();
-    restartGame();
-  }, [score, restartGame]);
+  const isActive = ready && !gameCompleted && !gameOver;
+
+  const handleStartStop = useCallback(() => {
+    if (isActive) {
+      stopGame();
+    } else {
+      score.resetSaveGuard();
+      startGame();
+    }
+  }, [isActive, score, startGame, stopGame]);
 
   const handleToggleView = useCallback(() => setShowGame((v) => !v), []);
 
@@ -320,10 +365,9 @@ const Tetris: React.FC = () => {
         <MenuBar
           showGame={showGame}
           onToggleView={handleToggleView}
-          onRestart={handleRestart}
-          onTogglePause={togglePause}
-          isPaused={isPaused}
-          isLocked={!ready || gameCompleted || gameOver}
+          onStartStop={handleStartStop}
+          isActive={isActive}
+          nextPiece={nextPiece}
         />
 
         <Box className="tetris-panel-width tetris-stats-row">
@@ -331,10 +375,10 @@ const Tetris: React.FC = () => {
 				LINES: {Math.min(lines, linesTarget)}/{linesTarget}
 			</Typography>
 			<Typography
-				className="tetris-stat tetris-stat--paused"
-				style={{ visibility: !gameCompleted && !gameOver && (!ready || isPaused) ? "visible" : "hidden" }}
+				className="tetris-stat tetris-stat--loading"
+				style={{ visibility: loading ? "visible" : "hidden" }}
 			>
-				{!ready ? "LOADING…" : "PAUSED"}
+				LOADING…
 			</Typography>
 			<Typography className="tetris-stat tetris-stat--time">TIME: {formatTimeMs(elapsedMs)}</Typography>
 			</Box>
@@ -350,7 +394,7 @@ const Tetris: React.FC = () => {
       {/* ── Zona central: tablero o marcador ── */}
       <Box className={`tetris-main ${!showGame ? "tetris-main--scores" : ""}`}>
 		{showGame ? (
-			<BoardView board={board} piece={piece} pos={pos} lockVisual={lockVisual} lockBoard={lockBoard} />
+			<BoardView board={board} piece={piece} pos={pos} active={ready} lockVisual={lockVisual} lockBoard={lockBoard} />
 		) : (
 			<Scoreboard topScores={score.topScores} />
 		)}
@@ -372,7 +416,7 @@ const Tetris: React.FC = () => {
           </Box>
           <Box className="desktop-only">
             <Typography className="tetris-keyboard-hint">
-				A/◀ MOVE LEFT &nbsp;|&nbsp; D/▶ MOVE RIGHT &nbsp;|&nbsp; S/▼ SOFT DROP &nbsp;|&nbsp; SPACE PAUSE
+				A/◀ MOVE LEFT &nbsp;|&nbsp; D/▶ MOVE RIGHT &nbsp;|&nbsp; S/▼ SOFT DROP
 				&nbsp;|&nbsp; O ROTATE ↺ &nbsp;|&nbsp; P ROTATE ↻
 			</Typography>
           </Box>

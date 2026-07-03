@@ -40,9 +40,9 @@ export type TetrisAction = { type: TetrisActionType; t: number };
 interface GameState {
   board: Board;
   piece: Piece;
+  nextPiece: Piece;
   pos: { x: number; y: number };
   lines: number;
-  isPaused: boolean;
   elapsedMs: number;
   gameCompleted: boolean;
   gameOver: boolean;
@@ -58,9 +58,9 @@ interface GameState {
 const initialGameState = (): GameState => ({
   board: createBoard(),
   piece: TETROMINOS[0],
+  nextPiece: TETROMINOS[0],
   pos: { x: Math.floor(COLS / 2) - 1, y: 0 },
   lines: 0,
-  isPaused: true,
   elapsedMs: 0,
   gameCompleted: false,
   gameOver: false,
@@ -81,7 +81,7 @@ export interface UseTetrisOptions {
 
 /**
  * Hook con toda la lógica y los efectos del juego (tablero, pieza activa,
- * gravedad, temporizador, teclado, pausa/restart). No contiene nada de UI.
+ * gravedad, temporizador, teclado, start/stop). No contiene nada de UI.
  *
  * Las piezas ya no salen de Math.random(): se generan con un PRNG con seed
  * que emite /api/tetris/new-game (app/lib/tetris/rng.ts), y cada acción del
@@ -105,6 +105,7 @@ export interface UseTetrisOptions {
 export function useTetris({ onComplete }: UseTetrisOptions = {}) {
   const [gameState, setGameState] = useState<GameState>(initialGameState());
   const [ready, setReady] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // Fuente de verdad síncrona del estado. Toda mutación lee stateRef.current,
   // calcula el siguiente estado y lo publica con applyState (que actualiza la
@@ -126,9 +127,9 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
   const pieceGenRef = useRef<(() => Piece) | null>(null);
   const gameStartRef = useRef<number | null>(null); // ancla t=0 para el log de acciones
   const actionsRef = useRef<TetrisAction[]>([]);
-  // Se incrementa en cada llamada a startNewGame. Si dos llamadas se
-  // solapan (StrictMode remontando el efecto de inicio, o un restart
-  // disparado antes de que la petición anterior resolviera), la que NO sea
+  // Se incrementa en cada llamada a startNewGame y en stopGame. Si dos
+  // llamadas se solapan (un START disparado antes de que resolviera uno
+  // anterior, o un STOP mientras la petición está en vuelo), la que NO sea
   // la más reciente al resolver se descarta entera — sin tocar ninguna ref
   // compartida — para que nunca se mezclen nonce/seed de dos partidas
   // distintas.
@@ -137,9 +138,9 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
   const {
     board,
     piece,
+    nextPiece,
     pos,
     lines,
-    isPaused,
     elapsedMs,
     gameCompleted,
     gameOver,
@@ -161,13 +162,14 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
     actionsRef.current.push({ type, t });
   }, []);
 
-  const nextPiece = useCallback((): Piece => {
+  const drawPiece = useCallback((): Piece => {
     return pieceGenRef.current ? pieceGenRef.current() : TETROMINOS[0];
   }, []);
 
-  const startNewGame = useCallback(async (autoStart: boolean) => {
+  const startNewGame = useCallback(async () => {
     const myGeneration = ++gameGenerationRef.current;
     setReady(false);
+    setLoading(true);
     try {
       const res = await fetch("/bookmarks/api/tetris/new-game", { method: "POST" });
       if (!res.ok) throw new Error("Failed to start a new game");
@@ -175,36 +177,36 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
 
       if (gameGenerationRef.current !== myGeneration) {
         // Otra llamada a startNewGame más reciente ya está en curso (o ya
-        // terminó): esta respuesta llegó tarde y se descarta sin tocar
-        // nonceRef/pieceGenRef/gameStartRef/actionsRef.
+        // terminó, o el usuario pulsó STOP): esta respuesta llegó tarde y
+        // se descarta sin tocar nonceRef/pieceGenRef/gameStartRef/actionsRef.
         return null;
       }
 
       nonceRef.current = data.nonce;
       gameStartRef.current = Date.now();
       pieceGenRef.current = createPieceGenerator(data.seed);
-      actionsRef.current = autoStart ? [{ type: "resume", t: 0 }] : [];
+      // La partida ya no admite pausa manual: arranca inmediatamente, así
+      // que el log siempre lleva un "resume" en t=0 para que el replay del
+      // servidor levante su bandera interna de pausa (ver replay.ts).
+      actionsRef.current = [{ type: "resume", t: 0 }];
       setReady(true);
 
-      return pieceGenRef.current();
+      // Se piden dos piezas: la actual y la siguiente (para el preview). El
+      // servidor solo consume una pieza al inicio y una por cada bloqueo
+      // (lockAndAdvance), así que este adelanto extra en el cliente no
+      // desincroniza el replay: la pieza "actual" en cualquier punto del
+      // juego siempre coincide con la misma llamada del generador que usa
+      // el servidor en ese mismo punto.
+      const firstPiece = pieceGenRef.current();
+      const previewPiece = pieceGenRef.current();
+      return { piece: firstPiece, nextPiece: previewPiece };
     } catch (error) {
       console.error("Error starting tetris game:", error);
       if (gameGenerationRef.current === myGeneration) setReady(false);
       return null;
+    } finally {
+      if (gameGenerationRef.current === myGeneration) setLoading(false);
     }
-  }, []);
-
-  // Init: pide la partida (nonce + seed) al servidor solo en cliente
-  useEffect(() => {
-    let cancelled = false;
-    startNewGame(false).then((firstPiece) => {
-      if (cancelled || !firstPiece) return;
-      applyState({ ...stateRef.current, piece: firstPiece });
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -220,7 +222,8 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
       const { newBoard: clearedBoard, cleared } = clearLinesPure(placed);
       const totalLines = s.lines + cleared;
 
-      const spawnedPiece = nextPiece();
+      const spawnedPiece = s.nextPiece;
+      const upcomingPiece = drawPiece();
       const nextPos = { x: Math.floor(COLS / 2) - 1, y: 0 };
       const isGameOver = checkCollision(clearedBoard, spawnedPiece, nextPos.x, nextPos.y);
       const isCompleted =
@@ -241,8 +244,8 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
             board: clearedBoard,
             lines: totalLines,
             piece: spawnedPiece,
+            nextPiece: upcomingPiece,
             pos: nextPos,
-            isPaused: true,
             gameCompleted: true,
             gameOver: false,
             elapsedMs: finalMs,
@@ -270,7 +273,6 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
           ...s,
           board: clearedBoard,
           lines: totalLines,
-          isPaused: true,
           gameOver: true,
           lockVisual: false,
           lockBoard: undefined,
@@ -282,12 +284,13 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
         board: clearedBoard,
         lines: totalLines,
         piece: spawnedPiece,
+        nextPiece: upcomingPiece,
         pos: nextPos,
         lockVisual: false,
         lockBoard: undefined,
       });
     },
-    [nextPiece, logAction, onComplete, applyState]
+    [drawPiece, logAction, onComplete, applyState]
   );
 
   // Baja la pieza una fila; si choca, la bloquea. Equivale a descendOrLock del
@@ -308,14 +311,14 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
   // Todas siguen el mismo patrón: si el juego no está listo o ya terminó (o
   // está en el flash de completado), no hacen nada NI registran log. En caso
   // contrario registran su acción y la aplican de inmediato con exactamente
-  // los mismos guards que el replay del servidor (pausa + colisión). Así el
+  // los mismos guards que el replay del servidor (colisión). Así el
   // log refleja siempre lo que el cliente aplicó, en el mismo orden.
 
   const moveLeft = useCallback(() => {
     const s = stateRef.current;
     if (!ready || s.gameCompleted || s.gameOver || s.lockVisual) return;
     logAction("left");
-    if (!s.isPaused && !checkCollision(s.board, s.piece, s.pos.x - 1, s.pos.y)) {
+    if (!checkCollision(s.board, s.piece, s.pos.x - 1, s.pos.y)) {
       applyState({ ...s, pos: { ...s.pos, x: s.pos.x - 1 } });
     }
   }, [ready, logAction, applyState]);
@@ -324,7 +327,7 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
     const s = stateRef.current;
     if (!ready || s.gameCompleted || s.gameOver || s.lockVisual) return;
     logAction("right");
-    if (!s.isPaused && !checkCollision(s.board, s.piece, s.pos.x + 1, s.pos.y)) {
+    if (!checkCollision(s.board, s.piece, s.pos.x + 1, s.pos.y)) {
       applyState({ ...s, pos: { ...s.pos, x: s.pos.x + 1 } });
     }
   }, [ready, logAction, applyState]);
@@ -333,7 +336,7 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
     const s = stateRef.current;
     if (!ready || s.gameCompleted || s.gameOver || s.lockVisual) return;
     logAction("softDrop");
-    if (!s.isPaused) descendOrLock(s);
+    descendOrLock(s);
   }, [ready, logAction, descendOrLock]);
 
   const rotatePiece = useCallback(
@@ -341,7 +344,6 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
       const s = stateRef.current;
       if (!ready || s.gameCompleted || s.gameOver || s.lockVisual) return;
       logAction(direction === 1 ? "rotateRight" : "rotateLeft");
-      if (s.isPaused) return;
       const times = direction === 1 ? 1 : 3;
       let rotated = s.piece.shape;
       for (let i = 0; i < times; i++) rotated = rotate(rotated);
@@ -371,30 +373,30 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
   // replay aplicase más caídas de las que realmente hubo).
   const gravityTick = useCallback(() => {
     const s = stateRef.current;
-    if (s.isPaused || s.gameCompleted || s.gameOver || s.lockVisual) return;
+    if (s.gameCompleted || s.gameOver || s.lockVisual) return;
     logAction("tick");
     descendOrLock(s);
   }, [logAction, descendOrLock]);
 
   // Timer tick
   useEffect(() => {
-    if (isPaused || gameCompleted || gameOver) return;
+    if (!ready || gameCompleted || gameOver) return;
     const id = setInterval(() => {
       const s = stateRef.current;
-      if (s.isPaused || s.gameCompleted || s.gameOver) return;
+      if (s.gameCompleted || s.gameOver) return;
       const elapsed =
         startTimeRef.current != null ? Date.now() - startTimeRef.current : s.elapsedMs;
       applyState({ ...s, elapsedMs: elapsed });
     }, TIMER_TICK_MS);
     return () => clearInterval(id);
-  }, [isPaused, gameCompleted, gameOver, applyState]);
+  }, [ready, gameCompleted, gameOver, applyState]);
 
   // Gravedad
   useEffect(() => {
-    if (isPaused || gameCompleted || gameOver) return;
+    if (!ready || gameCompleted || gameOver) return;
     const id = setInterval(gravityTick, DROP_SPEED_MS);
     return () => clearInterval(id);
-  }, [isPaused, gameCompleted, gameOver, gravityTick]);
+  }, [ready, gameCompleted, gameOver, gravityTick]);
 
   // Key repeat (mantener pulsado mueve repetidamente)
   const startRepeat = useCallback((key: string, action: () => void) => {
@@ -422,18 +424,6 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
     }
   }, []);
 
-  const togglePause = useCallback(() => {
-    const s = stateRef.current;
-    if (!ready || s.gameCompleted || s.gameOver) return;
-    if (s.isPaused) {
-      startTimeRef.current = Date.now() - s.elapsedMs;
-      logAction("resume");
-    } else {
-      logAction("pause");
-    }
-    applyState({ ...s, isPaused: !s.isPaused });
-  }, [ready, logAction, applyState]);
-
   // Keyboard handler
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -456,10 +446,6 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
         case "S":
           e.preventDefault();
           startRepeat("down", softDrop);
-          break;
-        case " ":
-          e.preventDefault();
-          togglePause();
           break;
         case "o":
         case "O":
@@ -502,9 +488,11 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [moveLeft, moveRight, softDrop, rotateLeft, rotateRight, togglePause, startRepeat, stopRepeat]);
+  }, [moveLeft, moveRight, softDrop, rotateLeft, rotateRight, startRepeat, stopRepeat]);
 
-  const restartGame = useCallback(() => {
+  // START: arranca una partida nueva (tanto la primera como cualquier
+  // reinicio posterior a un STOP/game over/completado).
+  const startGame = useCallback(() => {
     gameCompletedRef.current = false;
     holdTimersRef.current.forEach((t, k) => {
       if (k.includes("interval")) clearInterval(t as ReturnType<typeof setInterval>);
@@ -513,39 +501,56 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
     holdTimersRef.current.clear();
     activeKeysRef.current.clear();
 
-    startNewGame(true).then((firstPiece) => {
-      if (!firstPiece) return;
+    startNewGame().then((result) => {
+      if (!result) return;
       startTimeRef.current = Date.now();
       applyState({
         ...initialGameState(),
-        piece: firstPiece,
-        isPaused: false,
+        piece: result.piece,
+        nextPiece: result.nextPiece,
       });
     });
   }, [startNewGame, applyState]);
+
+  // STOP: abandona la partida en curso (o la petición de arranque en
+  // vuelo) y vuelve al estado inactivo, sin pieza visible.
+  const stopGame = useCallback(() => {
+    gameGenerationRef.current += 1; // invalida cualquier startNewGame pendiente
+    gameCompletedRef.current = false;
+    holdTimersRef.current.forEach((t, k) => {
+      if (k.includes("interval")) clearInterval(t as ReturnType<typeof setInterval>);
+      else clearTimeout(t as ReturnType<typeof setTimeout>);
+    });
+    holdTimersRef.current.clear();
+    activeKeysRef.current.clear();
+    setReady(false);
+    setLoading(false);
+    applyState(initialGameState());
+  }, [applyState]);
 
   return {
     // estado
     board,
     piece,
+    nextPiece,
     pos,
     lines,
     linesTarget: LINES_TARGET,
-    isPaused,
     elapsedMs,
     gameCompleted,
     gameOver,
     lockVisual,
     lockBoard,
     ready,
+    loading,
     // acciones
     moveLeft,
     moveRight,
     softDrop,
     rotateLeft,
     rotateRight,
-    restartGame,
-    togglePause,
+    startGame,
+    stopGame,
     startRepeat,
     stopRepeat,
   };

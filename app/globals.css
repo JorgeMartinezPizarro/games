@@ -1,5 +1,5 @@
 html, body {
-	background: #777!important;
+	background: #999!important;
 	color: #e1e1e1;
 	height: calc(100% - 80px);
 	width: calc(100% - 0px);
@@ -12,3 +12,12 @@ html, body {
 	background: transparent;
 }
 
+.intro p {
+	color: white;
+}
+
+.intro .MuiFormControl-root {
+	border: 1px solid white;
+	border-radius: 8px;
+	color: white;
+}

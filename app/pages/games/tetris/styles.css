@@ -94,19 +94,9 @@
   background: radial-gradient(circle at 55% 30%, #011b21 70%, #1d3c40 100%);
   color: #00ffe0;
 }
-.tetris-menu-btn--restart {
+.tetris-menu-btn--startstop {
   color: #ffec40;
   border-color: #ffdc40 !important;
-}
-.tetris-menu-btn--pause {
-  border-color: #13e673 !important;
-  color: #fff;
-}
-.tetris-menu-btn--pause.is-paused {
-  color: #13e673;
-}
-.tetris-menu-btn--pause.is-disabled {
-  opacity: 0.45;
 }
 
 @media (min-width: 769px) {
@@ -115,7 +105,56 @@
     letter-spacing: 1.8px !important;
     padding: 16px 10px !important;
   }
-}/* ───────────────────────── Título y stats ───────────────────────── */
+}
+
+/* ───────────────────────── Siguiente pieza (3er elemento del menú) ───────────────────────── */
+
+.tetris-menu-next {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 4px !important;
+  border: 2.5px solid #00ffcc66;
+  border-radius: 8px;
+  box-shadow: 0 1px 10px #00ffcc22;
+  min-width: 0;
+}
+
+.tetris-next-piece-label {
+  font-family: "Press Start 2P", "Courier New", monospace;
+  font-size: 8px;
+  color: #00ffcc;
+  letter-spacing: 1px;
+  text-shadow: 0 0 6px #0ff8;
+}
+
+.tetris-next-piece-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 2px;
+}
+
+.tetris-next-piece-cell {
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+}
+
+@media (min-width: 769px) {
+  .tetris-next-piece-label {
+    font-size: 9px;
+  }
+  .tetris-next-piece-cell {
+    width: 11px;
+    height: 11px;
+  }
+}
+
+/* ───────────────────────── Título y stats ───────────────────────── */
 
 .tetris-title-bar {
   width: 100%;
@@ -170,10 +209,6 @@
 .tetris-status--over {
   color: #ff3030;
   text-shadow: 0 0 8px #ff3030;
-}
-.tetris-status--paused {
-  color: #ffcc00;
-  text-shadow: 0 0 8px #ffcc00;
 }
 
 /* ───────────────────────── Tablero ─────────────────────────
