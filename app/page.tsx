@@ -71,7 +71,7 @@ const AgePage = () => {
           m: 4,
         }}
       >
-        <p>Enter your birthdate as <i>dd-mm-yyyy</i></p>
+        <p>Enter your birthdate [dd-mm-yyyy]</p>
 
         <TextField
           style={{ background: "grey" }}
@@ -82,7 +82,7 @@ const AgePage = () => {
         <p style={{textAlign: "center"}}>
 			Dear {displayName}, you've been riding Earth's spin for {days} rotations.
 			<br/>
-			No sign-up. No tracking. No ads. Just games.
+			No tracking. No ads. Just games.
         </p>
 
         <Box
