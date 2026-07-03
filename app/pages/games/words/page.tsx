@@ -62,6 +62,7 @@ const Wording = () => {
   const [revealedTarget, setRevealedTarget] = useState<string | null>(null);
   const [checking, setChecking]         = useState(false);
   const [nonce, setNonce]               = useState<string | null>(null);
+  const [quit, setQuit]                 = useState(false);  // true = terminada manualmente por el jugador
 
   const startTimeRef = useRef<number>(0);
   const [elapsedMs, setElapsedMs]       = useState(0);
@@ -159,6 +160,7 @@ const Wording = () => {
     setPickedChoice(null);
     setRevealedTarget(null);
     setNonce(null);
+    setQuit(false);
 
     try {
       const res  = await fetch(
@@ -242,6 +244,18 @@ const Wording = () => {
     }
   }, [gameState, feedback, checking, nonce, currentRound, saveScore]);
 
+  // El jugador decide terminar la partida antes de tiempo: cuenta como
+  // partida no completada, sin guardar puntuación.
+  const handleQuit = useCallback(() => {
+    if (gameState !== 'playing') return;
+
+    const elapsed = Date.now() - startTimeRef.current;
+    setFinishedTime(elapsed);
+    setQuit(true);
+    setWon(false);
+    setGameState('finished');
+  }, [gameState]);
+
   // Replay audio
   const handleReplay = useCallback(() => {
     const audio = audioRef.current;
@@ -311,13 +325,22 @@ const Wording = () => {
                 <source src={round.audio} type="audio/mpeg" />
               </audio>
 
-              <Button
-                className="action-btn action-btn--replay"
-                variant="outlined"
-                onClick={handleReplay}
-              >
-                🔁 Escuchar de nuevo
-              </Button>
+              <div className="button-row">
+                <Button
+                  className="action-btn action-btn--replay"
+                  variant="outlined"
+                  onClick={handleReplay}
+                >
+                  🔁 Escuchar de nuevo
+                </Button>
+                <Button
+                  className="action-btn action-btn--neutral"
+                  variant="outlined"
+                  onClick={handleQuit}
+                >
+                  🚩 Finalizar partida
+                </Button>
+              </div>
 
               <div className={`choices-grid choices-grid--${CHOICES}`}>
                 {round.choices.map((choice) => {
@@ -367,6 +390,10 @@ const Wording = () => {
                       No has entrado en el top 10 esta vez.
                     </p>
                   )
+                ) : quit ? (
+                  <p className="finished-summary__rank finished-summary__rank--outside">
+                    Partida finalizada. ¡Inténtalo de nuevo!
+                  </p>
                 ) : (
                   <p className="finished-summary__rank finished-summary__rank--outside">
                     Fallaste en la ronda {currentRound + 1}. ¡Inténtalo de nuevo!
