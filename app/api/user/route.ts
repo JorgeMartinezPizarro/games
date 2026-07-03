@@ -6,6 +6,6 @@ export async function GET(request: NextRequest) {
     const user = await requireAuth(request);
     return NextResponse.json(user);
   } catch {
-    return NextResponse.json({ id: "anonymous", name: "anonymous", email: "" });
+    return NextResponse.json({ id: process.env.NEXT_PUBLIC_DEV_USER || "anonymous", name: "anonymous", email: "" });
   }
 }

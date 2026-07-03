@@ -1,10 +1,8 @@
 # Imagen base con herramientas necesarias
-FROM debian:bullseye-slim
+FROM python:3.12-slim
 
 # Instalar dependencias
-RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     build-essential \
     cmake \
