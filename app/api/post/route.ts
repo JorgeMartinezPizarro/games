@@ -7,8 +7,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   try {
 
-    if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "true")
-		await requireAuth(request);
+    await requireAuth(request);
 
     const params = await request.json();
 

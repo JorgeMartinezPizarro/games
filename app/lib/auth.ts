@@ -28,13 +28,6 @@ function parseNextcloudUser(payload: unknown): AuthUser {
   };
 }
 
-export async function getCurrentUser(request: Request): Promise<AuthUser> {
-  if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "true") {
-    return requireAuth(request);
-  }
-  return { id: "anonymous", name: "anonymous", email: "" };
-}
-
 export async function requireAuth(request: Request): Promise<AuthUser> {
   if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "false") {
     return { id: "dev", name: "Dev User", email: "dev@local" };

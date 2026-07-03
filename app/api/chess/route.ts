@@ -1,5 +1,5 @@
 import { errorMessage } from "@/app/helpers";
-import { getCurrentUser } from "@/app/lib/auth";
+import { requireAuth } from "@/app/lib/auth";
 import { appendChessMove, deleteChessGame, getChessGame } from "@/app/lib/chess/db";
 import { MAX_PLIES, moveToUci, replayChessMoves } from "@/app/lib/chess/replay";
 import { NextRequest } from "next/server";
@@ -56,7 +56,7 @@ go movetime 150
 // el score en /api/scores.
 export async function POST(req: NextRequest): Promise<Response> {
   try {
-    const user = await getCurrentUser(req);
+    const user = await requireAuth(req);
 
     const params = await req.json();
     const { nonce, move } = params;

@@ -13,9 +13,7 @@ import { requireAuth } from '@/app/lib/auth';
 // -------------------------------------------------------
 export async function GET(request: NextRequest): Promise<Response> {
   try {
-    if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === 'true') {
-      await requireAuth(request);
-    }
+    await requireAuth(request);
 
     const { searchParams } = new URL(request.url);
     const fileName = searchParams.get('file');

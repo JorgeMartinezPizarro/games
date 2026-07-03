@@ -1,11 +1,11 @@
-import { getCurrentUser } from "@/app/lib/auth";
+import { requireAuth } from "@/app/lib/auth";
 import { advanceWordsGame, deleteWordsGame, getWordsGame } from "@/app/lib/words/db";
 import { errorMessage } from "@/app/helpers";
 import { NextRequest } from "next/server";
 
 export async function POST(request: NextRequest): Promise<Response> {
   try {
-    const user = await getCurrentUser(request);
+    const user = await requireAuth(request);
     const { nonce, roundIndex, answer } = await request.json();
 
     if (typeof nonce !== "string" || nonce.trim() === "") {

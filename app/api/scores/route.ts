@@ -1,4 +1,4 @@
-import { getCurrentUser, requireAuth, type AuthUser } from "@/app/lib/auth";
+import { requireAuth, type AuthUser } from "@/app/lib/auth";
 import {
   getPlayerBestScoreForGame,
   getPlayerBestScores,
@@ -251,7 +251,7 @@ function toPlayerGameBest(
 
 export async function POST(request: NextRequest): Promise<Response> {
   try {
-    const user = await getCurrentUser(request);
+    const user = await requireAuth(request);
 
     const params = await request.json();
     const { gameId, score, gameConfig } = params;
@@ -311,7 +311,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     // --- Vista "mis scores": el backend decide quién es el usuario ---
     if (wantsMe) {
-      const user = await getCurrentUser(request);
+      const user = await requireAuth(request);
       const gameIdParam = searchParams.get("gameId");
 
       if (gameIdParam) {
@@ -340,8 +340,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     }
 
     // --- Vista existente: leaderboard de un juego (pública) ---
-    if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "true")
-      await requireAuth(request);
+    await requireAuth(request);
 
     const parsedGameId = parseGameIdParam(searchParams.get("gameId"));
     if (parsedGameId === null) {
