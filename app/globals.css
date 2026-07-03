@@ -16,7 +16,7 @@ html, body {
 	color: white;
 }
 
-.intro .MuiFormControl-root *{
+.intro .MuiFormControl-root {
 	border: 1px solid white;
 	border-radius: 8px;
 	color: silver;
@@ -24,4 +24,7 @@ html, body {
 
 .intro input {
 	background-color: grey;
+	border-radius: 8px;
+	color: white;
+	text-align: center;
 }

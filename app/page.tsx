@@ -79,8 +79,10 @@ const AgePage = () => {
           onChange={(e: any) => setBirthDate(e.target.value)}
         />
 
-        <p>
-          Dear <i>{displayName}</i>, you are since {days} days on planet Earth, congratulations!
+        <p style={{textAlign: "center"}}>
+			Dear {displayName}, you've been riding Earth's spin for {days} rotations.
+			<br/>
+			No sign-up. No tracking. No ads. Just games.
         </p>
 
         <Box
