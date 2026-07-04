@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GAME_IDS, GetScoresResponse, ScoreEntry } from "@/app/lib/scores/types";
+import { GAME_IDS, ScoreEntry } from "@/app/lib/scores/types";
+import { fetchTopScores } from "@/app/lib/scores/client";
 
 export type ChessScoreEntry = {
   elo: number;
@@ -29,11 +30,7 @@ export function useChessScore() {
   const loadScores = useCallback(async () => {
     setScoreError(null);
     try {
-      const response = await fetch(`/bookmarks/api/scores?gameId=${GAME_IDS.CHESS}`);
-      const data: GetScoresResponse = await response.json();
-      if (response.ok && data.scores) {
-        setTopScores(data.scores.map(parseScoreEntry));
-      }
+      setTopScores(await fetchTopScores(GAME_IDS.CHESS, parseScoreEntry));
     } catch (error) {
       console.error("Error loading scores:", error);
       setScoreError("No se pudieron cargar las puntuaciones.");

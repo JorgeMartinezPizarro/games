@@ -2,23 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { formatTimeMs } from "./useTetrisScore";
+import type { GameId, GetPlayerScoresResponse, PlayerGameBest } from "@/app/lib/scores/types";
 
-export type GameId = 1 | 2 | 3 | 4;
-
-type PlayerGameBest = {
-  gameId: GameId;
-  gameName: string;
-  found: boolean;
-  score: number | null;
-  rank: number | null;
-  gameConfig: Record<string, unknown> | null;
-  createdAt: string | null;
-};
-
-type GetPlayerScoresResponse = {
-  username: string;
-  games: PlayerGameBest[];
-};
+export type { GameId };
 
 // Juegos cuyo score es un tiempo en ms (menor es mejor): Tetris (3) y Wording (4)
 const TIME_BASED_GAMES = new Set<GameId>([3, 4]);

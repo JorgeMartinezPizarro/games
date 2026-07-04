@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GAME_IDS, GetScoresResponse, ScoreEntry } from "@/app/lib/scores/types";
+import { GAME_IDS, ScoreEntry } from "@/app/lib/scores/types";
+import { fetchTopScores } from "@/app/lib/scores/client";
 import { LINES_TARGET, TetrisAction } from "./useTetris";
 
 export type LeaderboardEntry = {
@@ -52,11 +53,7 @@ export function useScore() {
 
   const loadScores = useCallback(async () => {
     try {
-      const response = await fetch(`/bookmarks/api/scores?gameId=${GAME_IDS.TETRIS}`);
-      const data: GetScoresResponse = await response.json();
-      if (response.ok && data.scores) {
-        setTopScores(data.scores.map(parseLeaderboardEntry));
-      }
+      setTopScores(await fetchTopScores(GAME_IDS.TETRIS, parseLeaderboardEntry));
     } catch {
       // silencioso: el marcador simplemente no se actualiza
     }

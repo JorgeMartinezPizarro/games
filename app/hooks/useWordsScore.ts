@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GAME_IDS, GetScoresResponse } from "@/app/lib/scores/types";
+import { GAME_IDS } from "@/app/lib/scores/types";
+import { fetchTopScores } from "@/app/lib/scores/client";
 import { ROUNDS_TOTAL, WordsSaveResult } from "./useWordsGame";
 
 export type WordsScoreEntry = {
@@ -27,18 +28,14 @@ export function useWordsScore() {
 
   const loadScores = useCallback(async (): Promise<WordsScoreEntry[]> => {
     try {
-      const res = await fetch(`/bookmarks/api/scores?gameId=${GAME_IDS.WORDS}`);
-      const data: GetScoresResponse = await res.json();
-      if (data.scores) {
-        const mapped: WordsScoreEntry[] = data.scores.map((s) => ({
-          score: s.score,
-          userId: s.userId ?? s.username,
-          wordsTotal: (s.gameConfig?.wordsTotal as number | undefined) ?? ROUNDS_TOTAL,
-          createdAt: s.createdAt,
-        }));
-        setTopScores(mapped);
-        return mapped;
-      }
+      const mapped = await fetchTopScores(GAME_IDS.WORDS, (s) => ({
+        score: s.score,
+        userId: s.userId ?? s.username,
+        wordsTotal: (s.gameConfig?.wordsTotal as number | undefined) ?? ROUNDS_TOTAL,
+        createdAt: s.createdAt,
+      }));
+      setTopScores(mapped);
+      return mapped;
     } catch (e) {
       console.error("Error loading scores:", e);
     }

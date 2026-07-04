@@ -135,8 +135,6 @@ export function getErrorResponseMessage(error: unknown): string {
   return errorMessage(error);
 }
 
-// scores/types.ts — AÑADIR
-
 export const GAME_NAMES: Record<GameId, string> = {
   1: "Chess",
   2: "Numbers",
