@@ -16,6 +16,13 @@ export type WordsGameState = "idle" | "loading" | "playing" | "finished";
 
 export type WordsSaveResult = { score: number; rank: number | null };
 
+// Estimación local con la misma fórmula que el servidor
+// (computeWordsScore en app/lib/words/scoring.ts), para mostrar algo
+// razonable mientras se confirma el score real vía onComplete.
+function estimateScore(correctAnswers: number, elapsedMs: number): number {
+  return elapsedMs <= 0 ? 0 : Math.round((correctAnswers ** 3 * 11000) / elapsedMs);
+}
+
 export interface UseWordsGameOptions {
   /**
    * Se llama una única vez cuando se completan las ROUNDS_TOTAL rondas, con
@@ -57,6 +64,9 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
   const [won, setWon] = useState(false); // true = completó las 10
   const [quit, setQuit] = useState(false); // true = terminada manualmente por el jugador
   const [finishedTime, setFinishedTime] = useState<number | null>(null);
+  // Score final (cubo de aciertos entre tiempo, igual que numbers): solo se
+  // rellena al ganar o perder una ronda, nunca al finalizar con "quit".
+  const [finishedScore, setFinishedScore] = useState<number | null>(null);
   const [finishedRank, setFinishedRank] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
   const [pickedChoice, setPickedChoice] = useState<string | null>(null);
@@ -102,6 +112,7 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
     setWon(false);
     setCurrentRound(0);
     setFinishedTime(null);
+    setFinishedScore(null);
     setFinishedRank(null);
     setFeedback(null);
     setPickedChoice(null);
@@ -161,12 +172,21 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
           setRevealedTarget(typeof data.target === "string" ? data.target : null);
           setFeedback("wrong");
 
-          setTimeout(() => {
+          setTimeout(async () => {
             setFeedback(null);
             const elapsed = Date.now() - startTimeRef.current;
             setFinishedTime(elapsed);
+            setFinishedScore(estimateScore(score, elapsed));
             setWon(false);
             setGameState("finished");
+
+            // Fallar también puntúa: se guardan los aciertos logrados hasta
+            // aquí (cualquier partida que termine, ganada o perdida, cuenta).
+            const result = await onComplete?.(nonce);
+            if (result) {
+              setFinishedScore(result.score);
+              setFinishedRank(result.rank);
+            }
           }, 500);
           return;
         }
@@ -180,12 +200,13 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
           if (data.finished) {
             const elapsed = Date.now() - startTimeRef.current;
             setFinishedTime(elapsed);
+            setFinishedScore(estimateScore(score + 1, elapsed));
             setWon(true);
             setGameState("finished");
 
             const result = await onComplete?.(nonce);
             if (result) {
-              setFinishedTime(result.score);
+              setFinishedScore(result.score);
               setFinishedRank(result.rank);
             }
           } else {
@@ -197,7 +218,7 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
         setChecking(false);
       }
     },
-    [gameState, feedback, checking, nonce, currentRound, onComplete]
+    [gameState, feedback, checking, nonce, currentRound, onComplete, score]
   );
 
   // El jugador decide terminar la partida antes de tiempo: cuenta como
@@ -229,6 +250,7 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
     won,
     quit,
     finishedTime,
+    finishedScore,
     finishedRank,
     feedback,
     pickedChoice,

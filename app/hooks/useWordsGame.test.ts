@@ -151,7 +151,7 @@ describe("useWordsGame", () => {
     expect(result.current.gameState).toBe("playing");
   });
 
-  it("handleChoice incorrecta termina la partida como perdida, sin guardar score", async () => {
+  it("handleChoice incorrecta termina la partida como perdida y también guarda score", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -161,7 +161,7 @@ describe("useWordsGame", () => {
           jsonResponse({ correct: false, target: "correcta" }),
       })
     );
-    const onComplete = vi.fn();
+    const onComplete = vi.fn().mockResolvedValue({ score: 42, rank: 7 });
 
     const { result } = renderHook(() => useWordsGame({ onComplete }));
     await act(async () => {
@@ -179,7 +179,9 @@ describe("useWordsGame", () => {
     expect(result.current.won).toBe(false);
     expect(result.current.quit).toBe(false);
     expect(result.current.finishedTime).toBeGreaterThanOrEqual(0);
-    expect(onComplete).not.toHaveBeenCalled();
+    expect(onComplete).toHaveBeenCalledWith("nonce-1");
+    expect(result.current.finishedScore).toBe(42);
+    expect(result.current.finishedRank).toBe(7);
   });
 
   it("la última ronda correcta llama a onComplete y adopta su resultado", async () => {
@@ -209,7 +211,7 @@ describe("useWordsGame", () => {
     expect(result.current.gameState).toBe("finished");
     expect(result.current.won).toBe(true);
     expect(result.current.score).toBe(1);
-    expect(result.current.finishedTime).toBe(12345);
+    expect(result.current.finishedScore).toBe(12345);
     expect(result.current.finishedRank).toBe(3);
   });
 

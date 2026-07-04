@@ -9,6 +9,7 @@ export type WordsScoreEntry = {
   score: number;
   userId: string;
   wordsTotal: number;
+  correctAnswers: number;
   createdAt?: string;
 };
 
@@ -32,6 +33,7 @@ export function useWordsScore() {
         score: s.score,
         userId: s.userId ?? s.username,
         wordsTotal: (s.gameConfig?.wordsTotal as number | undefined) ?? ROUNDS_TOTAL,
+        correctAnswers: (s.gameConfig?.correctAnswers as number | undefined) ?? 0,
         createdAt: s.createdAt,
       }));
       setTopScores(mapped);
@@ -44,8 +46,8 @@ export function useWordsScore() {
 
   // El score final lo calcula siempre el backend (nonce creado en
   // /api/words/new-game, cada ronda validada en /api/words/answer): esto
-  // solo confirma la partida y adopta el tiempo y puesto que devuelve el
-  // servidor.
+  // solo confirma la partida y adopta el score y puesto que devuelve el
+  // servidor. Cualquier partida terminada puntúa, gane o pierda.
   const saveScore = useCallback(
     async (nonce: string): Promise<WordsSaveResult | null> => {
       if (scoreSavedRef.current) return null;
@@ -66,7 +68,8 @@ export function useWordsScore() {
         const confirmedScore = typeof data.score === "number" ? data.score : null;
         if (confirmedScore === null) return null;
 
-        const sorted = [...updated].sort((a, b) => a.score - b.score);
+        // Mayor score es mejor (cubo de aciertos entre tiempo), igual que numbers.
+        const sorted = [...updated].sort((a, b) => b.score - a.score);
         const idx = sorted.findIndex((s) => s.score === confirmedScore);
         return { score: confirmedScore, rank: idx >= 0 && idx < 10 ? idx + 1 : null };
       } catch (e) {

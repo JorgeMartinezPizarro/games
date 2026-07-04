@@ -22,7 +22,7 @@ export function useNumbers(config: UseNumbersConfig = {}) {
   const [confirmedScore, setConfirmedScore] = useState<number | null>(null)
 
   const liveScore =
-    time - start === 0 ? 0 : Math.round((steps ** 3 * 1000) / (time - start))
+    time - start === 0 ? 0 : Math.round((steps ** 3 * 3500) / (time - start))
   const currentScore = confirmedScore ?? liveScore
 
   const isBlocked = useCallback(
@@ -67,7 +67,7 @@ export function useNumbers(config: UseNumbersConfig = {}) {
         const finalTime = Date.now()
         const elapsed = finalTime - start
         const finalScore =
-          elapsed === 0 ? 0 : Math.round((finalSteps ** 3 * 1000) / elapsed)
+          elapsed === 0 ? 0 : Math.round((finalSteps ** 3 * 3500) / elapsed)
 
         finish(finalScore, finalSteps, moves)
 
@@ -96,7 +96,7 @@ export function useNumbers(config: UseNumbersConfig = {}) {
       if (newSteps === 20) {
         const elapsed = newTime - start
         const finalScore =
-          elapsed === 0 ? 0 : Math.round((newSteps ** 3 * 1000) / elapsed)
+          elapsed === 0 ? 0 : Math.round((newSteps ** 3 * 3500) / elapsed)
         finish(finalScore, newSteps, newMoves)
         return false
       }
@@ -108,7 +108,7 @@ export function useNumbers(config: UseNumbersConfig = {}) {
       if (isBlocked(updatedCell, newNumbers)) {
         const elapsed = newTime - start
         const finalScore =
-          elapsed === 0 ? 0 : Math.round((newSteps ** 3 * 1000) / elapsed)
+          elapsed === 0 ? 0 : Math.round((newSteps ** 3 * 3500) / elapsed)
 
         finish(finalScore, newSteps, newMoves)
 

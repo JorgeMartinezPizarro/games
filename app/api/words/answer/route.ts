@@ -1,5 +1,5 @@
 import { requireAuth } from "@/app/lib/auth";
-import { advanceWordsGame, deleteWordsGame, getWordsGame } from "@/app/lib/words/db";
+import { advanceWordsGame, deleteWordsGame, getWordsGame, markWordsGameEnded } from "@/app/lib/words/db";
 import { errorMessage } from "@/app/helpers";
 import { NextRequest } from "next/server";
 
@@ -29,6 +29,12 @@ export async function POST(request: NextRequest): Promise<Response> {
       return Response.json({ error: "Invalid or expired nonce." }, { status: 400 });
     }
 
+    // Una partida ya terminada (falló una ronda) no admite más respuestas:
+    // el nonce solo sirve ya para consultarse desde /api/scores.
+    if (game.ended) {
+      return Response.json({ error: "Game already ended." }, { status: 400 });
+    }
+
     // Solo se puede responder la siguiente ronda esperada: evita saltarse
     // rondas o reintentar una ya resuelta.
     const round = game.rounds[parsedIndex];
@@ -40,8 +46,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (answer !== round.target) {
       // Una respuesta incorrecta termina la partida ahí mismo: un único
       // intento por ronda, así probar las opciones a fuerza bruta no sale
-      // gratis (el nonce muere en el primer fallo).
-      deleteWordsGame(nonce);
+      // gratis. Ya no se borra el nonce: queda marcado como terminado para
+      // que /api/scores pueda puntuar los aciertos logrados hasta aquí
+      // (cualquier partida que termine, ganada o perdida, puntúa).
+      markWordsGameEnded(nonce);
       return Response.json({ correct: false, target: round.target }, { status: 200 });
     }
 

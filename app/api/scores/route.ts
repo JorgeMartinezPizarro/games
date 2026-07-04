@@ -23,6 +23,7 @@ import {
 import { boardsMatch, computeNumbersScore, validateMoves } from "@/app/lib/numbers/board";
 import { consumeNumbersGame } from "@/app/lib/numbers/db";
 import { consumeWordsGame } from "@/app/lib/words/db";
+import { computeWordsScore } from "@/app/lib/words/scoring";
 import { replayTetris } from "@/app/lib/tetris/replay";
 import { consumeTetrisGame } from "@/app/lib/tetris/db";
 import { LINES_TARGET as TETRIS_LINES_TARGET } from "@/app/lib/tetris/engine";
@@ -151,9 +152,11 @@ function saveNumbersScore(user: AuthUser, params: any): Response {
 }
 
 // Words tampoco manda un score de confianza: cada ronda ya se validó una a
-// una contra /api/words/answer (single-use), así que aquí solo hace falta
-// comprobar que el nonce existe, es del usuario y llegó a completar todas
-// las rondas antes de calcular el tiempo final con el reloj del servidor.
+// una contra /api/words/answer (single-use). Puntúa cualquier partida que
+// haya terminado, tanto si acertó las 10 rondas como si falló antes
+// (stored.ended, marcado por /api/words/answer) — nunca una partida a
+// medio jugar. El score es la misma fórmula que numbers: cubo de aciertos
+// entre el tiempo, calculado con el reloj del servidor.
 function saveWordsScore(user: AuthUser, params: any): Response {
   const { nonce } = params;
 
@@ -169,11 +172,12 @@ function saveWordsScore(user: AuthUser, params: any): Response {
     );
   }
 
-  if (stored.answeredCount < stored.rounds.length) {
+  if (!stored.ended && stored.answeredCount < stored.rounds.length) {
     return Response.json({ error: "Game is not complete." }, { status: 400 });
   }
 
   const elapsed = Date.now() - stored.createdAt;
+  const finalScore = computeWordsScore(stored.answeredCount, elapsed);
   const serializedConfig = serializeGameConfig({
     wordsTotal: stored.rounds.length,
     correctAnswers: stored.answeredCount,
@@ -182,12 +186,12 @@ function saveWordsScore(user: AuthUser, params: any): Response {
     return Response.json({ error: serializedConfig.error }, { status: 400 });
   }
 
-  const id = insertScore(user, GAME_IDS.WORDS, elapsed, serializedConfig.value);
+  const id = insertScore(user, GAME_IDS.WORDS, finalScore, serializedConfig.value);
 
   const body: SaveScoreResponse = {
     message: "Score saved successfully.",
     id,
-    score: elapsed,
+    score: finalScore,
   };
   return Response.json(body, { status: 200 });
 }

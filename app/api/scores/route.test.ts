@@ -12,6 +12,7 @@ vi.mock("@/app/lib/tetris/engine", async (importOriginal) => {
 vi.mock("@/app/lib/auth", () => ({ requireAuth: vi.fn() }));
 vi.mock("@/app/lib/tetris/db", () => ({ consumeTetrisGame: vi.fn() }));
 vi.mock("@/app/lib/numbers/db", () => ({ consumeNumbersGame: vi.fn() }));
+vi.mock("@/app/lib/words/db", () => ({ consumeWordsGame: vi.fn() }));
 vi.mock("@/app/lib/scores/db", () => ({
   getDb: vi.fn(),
   ensureUser: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock("@/app/lib/scores/db", () => ({
 import { requireAuth } from "@/app/lib/auth";
 import { consumeTetrisGame } from "@/app/lib/tetris/db";
 import { consumeNumbersGame } from "@/app/lib/numbers/db";
+import { consumeWordsGame } from "@/app/lib/words/db";
 import { insertScore } from "@/app/lib/scores/db";
 import { LINES_TARGET } from "@/app/lib/tetris/engine";
 import { buildTwoRowClearActions, findSeedWithConsecutiveOPieces } from "@/app/lib/tetris/testFixtures";
@@ -206,14 +208,111 @@ describe("POST /api/scores (numbers)", () => {
     vi.mocked(insertScore).mockReturnValue(55);
 
     // Tour completo de las 4 casillas del anillo: steps=4, elapsed=37000ms
-    // (NOW - CREATED_AT) => round(4^3*1000/37000) = round(1.7297...) = 2.
+    // (NOW - CREATED_AT) => round(4^3*2000/37000) = round(3.4595...) = 3.
     const res = await POST(
       request({ gameId: 2, nonce: "n1", board: ringBoard(4), moves: [0, 1, 2, 3] })
     );
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toEqual({ message: "Score saved successfully.", id: 55, score: 2 });
-    expect(insertScore).toHaveBeenCalledWith(user, 2, 2, JSON.stringify({ steps: 4 }));
+    expect(body).toEqual({ message: "Score saved successfully.", id: 55, score: 3 });
+    expect(insertScore).toHaveBeenCalledWith(user, 2, 3, JSON.stringify({ steps: 4 }));
+  });
+});
+
+function makeStoredWordsGame(
+  overrides: Partial<{
+    userId: string;
+    rounds: { target: string; audio: string; choices: string[] }[];
+    answeredCount: number;
+    ended: boolean;
+    createdAt: number;
+  }> = {}
+) {
+  return {
+    userId: "user-1",
+    rounds: Array.from({ length: 10 }, (_, i) => ({
+      target: `word-${i}`,
+      audio: `/audio/${i}.mp3`,
+      choices: [`word-${i}`, "otra"],
+    })),
+    answeredCount: 10,
+    ended: false,
+    createdAt: CREATED_AT,
+    ...overrides,
+  };
+}
+
+describe("POST /api/scores (words)", () => {
+  it("responde 400 si falta el nonce", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+
+    const res = await POST(request({ gameId: 4, nonce: "" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/nonce/i);
+  });
+
+  it("responde 400 si el nonce no existe, expiró o pertenece a otro usuario", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+    vi.mocked(consumeWordsGame).mockReturnValue(null);
+
+    const res = await POST(request({ gameId: 4, nonce: "n1" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Invalid, expired or already used nonce/);
+    expect(insertScore).not.toHaveBeenCalled();
+  });
+
+  it("responde 400 si la partida sigue en curso (ni terminó por fallo ni acertó todas las rondas)", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+    vi.mocked(consumeWordsGame).mockReturnValue(
+      makeStoredWordsGame({ answeredCount: 3, ended: false })
+    );
+
+    const res = await POST(request({ gameId: 4, nonce: "n1" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Game is not complete/);
+    expect(insertScore).not.toHaveBeenCalled();
+  });
+
+  it("partida perdida (ended, aciertos parciales): puntúa igual que una completa, cubo de aciertos entre tiempo", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+    vi.mocked(consumeWordsGame).mockReturnValue(
+      makeStoredWordsGame({ answeredCount: 4, ended: true })
+    );
+    vi.mocked(insertScore).mockReturnValue(11);
+
+    // elapsed=37000ms (NOW - CREATED_AT) => round(4^3*5000/37000) = round(8.6486...) = 9.
+    const res = await POST(request({ gameId: 4, nonce: "n1" }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ message: "Score saved successfully.", id: 11, score: 9 });
+    expect(insertScore).toHaveBeenCalledWith(
+      user,
+      4,
+      9,
+      JSON.stringify({ wordsTotal: 10, correctAnswers: 4 })
+    );
+  });
+
+  it("partida completa (10/10 aciertos): puntúa sin necesitar el flag ended", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+    vi.mocked(consumeWordsGame).mockReturnValue(
+      makeStoredWordsGame({ answeredCount: 10, ended: false })
+    );
+    vi.mocked(insertScore).mockReturnValue(22);
+
+    // elapsed=37000ms => round(10^3*5000/37000) = round(135.135...) = 135.
+    const res = await POST(request({ gameId: 4, nonce: "n1" }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ message: "Score saved successfully.", id: 22, score: 135 });
+    expect(insertScore).toHaveBeenCalledWith(
+      user,
+      4,
+      135,
+      JSON.stringify({ wordsTotal: 10, correctAnswers: 10 })
+    );
   });
 });

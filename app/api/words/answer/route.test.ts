@@ -6,10 +6,16 @@ vi.mock("@/app/lib/words/db", () => ({
   getWordsGame: vi.fn(),
   advanceWordsGame: vi.fn(),
   deleteWordsGame: vi.fn(),
+  markWordsGameEnded: vi.fn(),
 }));
 
 import { requireAuth } from "@/app/lib/auth";
-import { advanceWordsGame, deleteWordsGame, getWordsGame } from "@/app/lib/words/db";
+import {
+  advanceWordsGame,
+  deleteWordsGame,
+  getWordsGame,
+  markWordsGameEnded,
+} from "@/app/lib/words/db";
 import { POST } from "./route";
 
 const user = { id: "user-1", name: "Test", email: "t@t.com" };
@@ -30,6 +36,7 @@ function makeGame(overrides: Partial<NonNullable<ReturnType<typeof getWordsGame>
       { target: "gato", audio: "/b.mp3", choices: ["gato", "perro"] },
     ],
     answeredCount: 0,
+    ended: false,
     createdAt: Date.now(),
     ...overrides,
   };
@@ -84,7 +91,7 @@ describe("POST /api/words/answer", () => {
     expect(deleteWordsGame).toHaveBeenCalledWith("n1");
   });
 
-  it("respuesta incorrecta: borra la partida y revela el target sin avanzar", async () => {
+  it("respuesta incorrecta: marca la partida como terminada (no la borra) y revela el target", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getWordsGame).mockReturnValue(makeGame({ answeredCount: 0 }));
 
@@ -93,7 +100,19 @@ describe("POST /api/words/answer", () => {
 
     expect(res.status).toBe(200);
     expect(body).toEqual({ correct: false, target: "hola" });
-    expect(deleteWordsGame).toHaveBeenCalledWith("n1");
+    expect(markWordsGameEnded).toHaveBeenCalledWith("n1");
+    expect(deleteWordsGame).not.toHaveBeenCalled();
+    expect(advanceWordsGame).not.toHaveBeenCalled();
+  });
+
+  it("responde 400 si la partida ya está marcada como terminada", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+    vi.mocked(getWordsGame).mockReturnValue(makeGame({ answeredCount: 0, ended: true }));
+
+    const res = await POST(request({ nonce: "n1", roundIndex: 0, answer: "hola" }));
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Game already ended/);
     expect(advanceWordsGame).not.toHaveBeenCalled();
   });
 

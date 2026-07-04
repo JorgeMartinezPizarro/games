@@ -113,5 +113,5 @@ export function validateMoves(
 // por el servidor a partir de la partida validada.
 export function computeNumbersScore(steps: number, elapsedMs: number): number {
   if (elapsedMs <= 0) return 0;
-  return Math.round((steps ** 3 * 1000) / elapsedMs);
+  return Math.round((steps ** 3 * 3500) / elapsedMs);
 }

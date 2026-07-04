@@ -41,7 +41,13 @@ describe("useWordsScore", () => {
         "GET /bookmarks/api/scores": () =>
           jsonResponse({
             scores: [
-              { score: 5000, userId: "u1", username: "u1", gameConfig: { wordsTotal: 10 }, createdAt: "t1" },
+              {
+                score: 5000,
+                userId: "u1",
+                username: "u1",
+                gameConfig: { wordsTotal: 10, correctAnswers: 8 },
+                createdAt: "t1",
+              },
             ],
           }),
       })
@@ -57,6 +63,7 @@ describe("useWordsScore", () => {
       score: 5000,
       userId: "u1",
       wordsTotal: 10,
+      correctAnswers: 8,
       createdAt: "t1",
     });
   });
@@ -85,7 +92,8 @@ describe("useWordsScore", () => {
       saveResult = await result.current.saveScore("nonce-1");
     });
 
-    expect(saveResult).toEqual({ score: 3000, rank: 3 });
+    // Mayor score es mejor: 3000 es el máximo de [1000, 2000, 3000] => rank 1.
+    expect(saveResult).toEqual({ score: 3000, rank: 1 });
   });
 
   it("saveScore no vuelve a guardar hasta que se llama a resetSaveGuard", async () => {

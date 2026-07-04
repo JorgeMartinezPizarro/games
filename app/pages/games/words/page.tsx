@@ -23,6 +23,7 @@ const Wording = () => {
     won,
     quit,
     finishedTime,
+    finishedScore,
     finishedRank,
     feedback,
     pickedChoice,
@@ -37,7 +38,8 @@ const Wording = () => {
     handleReplay,
   } = game;
 
-  const sortedScores = [...score.topScores].sort((a, b) => a.score - b.score).slice(0, 10);
+  // Mayor score es mejor (cubo de aciertos entre tiempo), igual que numbers.
+  const sortedScores = [...score.topScores].sort((a, b) => b.score - a.score).slice(0, 10);
 
   return (
     <div className="wording-page">
@@ -146,25 +148,33 @@ const Wording = () => {
                 <div className="finished-summary__time">
                   ✅ Aciertos: <strong>{correctCount} / {ROUNDS_TOTAL}</strong>
                 </div>
+                {finishedScore !== null && (
+                  <div className="finished-summary__time">
+                    🎯 Puntos: <strong>{finishedScore}</strong>
+                  </div>
+                )}
 
-                {won ? (
-                  finishedRank !== null ? (
-                    <p className="finished-summary__rank">
-                      🏆 ¡Puesto #{finishedRank} del top 10!
-                    </p>
-                  ) : (
-                    <p className="finished-summary__rank finished-summary__rank--outside">
-                      No has entrado en el top 10 esta vez.
-                    </p>
-                  )
-                ) : quit ? (
+                {quit ? (
                   <p className="finished-summary__rank finished-summary__rank--outside">
                     Partida finalizada. ¡Inténtalo de nuevo!
                   </p>
                 ) : (
-                  <p className="finished-summary__rank finished-summary__rank--outside">
-                    Fallaste en la ronda {currentRound + 1}. ¡Inténtalo de nuevo!
-                  </p>
+                  <>
+                    {!won && (
+                      <p className="finished-summary__rank finished-summary__rank--outside">
+                        Fallaste en la ronda {currentRound + 1}.
+                      </p>
+                    )}
+                    {finishedRank !== null ? (
+                      <p className="finished-summary__rank">
+                        🏆 ¡Puesto #{finishedRank} del top 10!
+                      </p>
+                    ) : (
+                      <p className="finished-summary__rank finished-summary__rank--outside">
+                        No has entrado en el top 10 esta vez.
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -188,12 +198,12 @@ const Wording = () => {
       {/* VISTA SCORES */}
       {showScores && (
         <div className="scoreboard-panel">
-          <h3 className="scoreboard-title">🏆 Mejores Tiempos</h3>
+          <h3 className="scoreboard-title">🏆 Mejores Puntuaciones</h3>
 
-          {gameState === 'finished' && won && finishedTime !== null && (
+          {gameState === 'finished' && !quit && finishedScore !== null && (
             <div className="finished-summary">
               <div className="finished-summary__time">
-                ⏱ Tu tiempo: {formatMs(finishedTime)}
+                🎯 Tu puntuación: {finishedScore}
               </div>
               {finishedRank !== null ? (
                 <p className="finished-summary__rank">🏆 ¡Puesto #{finishedRank} del top 10!</p>
@@ -214,7 +224,8 @@ const Wording = () => {
                   <tr>
                     <th>#</th>
                     <th>Usuario</th>
-                    <th>Tiempo</th>
+                    <th>Puntos</th>
+                    <th>Aciertos</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -222,7 +233,8 @@ const Wording = () => {
                     <tr key={i}>
                       <td>{i + 1}</td>
                       <td>{s.userId}</td>
-                      <td>{formatMs(s.score)}</td>
+                      <td>{s.score}</td>
+                      <td>{s.correctAnswers} / {s.wordsTotal}</td>
                     </tr>
                   ))}
                 </tbody>

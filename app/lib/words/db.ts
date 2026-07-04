@@ -22,6 +22,7 @@ function ensureTable(): void {
       userId TEXT NOT NULL,
       rounds TEXT NOT NULL,
       answeredCount INTEGER NOT NULL DEFAULT 0,
+      ended INTEGER NOT NULL DEFAULT 0,
       createdAt INTEGER NOT NULL
     )
   `);
@@ -59,6 +60,7 @@ export type WordsGameState = {
   userId: string;
   rounds: WordsRound[];
   answeredCount: number;
+  ended: boolean;
   createdAt: number;
 };
 
@@ -67,15 +69,24 @@ export function deleteWordsGame(nonce: string): void {
   getDb().prepare(`DELETE FROM words_games WHERE nonce = ?`).run(nonce);
 }
 
+// Se llama al fallar una ronda: a diferencia de un salto de ronda inválido,
+// aquí NO se borra la partida, para que /api/scores pueda puntuar los
+// aciertos logrados hasta este punto. El nonce queda inutilizable para
+// más respuestas (ver /api/words/answer).
+export function markWordsGameEnded(nonce: string): void {
+  ensureTable();
+  getDb().prepare(`UPDATE words_games SET ended = 1 WHERE nonce = ?`).run(nonce);
+}
+
 export function getWordsGame(nonce: string): WordsGameState | null {
   ensureTable();
 
   const row = getDb()
     .prepare(
-      `SELECT userId, rounds, answeredCount, createdAt FROM words_games WHERE nonce = ?`
+      `SELECT userId, rounds, answeredCount, ended, createdAt FROM words_games WHERE nonce = ?`
     )
     .get(nonce) as
-    | { userId: string; rounds: string; answeredCount: number; createdAt: number }
+    | { userId: string; rounds: string; answeredCount: number; ended: number; createdAt: number }
     | undefined;
 
   if (!row) return null;
@@ -89,6 +100,7 @@ export function getWordsGame(nonce: string): WordsGameState | null {
     userId: row.userId,
     rounds: JSON.parse(row.rounds) as WordsRound[],
     answeredCount: row.answeredCount,
+    ended: row.ended === 1,
     createdAt: row.createdAt,
   };
 }
