@@ -96,8 +96,9 @@ describe("useNumbers", () => {
     });
 
     expect(result.current.steps).toBe(1);
-    // liveScore = round(steps^3 * 2000 / elapsedMs) = round(1*2000/1000) = 2
-    expect(result.current.currentScore).toBe(2);
+    // elapsedMs = 150 (startNewGame) + 1000 (avance del test) = 1150.
+    // liveScore = round(steps^3 * 3500 / elapsedMs) = round(3500/1150) = 3
+    expect(result.current.currentScore).toBe(3);
   });
 
   it("un clic sin relación de salto válida termina la partida sin sumar el paso", async () => {

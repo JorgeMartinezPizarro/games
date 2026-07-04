@@ -6,8 +6,10 @@ import type { GameId, GetPlayerScoresResponse, PlayerGameBest } from "@/app/lib/
 
 export type { GameId };
 
-// Juegos cuyo score es un tiempo en ms (menor es mejor): Tetris (3) y Wording (4)
-const TIME_BASED_GAMES = new Set<GameId>([3, 4]);
+// Juegos cuyo score es un tiempo en ms (menor es mejor): solo Tetris (3).
+// Wording (4) puntúa en puntos (cubo de aciertos entre tiempo, mayor es
+// mejor), igual que Chess y Numbers.
+const TIME_BASED_GAMES = new Set<GameId>([3]);
 
 export function formatGameScore(gameId: GameId, score: number): string {
   return TIME_BASED_GAMES.has(gameId) ? formatTimeMs(score) : score.toLocaleString();

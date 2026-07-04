@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, TextField, Button, Typography } from "@mui/material";
+import { Box, TextField, Card, CardActionArea, CardContent, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import MainMenu from "./components/MainMenu";
 import Image from "next/image";
@@ -65,10 +65,9 @@ const AgePage = () => {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
-          height: "60vh",
-          gap: 4,
-          m: 4,
+          gap: { xs: 2, sm: 4 },
+          mx: { xs: 2, sm: 4 },
+          my: { xs: 3, sm: 4 },
         }}
       >
         <p>Enter your birthdate [dd-mm-yyyy]</p>
@@ -87,39 +86,70 @@ const AgePage = () => {
 
         <Box
           sx={{
-            display: "flex",
-            gap: 2,
-            flexWrap: "wrap",
-            justifyContent: "center",
+            display: "grid",
+            gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" },
+            gap: { xs: 1.5, sm: 2.5 },
+            width: "100%",
+            maxWidth: 720,
           }}
         >
           {GAMES.map(({ gameId, href, icon, alt }) => {
             const best = bestFor(gameId);
             return (
-              <Box
+              <Card
                 key={gameId}
                 sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 0.5,
+                  width: "100%",
+                  bgcolor: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  borderRadius: 4,
+                  transition: "transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease",
+                  "&:hover": {
+                    transform: "translateY(-4px)",
+                    boxShadow: "0 10px 26px rgba(0,0,0,0.4)",
+                    bgcolor: "rgba(255,255,255,0.14)",
+                  },
                 }}
               >
-                <Button onClick={() => (window.location.href = href)}>
-                  <Image alt={alt} width={64} height={64} src={icon} />
-                </Button>
+                <CardActionArea onClick={() => (window.location.href = href)}>
+                  <CardContent
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 1,
+                      py: 3,
+                    }}
+                  >
+                    <Image alt={alt} width={56} height={56} src={icon} />
 
-                <Typography
-                  variant="caption"
-                  sx={{ color: "white", opacity: 0.85, minHeight: "1.2em" }}
-                >
-                  {scoresLoading
-                    ? "..."
-                    : best?.found
-                    ? `${formatGameScore(gameId, best.score!)} #${best.rank}`
-                    : "Sin registro"}
-                </Typography>
-              </Box>
+                    <Typography variant="subtitle1" sx={{ color: "white", fontWeight: 700 }}>
+                      {alt}
+                    </Typography>
+
+                    <Box
+                      sx={{
+                        mt: 0.5,
+                        px: 1.5,
+                        py: 0.5,
+                        borderRadius: 5,
+                        bgcolor: "rgba(0,0,0,0.28)",
+                        minHeight: "1.6em",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Typography variant="caption" sx={{ color: "white", opacity: 0.9 }}>
+                        {scoresLoading
+                          ? "..."
+                          : best?.found
+                          ? `${formatGameScore(gameId, best.score!)} · #${best.rank}`
+                          : "Sin registro"}
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </CardActionArea>
+              </Card>
             );
           })}
         </Box>

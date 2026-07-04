@@ -208,15 +208,15 @@ describe("POST /api/scores (numbers)", () => {
     vi.mocked(insertScore).mockReturnValue(55);
 
     // Tour completo de las 4 casillas del anillo: steps=4, elapsed=37000ms
-    // (NOW - CREATED_AT) => round(4^3*2000/37000) = round(3.4595...) = 3.
+    // (NOW - CREATED_AT) => round(4^3*3500/37000) = round(6.0541...) = 6.
     const res = await POST(
       request({ gameId: 2, nonce: "n1", board: ringBoard(4), moves: [0, 1, 2, 3] })
     );
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toEqual({ message: "Score saved successfully.", id: 55, score: 3 });
-    expect(insertScore).toHaveBeenCalledWith(user, 2, 3, JSON.stringify({ steps: 4 }));
+    expect(body).toEqual({ message: "Score saved successfully.", id: 55, score: 6 });
+    expect(insertScore).toHaveBeenCalledWith(user, 2, 6, JSON.stringify({ steps: 4 }));
   });
 });
 
@@ -281,16 +281,16 @@ describe("POST /api/scores (words)", () => {
     );
     vi.mocked(insertScore).mockReturnValue(11);
 
-    // elapsed=37000ms (NOW - CREATED_AT) => round(4^3*5000/37000) = round(8.6486...) = 9.
+    // elapsed=37000ms (NOW - CREATED_AT) => round(4^3*11000/37000) = round(19.027...) = 19.
     const res = await POST(request({ gameId: 4, nonce: "n1" }));
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toEqual({ message: "Score saved successfully.", id: 11, score: 9 });
+    expect(body).toEqual({ message: "Score saved successfully.", id: 11, score: 19 });
     expect(insertScore).toHaveBeenCalledWith(
       user,
       4,
-      9,
+      19,
       JSON.stringify({ wordsTotal: 10, correctAnswers: 4 })
     );
   });
@@ -302,16 +302,16 @@ describe("POST /api/scores (words)", () => {
     );
     vi.mocked(insertScore).mockReturnValue(22);
 
-    // elapsed=37000ms => round(10^3*5000/37000) = round(135.135...) = 135.
+    // elapsed=37000ms => round(10^3*11000/37000) = round(297.297...) = 297.
     const res = await POST(request({ gameId: 4, nonce: "n1" }));
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toEqual({ message: "Score saved successfully.", id: 22, score: 135 });
+    expect(body).toEqual({ message: "Score saved successfully.", id: 22, score: 297 });
     expect(insertScore).toHaveBeenCalledWith(
       user,
       4,
-      135,
+      297,
       JSON.stringify({ wordsTotal: 10, correctAnswers: 10 })
     );
   });

@@ -63,13 +63,14 @@ type ScoreRow = {
 
 type RankedScoreRow = ScoreRow & { userId: string | null; rank: number };
 
-// Dirección "ganadora" por juego: 'desc' = mayor score es mejor (Chess, Numbers),
-// 'asc' = menor score es mejor (Tetris y Wording guardan tiempo en ms).
+// Dirección "ganadora" por juego: 'desc' = mayor score es mejor (Chess,
+// Numbers y Wording: cubo de aciertos entre tiempo), 'asc' = menor score es
+// mejor (Tetris guarda tiempo en ms).
 const GAME_DIRECTIONS: Record<GameId, "asc" | "desc"> = {
   1: "desc",
   2: "desc",
   3: "asc",
-  4: "asc",
+  4: "desc",
 };
 
 const ALL_GAME_IDS: GameId[] = [1, 2, 3, 4];
