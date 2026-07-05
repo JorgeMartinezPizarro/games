@@ -37,6 +37,7 @@ class ScoreController extends OCSController {
 
         $body = json_decode($this->request->getContent(), true);
 
+		$event = $this->activityManager->generateEvent();
 		$event->setApp('gaming')
 			->setType('score')
 			->setAuthor($user->getUID())
