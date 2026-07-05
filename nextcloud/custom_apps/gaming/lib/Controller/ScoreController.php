@@ -35,7 +35,8 @@ class ScoreController extends OCSController {
             ], 401);
         }
 
-        $body = json_decode($this->request->getContent(), true);
+        $game = $this->request->getParam('game');
+        $score = $this->request->getParam('score');
 
 		$event = $this->activityManager->generateEvent();
 		$event->setApp('gaming')
@@ -43,15 +44,16 @@ class ScoreController extends OCSController {
 			->setAuthor($user->getUID())
 			->setAffectedUser($user->getUID())
 			->setSubject('score_saved', [
-				'game' => $body['game'],
-				'score' => $body['score'],
+				'game' => $game,
+				'score' => $score,
 			]);
 
 		$this->activityManager->publish($event);
         return new DataResponse([
             'success' => true,
             'user' => $user->getUID(),
-            'body' => $body,
+            'game' => $game,
+            'score' => $score,
         ]);
     }
 }
