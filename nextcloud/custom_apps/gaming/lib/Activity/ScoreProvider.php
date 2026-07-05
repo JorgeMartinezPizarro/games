@@ -14,7 +14,7 @@ class ScoreProvider implements IProvider {
     ) {
     }
 
-    public function parse(string $language, IEvent $event, ?IEvent $previousEvent = null): IEvent {
+    public function parse($language, IEvent $event, ?IEvent $previousEvent = null) {
         if ($event->getApp() !== 'gaming') {
             throw new InvalidArgumentException();
         }
