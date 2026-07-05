@@ -36,7 +36,9 @@ class NotificationController extends OCSController {
         $targetUserId = $this->request->getParam('targetUserId');
         $game = $this->request->getParam('game');
         $score = $this->request->getParam('score');
+        $scoreLabel = $this->request->getParam('scoreLabel');
         $previousScore = $this->request->getParam('previousScore');
+        $previousScoreLabel = $this->request->getParam('previousScoreLabel');
 
         if (!is_string($targetUserId) || $targetUserId === '') {
             return new DataResponse([
@@ -60,7 +62,9 @@ class NotificationController extends OCSController {
 			->setSubject('score_beaten', [
 				'game' => $game,
 				'score' => $score,
+				'scoreLabel' => $scoreLabel,
 				'previousScore' => $previousScore,
+				'previousScoreLabel' => $previousScoreLabel,
 				'author' => $user->getUID(),
 			]);
 

@@ -24,10 +24,11 @@ class ScoreProvider implements IProvider {
 
         if ($event->getSubject() === 'score_saved') {
             $params = $event->getSubjectParameters();
+            $scoreLabel = $params['scoreLabel'] ?? $params['score'] ?? '?';
             $event->setParsedSubject(sprintf(
-                '%s marcó %s puntos en %s',
+                '%s marcó %s en %s',
                 $event->getAuthor(),
-                $params['score'] ?? '?',
+                $scoreLabel,
                 $params['game'] ?? 'un juego'
             ));
             $event->setIcon($this->urlGenerator->imagePath('gaming', 'icon.svg'));

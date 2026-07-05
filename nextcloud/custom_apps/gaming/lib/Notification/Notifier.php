@@ -38,14 +38,16 @@ class Notifier implements INotifier {
 
             $author = $this->userManager->get($params['author'] ?? '');
             $authorName = $author !== null ? $author->getDisplayName() : ($params['author'] ?? '?');
+            $scoreLabel = $params['scoreLabel'] ?? $params['score'] ?? '?';
+            $previousScoreLabel = $params['previousScoreLabel'] ?? $params['previousScore'] ?? '?';
 
             $notification->setParsedSubject($l->t(
-                '%1$s ha superado tu récord en %2$s con %3$s puntos (tu récord: %4$s)',
+                '%1$s ha superado tu récord en %2$s con %3$s (tu récord: %4$s)',
                 [
                     $authorName,
                     $params['game'] ?? '?',
-                    $params['score'] ?? '?',
-                    $params['previousScore'] ?? '?',
+                    $scoreLabel,
+                    $previousScoreLabel,
                 ]
             ));
 

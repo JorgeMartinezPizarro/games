@@ -30,8 +30,16 @@ import { consumeTetrisGame } from "@/app/lib/tetris/db";
 import { LINES_TARGET as TETRIS_LINES_TARGET } from "@/app/lib/tetris/engine";
 import { consumeChessGame } from "@/app/lib/chess/db";
 import { replayChessMoves } from "@/app/lib/chess/replay";
+import { formatTimeMs } from "@/app/lib/scores/format";
 import { NextRequest } from "next/server";
 import type { GameId } from "@/app/lib/scores/types";
+
+// Tetris puntúa en ms de partida total (menor es mejor); el resto en puntos.
+// Para activity/notificaciones de Nextcloud queremos que Tetris se muestre
+// como MM:SS.mmm en vez del número crudo de milisegundos.
+function formatScoreLabel(gameId: GameId, score: number): string {
+  return gameId === GAME_IDS.TETRIS ? formatTimeMs(score) : String(score);
+}
 
 async function createActivity(
   request: NextRequest,
@@ -61,6 +69,7 @@ async function createActivity(
         body: JSON.stringify({
           game: GAME_NAMES[gameId],
           score,
+          scoreLabel: formatScoreLabel(gameId, score),
         }),
       }
     );
@@ -89,7 +98,9 @@ async function createActivity(
             targetUserId: player.userId,
             game: GAME_NAMES[gameId],
             score,
+            scoreLabel: formatScoreLabel(gameId, score),
             previousScore: player.previousBest,
+            previousScoreLabel: formatScoreLabel(gameId, player.previousBest),
           }),
         }
       );

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GAME_IDS, ScoreEntry } from "@/app/lib/scores/types";
 import { fetchTopScores } from "@/app/lib/scores/client";
+import { formatTimeMs } from "@/app/lib/scores/format";
 import { LINES_TARGET, TetrisAction } from "./useTetris";
 
 export type LeaderboardEntry = {
@@ -9,18 +10,7 @@ export type LeaderboardEntry = {
   linesTarget: number;
 };
 
-export function formatTimeMs(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  const millis = ms % 1000;
-  if (minutes > 0) {
-    return `${minutes}:${seconds.toString().padStart(2, "0")}.${millis
-      .toString()
-      .padStart(3, "0")}`;
-  }
-  return `${seconds}.${millis.toString().padStart(3, "0")}s`;
-}
+export { formatTimeMs };
 
 function parseLeaderboardEntry(entry: ScoreEntry): LeaderboardEntry {
   const linesTarget =

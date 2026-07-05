@@ -39,6 +39,7 @@ class ScoreController extends OCSController {
 
         $game = $this->request->getParam('game');
         $score = $this->request->getParam('score');
+        $scoreLabel = $this->request->getParam('scoreLabel');
 
 		$event = $this->activityManager->generateEvent();
 		$event->setApp('gaming')
@@ -47,6 +48,7 @@ class ScoreController extends OCSController {
 			->setSubject('score_saved', [
 				'game' => $game,
 				'score' => $score,
+				'scoreLabel' => $scoreLabel,
 			]);
 
 		$this->userManager->callForSeenUsers(function ($affectedUser) use ($event) {
