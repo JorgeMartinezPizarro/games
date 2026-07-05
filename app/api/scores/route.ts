@@ -32,6 +32,37 @@ import { replayChessMoves } from "@/app/lib/chess/replay";
 import { NextRequest } from "next/server";
 import type { GameId } from "@/app/lib/scores/types";
 
+async function createActivity(
+  request: NextRequest,
+  gameId: GameId,
+  score: number
+): Promise<void> {
+  if (process.env.NEXT_PUBLIC_ENABLE_LOGIN !== "true") {
+    return;
+  }
+
+  try {
+    const cookie = request.headers.get("cookie");
+
+    await fetch(
+      `${process.env.NEXTCLOUD_URL}/index.php/apps/gaming/api/score`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(cookie ? { Cookie: cookie } : {}),
+        },
+        body: JSON.stringify({
+          game: GAME_NAMES[gameId],
+          score,
+        }),
+      }
+    );
+  } catch (err) {
+    console.error("Unable to publish Nextcloud activity:", err);
+  }
+}
+
 function errorResponse(error: unknown): Response {
   const body: ScoresErrorResponse = { error: getErrorResponseMessage(error) };
   return Response.json(body, { status: getErrorStatus(error) });
@@ -52,7 +83,7 @@ function errorResponse(error: unknown): Response {
 // terminar la partida, es a las negras a quien le toca mover y están en
 // jaque mate (turn() === "b" && isCheckmate()): eso es lo único que
 // significa que las blancas (el jugador) dieron mate. Las tablas no puntúan.
-function saveChessScore(user: AuthUser, params: any): Response {
+async function saveChessScore(request: NextRequest, user: AuthUser, params: any): Promise<Response> {
   const { nonce } = params;
 
   if (typeof nonce !== "string" || nonce.trim() === "") {
@@ -88,6 +119,8 @@ function saveChessScore(user: AuthUser, params: any): Response {
     return Response.json({ error: serializedConfig.error }, { status: 400 });
   }
 
+  await createActivity(request, GAME_IDS.CHESS, score);
+
   const id = insertScore(user, GAME_IDS.CHESS, score, serializedConfig.value);
 
   const body: SaveScoreResponse = {
@@ -101,7 +134,7 @@ function saveChessScore(user: AuthUser, params: any): Response {
 // Numbers no manda un score de confianza: manda el nonce de la partida
 // (emitido por /api/numbers/new-game), el tablero inicial y los movimientos
 // realizados. El servidor reproduce la partida y calcula el score él mismo.
-function saveNumbersScore(user: AuthUser, params: any): Response {
+async function saveNumbersScore(request: NextRequest, user: AuthUser, params: any): Promise<Response> {
   const { nonce, board, moves } = params;
 
   if (typeof nonce !== "string" || nonce.trim() === "") {
@@ -141,6 +174,7 @@ function saveNumbersScore(user: AuthUser, params: any): Response {
     return Response.json({ error: serializedConfig.error }, { status: 400 });
   }
 
+  await createActivity(request, GAME_IDS.NUMBERS, finalScore);
   const id = insertScore(user, GAME_IDS.NUMBERS, finalScore, serializedConfig.value);
 
   const body: SaveScoreResponse = {
@@ -157,7 +191,7 @@ function saveNumbersScore(user: AuthUser, params: any): Response {
 // (stored.ended, marcado por /api/words/answer) — nunca una partida a
 // medio jugar. El score es la misma fórmula que numbers: cubo de aciertos
 // entre el tiempo, calculado con el reloj del servidor.
-function saveWordsScore(user: AuthUser, params: any): Response {
+async function saveWordsScore(request: NextRequest, user: AuthUser, params: any): Promise<Response> {
   const { nonce } = params;
 
   if (typeof nonce !== "string" || nonce.trim() === "") {
@@ -186,6 +220,8 @@ function saveWordsScore(user: AuthUser, params: any): Response {
     return Response.json({ error: serializedConfig.error }, { status: 400 });
   }
 
+  await createActivity(request, GAME_IDS.WORDS, finalScore);
+ 
   const id = insertScore(user, GAME_IDS.WORDS, finalScore, serializedConfig.value);
 
   const body: SaveScoreResponse = {
@@ -202,7 +238,7 @@ function saveWordsScore(user: AuthUser, params: any): Response {
 // reproduce la partida entera con el mismo motor que el cliente
 // (app/lib/tetris/replay.ts) y solo si el replay llega de forma legal a
 // LINES_TARGET calcula el tiempo final con su propio reloj.
-function saveTetrisScore(user: AuthUser, params: any): Response {
+async function saveTetrisScore(request: NextRequest, user: AuthUser, params: any): Promise<Response> {
   const { nonce, actions } = params;
 
   if (typeof nonce !== "string" || nonce.trim() === "") {
@@ -228,6 +264,8 @@ function saveTetrisScore(user: AuthUser, params: any): Response {
     return Response.json({ error: serializedConfig.error }, { status: 400 });
   }
 
+  await createActivity(request, GAME_IDS.TETRIS, elapsed);
+ 
   const id = insertScore(user, GAME_IDS.TETRIS, elapsed, serializedConfig.value);
 
   const body: SaveScoreResponse = {
@@ -269,16 +307,16 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     if (parsedGameId === GAME_IDS.CHESS) {
-      return saveChessScore(user, params);
+      return await saveChessScore(request, user, params);
     }
     if (parsedGameId === GAME_IDS.NUMBERS) {
-      return saveNumbersScore(user, params);
+      return await saveNumbersScore(request, user, params);
     }
     if (parsedGameId === GAME_IDS.WORDS) {
-      return saveWordsScore(user, params);
+      return await saveWordsScore(request, user, params);
     }
     if (parsedGameId === GAME_IDS.TETRIS) {
-      return saveTetrisScore(user, params);
+      return await saveTetrisScore(request, user, params);
     }
 
     const parsedScore = parseScoreValue(score);

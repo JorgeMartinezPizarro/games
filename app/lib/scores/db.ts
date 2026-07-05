@@ -157,6 +157,7 @@ export function insertScore(
 ): number {
   ensureUser(user);
 
+
   const result = getPreparedStmts().insertScore.run(
     gameId,
     user.id,
