@@ -11,5 +11,10 @@ return [
             'url' => '/api/score',
             'verb' => 'POST',
         ],
+        [
+            'name' => 'notification#notify',
+            'url' => '/api/notify',
+            'verb' => 'POST',
+        ],
     ],
 ];

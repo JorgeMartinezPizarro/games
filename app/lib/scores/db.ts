@@ -144,6 +144,67 @@ function getPreparedRankStmts() {
   return _rankStmts;
 }
 
+// Récords batidos: mejor score histórico (por usuario) de cada juego,
+// comparado contra el score que se acaba de conseguir. La dirección
+// "ganadora" (asc/desc) determina si "batido" significa "menor que" (tetris)
+// o "mayor que" (el resto).
+function getBeatenPlayersStmts(db: Database.Database) {
+  const buildQuery = (aggFn: "MIN" | "MAX", comparator: "<" | ">") => `
+    SELECT s.userId AS userId, COALESCE(u.name, s.username) AS username, ${aggFn}(s.score) AS bestScore
+    FROM scores s
+    LEFT JOIN users u ON s.userId = u.id
+    WHERE s.gameId = ? AND s.userId IS NOT NULL AND s.userId != ?
+    GROUP BY s.userId
+    HAVING ${aggFn}(s.score) ${comparator} ?
+  `;
+
+  return {
+    // Tetris: menor score (tiempo) es mejor, así que se bate un récord si el
+    // nuevo score es MENOR que el mejor histórico de ese jugador.
+    asc: db.prepare(buildQuery("MIN", ">")),
+    // Resto: mayor score es mejor, se bate si el nuevo score es MAYOR.
+    desc: db.prepare(buildQuery("MAX", "<")),
+  };
+}
+
+let _beatenPlayersStmts: ReturnType<typeof getBeatenPlayersStmts> | null = null;
+function getPreparedBeatenPlayersStmts() {
+  if (!_beatenPlayersStmts) {
+    _beatenPlayersStmts = getBeatenPlayersStmts(getDb());
+  }
+  return _beatenPlayersStmts;
+}
+
+export type BeatenPlayer = {
+  userId: string;
+  username: string;
+  previousBest: number;
+};
+
+export function getPlayersBeatenByScore(
+  gameId: GameId,
+  excludeUserId: string,
+  newScore: number
+): BeatenPlayer[] {
+  const direction = GAME_DIRECTIONS[gameId];
+  const stmt =
+    direction === "asc"
+      ? getPreparedBeatenPlayersStmts().asc
+      : getPreparedBeatenPlayersStmts().desc;
+
+  const rows = stmt.all(gameId, excludeUserId, newScore) as {
+    userId: string;
+    username: string;
+    bestScore: number;
+  }[];
+
+  return rows.map((row) => ({
+    userId: row.userId,
+    username: row.username,
+    previousBest: row.bestScore,
+  }));
+}
+
 export function ensureUser(user: AuthUser): AuthUser {
   getPreparedStmts().upsertUser.run(user.id, user.name, user.email);
   return user;

@@ -2,6 +2,7 @@ import { requireAuth, type AuthUser } from "@/app/lib/auth";
 import {
   getPlayerBestScoreForGame,
   getPlayerBestScores,
+  getPlayersBeatenByScore,
   getScoresForGame,
   insertScore,
 } from "@/app/lib/scores/db";
@@ -35,7 +36,8 @@ import type { GameId } from "@/app/lib/scores/types";
 async function createActivity(
   request: NextRequest,
   gameId: GameId,
-  score: number
+  score: number,
+  userId: string
 ): Promise<void> {
 
 	console.log("Llamamos a crear actividad desde el backend!", process.env.NEXT_PUBLIC_ENABLE_LOGIN)
@@ -43,18 +45,19 @@ async function createActivity(
     return;
   }
 
-  try {
-    const cookie = request.headers.get("cookie");
+  const cookie = request.headers.get("cookie");
+  const headers = {
+    "Content-Type": "application/json",
+    "OCS-APIRequest": "true",
+    ...(cookie ? { Cookie: cookie } : {}),
+  };
 
+  try {
     const response = await fetch(
       `${process.env.NEXTCLOUD_URL}/index.php/apps/gaming/api/score`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "OCS-APIRequest": "true",
-          ...(cookie ? { Cookie: cookie } : {}),
-        },
+        headers,
         body: JSON.stringify({
           game: GAME_NAMES[gameId],
           score,
@@ -66,10 +69,35 @@ async function createActivity(
 
 	const text = await response.text();
 	console.log("Activity response:", text);
-
-
   } catch (err) {
     console.error("Unable to publish Nextcloud activity:", err);
+  }
+
+  // Récords batidos: cualquier jugador cuyo mejor score histórico en este
+  // juego quede por debajo (o por encima, en tetris) del score recién
+  // conseguido recibe una notificación individual en Nextcloud.
+  try {
+    const beatenPlayers = getPlayersBeatenByScore(gameId, userId, score);
+
+    for (const player of beatenPlayers) {
+      const response = await fetch(
+        `${process.env.NEXTCLOUD_URL}/index.php/apps/gaming/api/notify`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            targetUserId: player.userId,
+            game: GAME_NAMES[gameId],
+            score,
+            previousScore: player.previousBest,
+          }),
+        }
+      );
+
+      console.log("Notify status:", player.userId, response.status);
+    }
+  } catch (err) {
+    console.error("Unable to send Nextcloud notifications:", err);
   }
 }
 
@@ -129,7 +157,7 @@ async function saveChessScore(request: NextRequest, user: AuthUser, params: any)
     return Response.json({ error: serializedConfig.error }, { status: 400 });
   }
 
-  await createActivity(request, GAME_IDS.CHESS, score);
+  await createActivity(request, GAME_IDS.CHESS, score, user.id);
 
   const id = insertScore(user, GAME_IDS.CHESS, score, serializedConfig.value);
 
@@ -184,7 +212,7 @@ async function saveNumbersScore(request: NextRequest, user: AuthUser, params: an
     return Response.json({ error: serializedConfig.error }, { status: 400 });
   }
 
-  await createActivity(request, GAME_IDS.NUMBERS, finalScore);
+  await createActivity(request, GAME_IDS.NUMBERS, finalScore, user.id);
   const id = insertScore(user, GAME_IDS.NUMBERS, finalScore, serializedConfig.value);
 
   const body: SaveScoreResponse = {
@@ -230,7 +258,7 @@ async function saveWordsScore(request: NextRequest, user: AuthUser, params: any)
     return Response.json({ error: serializedConfig.error }, { status: 400 });
   }
 
-  await createActivity(request, GAME_IDS.WORDS, finalScore);
+  await createActivity(request, GAME_IDS.WORDS, finalScore, user.id);
  
   const id = insertScore(user, GAME_IDS.WORDS, finalScore, serializedConfig.value);
 
@@ -274,7 +302,7 @@ async function saveTetrisScore(request: NextRequest, user: AuthUser, params: any
     return Response.json({ error: serializedConfig.error }, { status: 400 });
   }
 
-  await createActivity(request, GAME_IDS.TETRIS, elapsed);
+  await createActivity(request, GAME_IDS.TETRIS, elapsed, user.id);
  
   const id = insertScore(user, GAME_IDS.TETRIS, elapsed, serializedConfig.value);
 
