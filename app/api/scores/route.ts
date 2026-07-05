@@ -52,6 +52,7 @@ async function createActivity(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "OCS-APIRequest": "true",
           ...(cookie ? { Cookie: cookie } : {}),
         },
         body: JSON.stringify({
