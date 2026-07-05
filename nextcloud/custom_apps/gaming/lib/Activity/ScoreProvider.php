@@ -2,10 +2,10 @@
 
 namespace OCA\Gaming\Activity;
 
+use OCP\Activity\Exceptions\UnknownActivityException;
 use OCP\Activity\IEvent;
 use OCP\Activity\IProvider;
 use OCP\IURLGenerator;
-use InvalidArgumentException;
 
 class ScoreProvider implements IProvider {
 
@@ -14,9 +14,12 @@ class ScoreProvider implements IProvider {
     ) {
     }
 
+    /**
+     * @throws UnknownActivityException
+     */
     public function parse($language, IEvent $event, ?IEvent $previousEvent = null) {
         if ($event->getApp() !== 'gaming') {
-            throw new InvalidArgumentException();
+            throw new UnknownActivityException();
         }
 
         if ($event->getSubject() === 'score_saved') {
@@ -31,6 +34,6 @@ class ScoreProvider implements IProvider {
             return $event;
         }
 
-        throw new InvalidArgumentException();
+        throw new UnknownActivityException();
     }
 }
