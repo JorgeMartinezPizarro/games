@@ -18,4 +18,12 @@
             <icon>img/icon-test.png</icon>
         </navigation>
     </navigations>
+    <activity>
+        <settings>
+            <setting>OCA\Gaming\Activity\ScoreSetting</setting>
+        </settings>
+        <providers>
+            <provider>OCA\Gaming\Activity\ScoreProvider</provider>
+        </providers>
+    </activity>
 </info>
