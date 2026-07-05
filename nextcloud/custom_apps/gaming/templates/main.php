@@ -1,11 +1,3 @@
-<?php
-// primero lógica PHP
-if (!\OC::$server->getUserSession()->isLoggedIn()) {
-    header("Location: /login");
-    exit;
-}
-?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -19,7 +11,7 @@ if (!\OC::$server->getUserSession()->isLoggedIn()) {
 <button id="installApp" style="display: none;">📲 Install Web App</button>
 
 <iframe
-    src="https://your-nextcloud-url/bookmarks"
+    src="https://games.ideniox.com/bookmarks"
     style="
         position: fixed;
         left: 0;

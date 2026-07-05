@@ -8,8 +8,12 @@
     <namespace>Gaming</namespace>
     <category>productivity</category>
     <dependencies>
-        <nextcloud min-version="28" max-version="32.*"/>
+        <nextcloud min-version="28" max-version="34"/>
     </dependencies>
+	<dependencies>
+    	<nextcloud min-version="28" max-version="34"/>
+    	<app>activity</app>
+	</dependencies>
     <navigations>
         <navigation>
             <route>gaming.page.index</route>
