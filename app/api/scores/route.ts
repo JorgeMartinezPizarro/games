@@ -37,6 +37,8 @@ async function createActivity(
   gameId: GameId,
   score: number
 ): Promise<void> {
+
+	console.log("Llamamos a crear actividad desde el backend!", process.env.NEXT_PUBLIC_ENABLE_LOGIN)
   if (process.env.NEXT_PUBLIC_ENABLE_LOGIN !== "true") {
     return;
   }
