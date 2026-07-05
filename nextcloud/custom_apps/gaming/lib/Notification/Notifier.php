@@ -26,7 +26,7 @@ class Notifier implements INotifier {
         return 'Gaming';
     }
 
-    public function prepare($notification, $languageCode) {
+    public function prepare(INotification $notification, string $languageCode): INotification {
         if ($notification->getApp() !== 'gaming') {
             throw new InvalidArgumentException();
         }
