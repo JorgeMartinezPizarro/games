@@ -46,7 +46,7 @@ async function createActivity(
   try {
     const cookie = request.headers.get("cookie");
 
-    await fetch(
+    const response = await fetch(
       `${process.env.NEXTCLOUD_URL}/index.php/apps/gaming/api/score`,
       {
         method: "POST",
@@ -60,6 +60,13 @@ async function createActivity(
         }),
       }
     );
+
+	console.log("Activity status:", response.status);
+
+	const text = await response.text();
+	console.log("Activity response:", text);
+
+
   } catch (err) {
     console.error("Unable to publish Nextcloud activity:", err);
   }
