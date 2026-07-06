@@ -145,20 +145,29 @@ const MenuBar = React.memo(function MenuBar({
   isActive,
   nextPiece,
 }: MenuBarProps) {
+  // Ver los scores solo tiene sentido con la partida detenida: si está en
+  // marcha, el botón se deja pintado igual (nunca "deshabilitado") pero el
+  // click no hace nada.
+  const scoresLocked = showGame && isActive;
+
   return (
     <Box className="tetris-panel-width tetris-menu-bar">
       <Button
         size="small"
-        variant={showGame ? "contained" : "outlined"}
-        onClick={onToggleView}
-        className={`tetris-menu-btn tetris-menu-btn--scores ${showGame ? "is-active" : ""}`}
+        variant="contained"
+        onClick={() => {
+          if (!scoresLocked) onToggleView();
+        }}
+        className={`tetris-menu-btn tetris-menu-btn--scores is-active ${
+          showGame ? "" : "tetris-menu-btn--solo"
+        } ${scoresLocked ? "is-locked" : ""}`}
       >
-        {showGame ? "SCORES" : "PLAY"}
+        {showGame ? "SCORES" : "BACK"}
       </Button>
       {showGame && (
         <Button
           size="small"
-          variant="outlined"
+          variant="contained"
           onClick={onStartStop}
           className="tetris-menu-btn tetris-menu-btn--startstop"
         >

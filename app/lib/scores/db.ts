@@ -147,7 +147,10 @@ function getPreparedRankStmts() {
 // Récords batidos: mejor score histórico (por usuario) de cada juego,
 // comparado contra el score que se acaba de conseguir. La dirección
 // "ganadora" (asc/desc) determina si "batido" significa "menor que" (tetris)
-// o "mayor que" (el resto).
+// o "mayor que" (el resto). Solo cuenta como adelantamiento REAL si el
+// jugador no tenía ya, antes de esta partida, un score que batiera al del
+// otro jugador — si ya le había ganado antes, no se vuelve a notificar cada
+// vez que mejora su propio récord.
 function getBeatenPlayersStmts(db: Database.Database) {
   const buildQuery = (aggFn: "MIN" | "MAX", comparator: "<" | ">") => `
     SELECT s.userId AS userId, COALESCE(u.name, s.username) AS username, ${aggFn}(s.score) AS bestScore
@@ -156,6 +159,7 @@ function getBeatenPlayersStmts(db: Database.Database) {
     WHERE s.gameId = ? AND s.userId IS NOT NULL AND s.userId != ?
     GROUP BY s.userId
     HAVING ${aggFn}(s.score) ${comparator} ?
+       AND (? IS NULL OR NOT (${aggFn}(s.score) ${comparator} ?))
   `;
 
   return {
@@ -184,7 +188,8 @@ export type BeatenPlayer = {
 export function getPlayersBeatenByScore(
   gameId: GameId,
   excludeUserId: string,
-  newScore: number
+  newScore: number,
+  previousBest: number | null
 ): BeatenPlayer[] {
   const direction = GAME_DIRECTIONS[gameId];
   const stmt =
@@ -192,7 +197,13 @@ export function getPlayersBeatenByScore(
       ? getPreparedBeatenPlayersStmts().asc
       : getPreparedBeatenPlayersStmts().desc;
 
-  const rows = stmt.all(gameId, excludeUserId, newScore) as {
+  const rows = stmt.all(
+    gameId,
+    excludeUserId,
+    newScore,
+    previousBest,
+    previousBest
+  ) as {
     userId: string;
     username: string;
     bestScore: number;

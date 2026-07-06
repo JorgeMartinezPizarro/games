@@ -84,9 +84,18 @@ async function createActivity(
 
   // Récords batidos: cualquier jugador cuyo mejor score histórico en este
   // juego quede por debajo (o por encima, en tetris) del score recién
-  // conseguido recibe una notificación individual en Nextcloud.
+  // conseguido recibe una notificación individual en Nextcloud — pero solo
+  // si es un adelantamiento REAL, es decir, si el propio jugador no tenía ya
+  // un score anterior que batiera al de ese jugador (si no, ya se le habría
+  // notificado en su momento).
   try {
-    const beatenPlayers = getPlayersBeatenByScore(gameId, userId, score);
+    const previousBest = getPlayerBestScoreForGame(userId, gameId);
+    const beatenPlayers = getPlayersBeatenByScore(
+      gameId,
+      userId,
+      score,
+      previousBest?.score ?? null
+    );
 
     for (const player of beatenPlayers) {
       const response = await fetch(

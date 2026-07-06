@@ -94,9 +94,21 @@
   background: radial-gradient(circle at 55% 30%, #011b21 70%, #1d3c40 100%);
   color: #00ffe0;
 }
+.tetris-menu-btn--scores.is-locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+/* BACK (vista de scores): un único botón en la barra, ocupa el mismo ancho
+   que cada uno de los tres botones de la vista de juego (un tercio del
+   ancho, descontando los dos gaps) y queda centrado por el justify-content
+   del contenedor. */
+.tetris-menu-btn--solo {
+  flex: 0 0 calc((100% - 16px) / 3) !important;
+}
 .tetris-menu-btn--startstop {
-  color: #ffec40;
-  border-color: #ffdc40 !important;
+  background: radial-gradient(circle at 55% 30%, #011b21 70%, #1d3c40 100%) !important;
+  color: #00ffe0 !important;
+  border-color: #00ffcc99 !important;
 }
 
 @media (min-width: 769px) {
