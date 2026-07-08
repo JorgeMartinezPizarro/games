@@ -6,7 +6,7 @@ import { NextRequest } from "next/server";
 export async function POST(request: NextRequest): Promise<Response> {
   try {
     const user = await requireAuth(request);
-    const { nonce, timestamp, board } = createNumbersGame(user.id);
+    const { nonce, timestamp, board } = await createNumbersGame(user.id);
 
     return Response.json({ nonce, timestamp, board }, { status: 200 });
   } catch (error) {

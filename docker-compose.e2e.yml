@@ -7,8 +7,8 @@
 # Qué aísla de tu stack de desarrollo normal:
 #  - build local del Dockerfile (no la imagen :latest publicada), para
 #    probar siempre el código que tienes en el working tree.
-#  - cache/e2e/* propio (audio + sqlite) para que las partidas de test
-#    nunca se mezclen con tus datos reales de dev.
+#  - cache/e2e/* propio (audio + datos de MariaDB) para que las partidas de
+#    test nunca se mezclen con tus datos reales de dev.
 #  - puertos distintos: salen de .env.e2e (PORT/STOCKFISH_PORT/WORDLIST_PORT),
 #    así puede convivir con un `docker compose up` de dev ya corriendo.
 services:
@@ -19,7 +19,9 @@ services:
     image: games-e2e:local
     volumes:
       - ./cache/e2e/audio/:/app/cache/audio
-      - ./cache/e2e/database/:/app/cache/database
+  mariadb:
+    volumes:
+      - ./cache/e2e/mariadb-data/:/var/lib/mysql
   wordlist:
     volumes:
       - ./cache/e2e/audio/:/app/audio

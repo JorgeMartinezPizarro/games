@@ -89,8 +89,8 @@ async function createActivity(
   // un score anterior que batiera al de ese jugador (si no, ya se le habría
   // notificado en su momento).
   try {
-    const previousBest = getPlayerBestScoreForGame(userId, gameId);
-    const beatenPlayers = getPlayersBeatenByScore(
+    const previousBest = await getPlayerBestScoreForGame(userId, gameId);
+    const beatenPlayers = await getPlayersBeatenByScore(
       gameId,
       userId,
       score,
@@ -148,7 +148,7 @@ async function saveChessScore(request: NextRequest, user: AuthUser, params: any)
     return Response.json({ error: "nonce is required." }, { status: 400 });
   }
 
-  const stored = consumeChessGame(nonce);
+  const stored = await consumeChessGame(nonce);
   if (!stored || stored.userId !== user.id) {
     return Response.json(
       { error: "Invalid, expired or already used nonce." },
@@ -179,7 +179,7 @@ async function saveChessScore(request: NextRequest, user: AuthUser, params: any)
 
   await createActivity(request, GAME_IDS.CHESS, score, user.id);
 
-  const id = insertScore(user, GAME_IDS.CHESS, score, serializedConfig.value);
+  const id = await insertScore(user, GAME_IDS.CHESS, score, serializedConfig.value);
 
   const body: SaveScoreResponse = {
     message: "Score saved successfully.",
@@ -202,7 +202,7 @@ async function saveNumbersScore(request: NextRequest, user: AuthUser, params: an
     return Response.json({ error: "board is required." }, { status: 400 });
   }
 
-  const stored = consumeNumbersGame(nonce);
+  const stored = await consumeNumbersGame(nonce);
   if (!stored || stored.userId !== user.id) {
     return Response.json(
       { error: "Invalid, expired or already used nonce." },
@@ -233,7 +233,7 @@ async function saveNumbersScore(request: NextRequest, user: AuthUser, params: an
   }
 
   await createActivity(request, GAME_IDS.NUMBERS, finalScore, user.id);
-  const id = insertScore(user, GAME_IDS.NUMBERS, finalScore, serializedConfig.value);
+  const id = await insertScore(user, GAME_IDS.NUMBERS, finalScore, serializedConfig.value);
 
   const body: SaveScoreResponse = {
     message: "Score saved successfully.",
@@ -256,7 +256,7 @@ async function saveWordsScore(request: NextRequest, user: AuthUser, params: any)
     return Response.json({ error: "nonce is required." }, { status: 400 });
   }
 
-  const stored = consumeWordsGame(nonce);
+  const stored = await consumeWordsGame(nonce);
   if (!stored || stored.userId !== user.id) {
     return Response.json(
       { error: "Invalid, expired or already used nonce." },
@@ -279,8 +279,8 @@ async function saveWordsScore(request: NextRequest, user: AuthUser, params: any)
   }
 
   await createActivity(request, GAME_IDS.WORDS, finalScore, user.id);
- 
-  const id = insertScore(user, GAME_IDS.WORDS, finalScore, serializedConfig.value);
+
+  const id = await insertScore(user, GAME_IDS.WORDS, finalScore, serializedConfig.value);
 
   const body: SaveScoreResponse = {
     message: "Score saved successfully.",
@@ -303,7 +303,7 @@ async function saveTetrisScore(request: NextRequest, user: AuthUser, params: any
     return Response.json({ error: "nonce is required." }, { status: 400 });
   }
 
-  const stored = consumeTetrisGame(nonce);
+  const stored = await consumeTetrisGame(nonce);
   if (!stored || stored.userId !== user.id) {
     return Response.json(
       { error: "Invalid, expired or already used nonce." },
@@ -323,8 +323,8 @@ async function saveTetrisScore(request: NextRequest, user: AuthUser, params: any
   }
 
   await createActivity(request, GAME_IDS.TETRIS, elapsed, user.id);
- 
-  const id = insertScore(user, GAME_IDS.TETRIS, elapsed, serializedConfig.value);
+
+  const id = await insertScore(user, GAME_IDS.TETRIS, elapsed, serializedConfig.value);
 
   const body: SaveScoreResponse = {
     message: "Score saved successfully.",
@@ -336,7 +336,7 @@ async function saveTetrisScore(request: NextRequest, user: AuthUser, params: any
 
 function toPlayerGameBest(
   gameId: GameId,
-  best: ReturnType<typeof getPlayerBestScoreForGame>
+  best: Awaited<ReturnType<typeof getPlayerBestScoreForGame>>
 ): PlayerGameBest {
   return {
     gameId,
@@ -390,7 +390,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       return Response.json({ error: serializedConfig.error }, { status: 400 });
     }
 
-    const id = insertScore(user, parsedGameId, parsedScore, serializedConfig.value);
+    const id = await insertScore(user, parsedGameId, parsedScore, serializedConfig.value);
 
     const body: SaveScoreResponse = {
       message: "Score saved successfully.",
@@ -423,7 +423,7 @@ export async function GET(request: NextRequest): Promise<Response> {
           );
         }
 
-        const best = getPlayerBestScoreForGame(user.id, parsedGameId);
+        const best = await getPlayerBestScoreForGame(user.id, parsedGameId);
         const body: GetPlayerScoresResponse = {
           username: user.name,
           games: [toPlayerGameBest(parsedGameId, best)],
@@ -431,7 +431,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         return Response.json(body, { status: 200 });
       }
 
-      const results = getPlayerBestScores(user.id);
+      const results = await getPlayerBestScores(user.id);
       const body: GetPlayerScoresResponse = {
         username: user.name,
         games: results.map((best, i) => toPlayerGameBest((i + 1) as GameId, best)),
@@ -453,7 +453,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     const body: GetScoresResponse = {
       gameId: parsedGameId,
       total: 0,
-      scores: getScoresForGame(parsedGameId),
+      scores: await getScoresForGame(parsedGameId),
     };
     body.total = body.scores.length;
 

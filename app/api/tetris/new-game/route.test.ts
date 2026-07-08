@@ -33,7 +33,7 @@ describe("POST /api/tetris/new-game", () => {
 
   it("crea la partida para el usuario autenticado y responde 200 con linesTarget", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(createTetrisGame).mockReturnValue({ nonce: "n1", timestamp: 123, seed: 999 });
+    vi.mocked(createTetrisGame).mockResolvedValue({ nonce: "n1", timestamp: 123, seed: 999 });
 
     const res = await POST(request());
     const body = await res.json();

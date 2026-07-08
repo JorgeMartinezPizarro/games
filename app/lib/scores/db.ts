@@ -1,56 +1,75 @@
 import type { AuthUser } from "@/app/lib/auth";
 import type { GameId, ScoreEntry } from "@/app/lib/scores/types";
 import { parseStoredGameConfig } from "@/app/lib/scores/types";
-import Database from "better-sqlite3";
-import fs from "node:fs";
-import path from "node:path";
+import mysql from "mysql2/promise";
+import type { Pool, RowDataPacket, ResultSetHeader } from "mysql2/promise";
 
-let _db: Database.Database | null = null;
+let _pool: Pool | null = null;
 
-export function getDb(): Database.Database {
-  if (_db) return _db;
+function getPool(): Pool {
+  if (_pool) return _pool;
 
-  const dbPath = path.join(process.cwd(), "cache/database/scores.db");
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  _pool = mysql.createPool({
+    host: process.env.MARIADB_HOST,
+    port: Number(process.env.MARIADB_PORT ?? 3306),
+    user: process.env.MARIADB_USER,
+    password: process.env.MARIADB_PASSWORD,
+    database: process.env.MARIADB_DATABASE,
+    waitForConnections: true,
+    connectionLimit: 10,
+    // Devuelve DATETIME como string "YYYY-MM-DD HH:MM:SS" en vez de Date,
+    // igual que hacía better-sqlite3 (createdAt se tipa como string en
+    // app/lib/scores/types.ts y así viaja igual por la API/frontend).
+    dateStrings: true,
+  });
 
-  const db = new Database(dbPath);
+  return _pool;
+}
 
-  db.exec(`
+let _ready: Promise<void> | null = null;
+
+// Sin migración: el esquema completo se crea de una vez (no hace falta el
+// parche histórico de SQLite que añadía userId con un ALTER TABLE aparte).
+async function ensureSchema(): Promise<void> {
+  const pool = getPool();
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL,
+      id VARCHAR(191) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL,
       updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  db.exec(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS scores (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      gameId INTEGER NOT NULL,
-      username TEXT NOT NULL,
-      score INTEGER NOT NULL,
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      gameId INT NOT NULL,
+      userId VARCHAR(191),
+      username VARCHAR(255) NOT NULL,
+      score INT NOT NULL,
       gameConfig TEXT,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      KEY idx_gameId (gameId),
+      KEY idx_gameId_score (gameId, score),
+      KEY idx_scores_userId (userId)
     )
   `);
+}
 
-  const scoreColumns = db
-    .prepare("PRAGMA table_info(scores)")
-    .all() as { name: string }[];
-
-  if (!scoreColumns.some((column) => column.name === "userId")) {
-    db.exec(`ALTER TABLE scores ADD COLUMN userId TEXT REFERENCES users(id)`);
+// Memoiza la promesa de inicialización; si falla (p.ej. MariaDB no estaba
+// aún lista), se limpia para que la siguiente llamada pueda reintentar en
+// vez de quedar bloqueada para siempre con una promesa rechazada.
+export async function getDb(): Promise<Pool> {
+  if (!_ready) {
+    _ready = ensureSchema().catch((error) => {
+      _ready = null;
+      throw error;
+    });
   }
-
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_gameId ON scores(gameId);
-    CREATE INDEX IF NOT EXISTS idx_gameId_score ON scores(gameId, score DESC);
-    CREATE INDEX IF NOT EXISTS idx_scores_userId ON scores(userId);
-  `);
-
-  _db = db;
-  return db;
+  await _ready;
+  return getPool();
 }
 
 type ScoreRow = {
@@ -75,51 +94,15 @@ const GAME_DIRECTIONS: Record<GameId, "asc" | "desc"> = {
 
 const ALL_GAME_IDS: GameId[] = [1, 2, 3, 4];
 
-// Statements preparados de forma perezosa también, reusando getDb()
-function getStmts(db: Database.Database) {
-  return {
-    upsertUser: db.prepare(`
-      INSERT INTO users (id, name, email, updatedAt)
-      VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(id) DO UPDATE SET
-        name = excluded.name,
-        email = excluded.email,
-        updatedAt = CURRENT_TIMESTAMP
-    `),
-    insertScore: db.prepare(`
-      INSERT INTO scores (gameId, userId, username, score, gameConfig)
-      VALUES (?, ?, ?, ?, ?)
-    `),
-    selectScores: db.prepare(`
-      SELECT COALESCE(u.name, s.username) AS username, s.userId, s.score, s.gameConfig, s.createdAt
-      FROM scores s
-      LEFT JOIN users u ON s.userId = u.id
-      WHERE s.gameId = ?
-      ORDER BY s.score DESC
-      LIMIT 100
-    `),
-  };
-}
-
-let _stmts: ReturnType<typeof getStmts> | null = null;
-function getPreparedStmts() {
-  if (!_stmts) {
-    _stmts = getStmts(getDb());
-  }
-  return _stmts;
-}
-
-// Statements de ranking: uno por dirección (ASC/DESC no se puede parametrizar
-// en SQLite, así que preparamos las dos variantes una sola vez).
-function getRankStmts(db: Database.Database) {
-  const buildQuery = (direction: "ASC" | "DESC") => `
+function rankQuery(direction: "ASC" | "DESC"): string {
+  return `
     SELECT userId, username, score, gameConfig, createdAt, rank FROM (
       SELECT
-        s.userId,
+        s.userId AS userId,
         COALESCE(u.name, s.username) AS username,
-        s.score,
-        s.gameConfig,
-        s.createdAt,
+        s.score AS score,
+        s.gameConfig AS gameConfig,
+        s.createdAt AS createdAt,
         ROW_NUMBER() OVER (ORDER BY s.score ${direction}) AS rank
       FROM scores s
       LEFT JOIN users u ON s.userId = u.id
@@ -129,30 +112,10 @@ function getRankStmts(db: Database.Database) {
     ORDER BY rank ASC
     LIMIT 1
   `;
-
-  return {
-    asc: db.prepare(buildQuery("ASC")),
-    desc: db.prepare(buildQuery("DESC")),
-  };
 }
 
-let _rankStmts: ReturnType<typeof getRankStmts> | null = null;
-function getPreparedRankStmts() {
-  if (!_rankStmts) {
-    _rankStmts = getRankStmts(getDb());
-  }
-  return _rankStmts;
-}
-
-// Récords batidos: mejor score histórico (por usuario) de cada juego,
-// comparado contra el score que se acaba de conseguir. La dirección
-// "ganadora" (asc/desc) determina si "batido" significa "menor que" (tetris)
-// o "mayor que" (el resto). Solo cuenta como adelantamiento REAL si el
-// jugador no tenía ya, antes de esta partida, un score que batiera al del
-// otro jugador — si ya le había ganado antes, no se vuelve a notificar cada
-// vez que mejora su propio récord.
-function getBeatenPlayersStmts(db: Database.Database) {
-  const buildQuery = (aggFn: "MIN" | "MAX", comparator: "<" | ">") => `
+function beatenPlayersQuery(aggFn: "MIN" | "MAX", comparator: "<" | ">"): string {
+  return `
     SELECT s.userId AS userId, COALESCE(u.name, s.username) AS username, ${aggFn}(s.score) AS bestScore
     FROM scores s
     LEFT JOIN users u ON s.userId = u.id
@@ -161,22 +124,6 @@ function getBeatenPlayersStmts(db: Database.Database) {
     HAVING ${aggFn}(s.score) ${comparator} ?
        AND (? IS NULL OR NOT (${aggFn}(s.score) ${comparator} ?))
   `;
-
-  return {
-    // Tetris: menor score (tiempo) es mejor, así que se bate un récord si el
-    // nuevo score es MENOR que el mejor histórico de ese jugador.
-    asc: db.prepare(buildQuery("MIN", ">")),
-    // Resto: mayor score es mejor, se bate si el nuevo score es MAYOR.
-    desc: db.prepare(buildQuery("MAX", "<")),
-  };
-}
-
-let _beatenPlayersStmts: ReturnType<typeof getBeatenPlayersStmts> | null = null;
-function getPreparedBeatenPlayersStmts() {
-  if (!_beatenPlayersStmts) {
-    _beatenPlayersStmts = getBeatenPlayersStmts(getDb());
-  }
-  return _beatenPlayersStmts;
 }
 
 export type BeatenPlayer = {
@@ -185,66 +132,90 @@ export type BeatenPlayer = {
   previousBest: number;
 };
 
-export function getPlayersBeatenByScore(
+// Récords batidos: mejor score histórico (por usuario) de cada juego,
+// comparado contra el score que se acaba de conseguir. La dirección
+// "ganadora" (asc/desc) determina si "batido" significa "menor que" (tetris)
+// o "mayor que" (el resto). Solo cuenta como adelantamiento REAL si el
+// jugador no tenía ya, antes de esta partida, un score que batiera al del
+// otro jugador — si ya le había ganado antes, no se vuelve a notificar cada
+// vez que mejora su propio récord.
+export async function getPlayersBeatenByScore(
   gameId: GameId,
   excludeUserId: string,
   newScore: number,
   previousBest: number | null
-): BeatenPlayer[] {
+): Promise<BeatenPlayer[]> {
   const direction = GAME_DIRECTIONS[gameId];
-  const stmt =
-    direction === "asc"
-      ? getPreparedBeatenPlayersStmts().asc
-      : getPreparedBeatenPlayersStmts().desc;
+  const query =
+    direction === "asc" ? beatenPlayersQuery("MIN", ">") : beatenPlayersQuery("MAX", "<");
 
-  const rows = stmt.all(
+  const db = await getDb();
+  const [rows] = await db.execute<RowDataPacket[]>(query, [
     gameId,
     excludeUserId,
     newScore,
     previousBest,
-    previousBest
-  ) as {
-    userId: string;
-    username: string;
-    bestScore: number;
-  }[];
+    previousBest,
+  ]);
 
-  return rows.map((row) => ({
+  return (rows as { userId: string; username: string; bestScore: number }[]).map((row) => ({
     userId: row.userId,
     username: row.username,
     previousBest: row.bestScore,
   }));
 }
 
-export function ensureUser(user: AuthUser): AuthUser {
-  getPreparedStmts().upsertUser.run(user.id, user.name, user.email);
+export async function ensureUser(user: AuthUser): Promise<AuthUser> {
+  const db = await getDb();
+  await db.execute(
+    `
+      INSERT INTO users (id, name, email, updatedAt)
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+      ON DUPLICATE KEY UPDATE
+        name = VALUES(name),
+        email = VALUES(email),
+        updatedAt = CURRENT_TIMESTAMP
+    `,
+    [user.id, user.name, user.email]
+  );
   return user;
 }
 
-export function insertScore(
+export async function insertScore(
   user: AuthUser,
   gameId: GameId,
   score: number,
   gameConfig: string | null
-): number {
-  ensureUser(user);
+): Promise<number> {
+  await ensureUser(user);
 
-
-  const result = getPreparedStmts().insertScore.run(
-    gameId,
-    user.id,
-    user.name,
-    score,
-    gameConfig
+  const db = await getDb();
+  const [result] = await db.execute<ResultSetHeader>(
+    `
+      INSERT INTO scores (gameId, userId, username, score, gameConfig)
+      VALUES (?, ?, ?, ?, ?)
+    `,
+    [gameId, user.id, user.name, score, gameConfig]
   );
 
-  return Number(result.lastInsertRowid);
+  return result.insertId;
 }
 
-export function getScoresForGame(gameId: GameId): ScoreEntry[] {
-  const rows = getPreparedStmts().selectScores.all(gameId) as ScoreRow[];
+export async function getScoresForGame(gameId: GameId): Promise<ScoreEntry[]> {
+  const db = await getDb();
+  const [rows] = await db.execute<RowDataPacket[]>(
+    `
+      SELECT COALESCE(u.name, s.username) AS username, s.userId, s.score, s.gameConfig, s.createdAt
+      FROM scores s
+      LEFT JOIN users u ON s.userId = u.id
+      WHERE s.gameId = ?
+      ORDER BY s.score DESC
+      LIMIT 100
+    `,
+    [gameId]
+  );
 
-  return rows.map((row) => ({
+  return (rows as ScoreRow[]).map((row) => ({
     username: row.username,
     userId: row.userId,
     score: row.score,
@@ -262,17 +233,16 @@ export type PlayerBestScore = {
   rank: number;
 };
 
-export function getPlayerBestScoreForGame(
+export async function getPlayerBestScoreForGame(
   userId: string,
   gameId: GameId
-): PlayerBestScore | null {
+): Promise<PlayerBestScore | null> {
   const direction = GAME_DIRECTIONS[gameId];
-  const stmt =
-    direction === "asc"
-      ? getPreparedRankStmts().asc
-      : getPreparedRankStmts().desc;
+  const query = direction === "asc" ? rankQuery("ASC") : rankQuery("DESC");
 
-  const row = stmt.get(gameId, userId) as RankedScoreRow | undefined;
+  const db = await getDb();
+  const [rows] = await db.execute<RowDataPacket[]>(query, [gameId, userId]);
+  const row = (rows as RankedScoreRow[])[0];
   if (!row) return null;
 
   return {
@@ -285,10 +255,8 @@ export function getPlayerBestScoreForGame(
   };
 }
 
-export function getPlayerBestScores(
+export async function getPlayerBestScores(
   userId: string
-): (PlayerBestScore | null)[] {
-  return ALL_GAME_IDS.map((gameId) =>
-    getPlayerBestScoreForGame(userId, gameId)
-  );
+): Promise<(PlayerBestScore | null)[]> {
+  return Promise.all(ALL_GAME_IDS.map((gameId) => getPlayerBestScoreForGame(userId, gameId)));
 }

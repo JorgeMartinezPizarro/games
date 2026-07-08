@@ -41,7 +41,7 @@ describe("POST /api/chess/new-game", () => {
 
   it("crea la partida con el elo y userId dados y responde 200", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(createChessGame).mockReturnValue({ nonce: "n1", timestamp: 42 });
+    vi.mocked(createChessGame).mockResolvedValue({ nonce: "n1", timestamp: 42 });
 
     const res = await POST(request({ elo: 1500 }));
     const body = await res.json();

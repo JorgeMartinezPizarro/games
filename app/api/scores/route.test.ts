@@ -78,7 +78,7 @@ describe("POST /api/scores (tetris)", () => {
 
   it("responde 400 si el nonce no existe, expiró o pertenece a otro usuario", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(consumeTetrisGame).mockReturnValue(null);
+    vi.mocked(consumeTetrisGame).mockResolvedValue(null);
 
     const res = await POST(request({ gameId: 3, nonce: "n1", actions: [] }));
     expect(res.status).toBe(400);
@@ -88,7 +88,7 @@ describe("POST /api/scores (tetris)", () => {
 
   it("responde 400 si el replay no alcanza el objetivo de líneas", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(consumeTetrisGame).mockReturnValue(makeStoredGame());
+    vi.mocked(consumeTetrisGame).mockResolvedValue(makeStoredGame());
 
     // Sin ninguna acción de movimiento real, la partida nunca llega a
     // LINES_TARGET (solo "resume").
@@ -101,7 +101,7 @@ describe("POST /api/scores (tetris)", () => {
 
   it("responde 400 si el log de acciones está mal formado", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(consumeTetrisGame).mockReturnValue(makeStoredGame());
+    vi.mocked(consumeTetrisGame).mockResolvedValue(makeStoredGame());
 
     const res = await POST(request({ gameId: 3, nonce: "n1", actions: "not-an-array" }));
 
@@ -112,8 +112,8 @@ describe("POST /api/scores (tetris)", () => {
   it("partida válida: guarda el score (tiempo transcurrido según el reloj del servidor)", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     const seed = findSeedWithConsecutiveOPieces(5);
-    vi.mocked(consumeTetrisGame).mockReturnValue(makeStoredGame({ seed }));
-    vi.mocked(insertScore).mockReturnValue(77);
+    vi.mocked(consumeTetrisGame).mockResolvedValue(makeStoredGame({ seed }));
+    vi.mocked(insertScore).mockResolvedValue(77);
 
     const actions = buildTwoRowClearActions();
     const res = await POST(request({ gameId: 3, nonce: "n1", actions }));
@@ -169,7 +169,7 @@ describe("POST /api/scores (numbers)", () => {
 
   it("responde 400 si el nonce no existe, expiró o pertenece a otro usuario", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(consumeNumbersGame).mockReturnValue(null);
+    vi.mocked(consumeNumbersGame).mockResolvedValue(null);
 
     const res = await POST(request({ gameId: 2, nonce: "n1", board: ringBoard(4), moves: [0, 1] }));
     expect(res.status).toBe(400);
@@ -179,7 +179,7 @@ describe("POST /api/scores (numbers)", () => {
 
   it("responde 400 si el board enviado no coincide con el guardado bajo el nonce", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(consumeNumbersGame).mockReturnValue(makeStoredNumbersGame());
+    vi.mocked(consumeNumbersGame).mockResolvedValue(makeStoredNumbersGame());
 
     const tamperedBoard = ringBoard(4).map((c) => ({ values: { ...c.values, n: 5 } }));
     const res = await POST(request({ gameId: 2, nonce: "n1", board: tamperedBoard, moves: [0, 1] }));
@@ -191,7 +191,7 @@ describe("POST /api/scores (numbers)", () => {
 
   it("responde 400 si los movimientos no son un tour legal", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(consumeNumbersGame).mockReturnValue(makeStoredNumbersGame());
+    vi.mocked(consumeNumbersGame).mockResolvedValue(makeStoredNumbersGame());
 
     // Salta directamente de 0 a 2 (distancia 2, pero el salto del tablero es 1).
     const res = await POST(
@@ -204,8 +204,8 @@ describe("POST /api/scores (numbers)", () => {
 
   it("partida válida: calcula el score con steps/tiempo del servidor y lo guarda", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(consumeNumbersGame).mockReturnValue(makeStoredNumbersGame({ createdAt: CREATED_AT }));
-    vi.mocked(insertScore).mockReturnValue(55);
+    vi.mocked(consumeNumbersGame).mockResolvedValue(makeStoredNumbersGame({ createdAt: CREATED_AT }));
+    vi.mocked(insertScore).mockResolvedValue(55);
 
     // Tour completo de las 4 casillas del anillo: steps=4, elapsed=37000ms
     // (NOW - CREATED_AT) => round(4^3*3500/37000) = round(6.0541...) = 6.
@@ -254,7 +254,7 @@ describe("POST /api/scores (words)", () => {
 
   it("responde 400 si el nonce no existe, expiró o pertenece a otro usuario", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(consumeWordsGame).mockReturnValue(null);
+    vi.mocked(consumeWordsGame).mockResolvedValue(null);
 
     const res = await POST(request({ gameId: 4, nonce: "n1" }));
     expect(res.status).toBe(400);
@@ -264,7 +264,7 @@ describe("POST /api/scores (words)", () => {
 
   it("responde 400 si la partida sigue en curso (ni terminó por fallo ni acertó todas las rondas)", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(consumeWordsGame).mockReturnValue(
+    vi.mocked(consumeWordsGame).mockResolvedValue(
       makeStoredWordsGame({ answeredCount: 3, ended: false })
     );
 
@@ -276,10 +276,10 @@ describe("POST /api/scores (words)", () => {
 
   it("partida perdida (ended, aciertos parciales): puntúa igual que una completa, cubo de aciertos entre tiempo", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(consumeWordsGame).mockReturnValue(
+    vi.mocked(consumeWordsGame).mockResolvedValue(
       makeStoredWordsGame({ answeredCount: 4, ended: true })
     );
-    vi.mocked(insertScore).mockReturnValue(11);
+    vi.mocked(insertScore).mockResolvedValue(11);
 
     // elapsed=37000ms (NOW - CREATED_AT) => round(4^3*11000/37000) = round(19.027...) = 19.
     const res = await POST(request({ gameId: 4, nonce: "n1" }));
@@ -297,10 +297,10 @@ describe("POST /api/scores (words)", () => {
 
   it("partida completa (10/10 aciertos): puntúa sin necesitar el flag ended", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(consumeWordsGame).mockReturnValue(
+    vi.mocked(consumeWordsGame).mockResolvedValue(
       makeStoredWordsGame({ answeredCount: 10, ended: false })
     );
-    vi.mocked(insertScore).mockReturnValue(22);
+    vi.mocked(insertScore).mockResolvedValue(22);
 
     // elapsed=37000ms => round(10^3*11000/37000) = round(297.297...) = 297.
     const res = await POST(request({ gameId: 4, nonce: "n1" }));

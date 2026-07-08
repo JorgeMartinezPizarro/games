@@ -71,7 +71,7 @@ describe("POST /api/chess", () => {
 
   it("responde 400 si el nonce no existe o es de otro usuario", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(getChessGame).mockReturnValue(null);
+    vi.mocked(getChessGame).mockResolvedValue(null);
 
     const res = await POST(request({ nonce: "n1", move: { from: "e2", to: "e4" } }));
     expect(res.status).toBe(400);
@@ -80,7 +80,7 @@ describe("POST /api/chess", () => {
 
   it("responde 400 y borra la partida si supera el máximo de jugadas", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(getChessGame).mockReturnValue(makeStoredGame(new Array(MAX_PLIES).fill("e2e4")));
+    vi.mocked(getChessGame).mockResolvedValue(makeStoredGame(new Array(MAX_PLIES).fill("e2e4")));
 
     const res = await POST(request({ nonce: "n1", move: { from: "e2", to: "e4" } }));
 
@@ -91,7 +91,7 @@ describe("POST /api/chess", () => {
 
   it("responde 500 y borra la partida si el log guardado está corrupto", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(getChessGame).mockReturnValue(makeStoredGame(["not-a-move"]));
+    vi.mocked(getChessGame).mockResolvedValue(makeStoredGame(["not-a-move"]));
 
     const res = await POST(request({ nonce: "n1", move: { from: "e2", to: "e4" } }));
 
@@ -103,7 +103,7 @@ describe("POST /api/chess", () => {
   it("responde 400 si la partida guardada ya estaba terminada", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     // Mate pastor completo: la partida ya terminó en el log guardado.
-    vi.mocked(getChessGame).mockReturnValue(
+    vi.mocked(getChessGame).mockResolvedValue(
       makeStoredGame(["e2e4", "e7e5", "d1h5", "b8c6", "f1c4", "g8f6", "h5f7"])
     );
 
@@ -115,7 +115,7 @@ describe("POST /api/chess", () => {
 
   it("responde 400 si la jugada del jugador es ilegal", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(getChessGame).mockReturnValue(makeStoredGame([]));
+    vi.mocked(getChessGame).mockResolvedValue(makeStoredGame([]));
 
     const res = await POST(request({ nonce: "n1", move: { from: "e2", to: "e5" } }));
 
@@ -126,8 +126,8 @@ describe("POST /api/chess", () => {
 
   it("responde 409 si appendChessMove falla al grabar la jugada del jugador (CAS)", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(getChessGame).mockReturnValue(makeStoredGame([]));
-    vi.mocked(appendChessMove).mockReturnValue(false);
+    vi.mocked(getChessGame).mockResolvedValue(makeStoredGame([]));
+    vi.mocked(appendChessMove).mockResolvedValue(false);
 
     const res = await POST(request({ nonce: "n1", move: { from: "e2", to: "e4" } }));
 
@@ -138,10 +138,10 @@ describe("POST /api/chess", () => {
   it("si la jugada del jugador da mate, responde sin consultar a Stockfish", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     // Un movimiento de la IA (negras) antes del mate final del jugador.
-    vi.mocked(getChessGame).mockReturnValue(
+    vi.mocked(getChessGame).mockResolvedValue(
       makeStoredGame(["e2e4", "e7e5", "d1h5", "b8c6", "f1c4", "g8f6"])
     );
-    vi.mocked(appendChessMove).mockReturnValue(true);
+    vi.mocked(appendChessMove).mockResolvedValue(true);
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
@@ -156,8 +156,8 @@ describe("POST /api/chess", () => {
 
   it("flujo normal: graba la jugada del jugador, pide a Stockfish y graba su respuesta", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(getChessGame).mockReturnValue(makeStoredGame([]));
-    vi.mocked(appendChessMove).mockReturnValue(true);
+    vi.mocked(getChessGame).mockResolvedValue(makeStoredGame([]));
+    vi.mocked(appendChessMove).mockResolvedValue(true);
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(stockfishResponse("e7e5")));
 
     const res = await POST(request({ nonce: "n1", move: { from: "e2", to: "e4" } }));
@@ -177,8 +177,8 @@ describe("POST /api/chess", () => {
 
   it("responde 500 si Stockfish no devuelve una jugada válida", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(getChessGame).mockReturnValue(makeStoredGame([]));
-    vi.mocked(appendChessMove).mockReturnValue(true);
+    vi.mocked(getChessGame).mockResolvedValue(makeStoredGame([]));
+    vi.mocked(appendChessMove).mockResolvedValue(true);
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(stockfishResponse(null)));
 
     const res = await POST(request({ nonce: "n1", move: { from: "e2", to: "e4" } }));
@@ -189,8 +189,8 @@ describe("POST /api/chess", () => {
 
   it("responde 500 si la API de Stockfish no responde ok", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(getChessGame).mockReturnValue(makeStoredGame([]));
-    vi.mocked(appendChessMove).mockReturnValue(true);
+    vi.mocked(getChessGame).mockResolvedValue(makeStoredGame([]));
+    vi.mocked(appendChessMove).mockResolvedValue(true);
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({ ok: false, status: 502, text: async () => "bad gateway" } as Response)
@@ -204,8 +204,8 @@ describe("POST /api/chess", () => {
 
   it("responde 500 si Stockfish propone una jugada ilegal", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(getChessGame).mockReturnValue(makeStoredGame([]));
-    vi.mocked(appendChessMove).mockReturnValue(true);
+    vi.mocked(getChessGame).mockResolvedValue(makeStoredGame([]));
+    vi.mocked(appendChessMove).mockResolvedValue(true);
     // e2e4 no es una jugada legal para las negras en este punto.
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(stockfishResponse("e2e4")));
 
@@ -217,8 +217,8 @@ describe("POST /api/chess", () => {
 
   it("responde 409 si appendChessMove falla al grabar la jugada de la IA (CAS)", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(getChessGame).mockReturnValue(makeStoredGame([]));
-    vi.mocked(appendChessMove).mockReturnValueOnce(true).mockReturnValueOnce(false);
+    vi.mocked(getChessGame).mockResolvedValue(makeStoredGame([]));
+    vi.mocked(appendChessMove).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(stockfishResponse("e7e5")));
 
     const res = await POST(request({ nonce: "n1", move: { from: "e2", to: "e4" } }));

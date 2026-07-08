@@ -2,6 +2,9 @@ services:
   games:
     image: jorgemartinezpizarro/games:latest
     restart: always
+    depends_on:
+      mariadb:
+        condition: service_healthy
     # Exposed locally to communicate with nginx
     ports:
       - 127.0.0.1:${PORT}:${PORT}
@@ -12,9 +15,32 @@ services:
       - NEXT_PUBLIC_ENABLE_LOGIN=${NEXT_PUBLIC_ENABLE_LOGIN}
       - NEXT_PUBLIC_CHESS_URL=http://stockfish:8080
       - NEXT_PUBLIC_WORD_URL=http://wordlist:5000
+      - MARIADB_HOST=mariadb
+      - MARIADB_PORT=3306
+      - MARIADB_DATABASE=${MARIADB_DATABASE}
+      - MARIADB_USER=${MARIADB_USER}
+      - MARIADB_PASSWORD=${MARIADB_PASSWORD}
     volumes:
       - ./cache/audio/:/app/cache/audio
-      - ./cache/database/:/app/cache/database
+  mariadb:
+    image: mariadb:11
+    restart: always
+    # Expuesto localmente para poder correr `games` sin dockerizar (npm run
+    # dev/start) contra el mismo MariaDB que usa el stack dockerizado.
+    ports:
+      - 127.0.0.1:${MARIADB_PORT:-1010}:3306
+    environment:
+      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${MARIADB_DATABASE}
+      - MARIADB_USER=${MARIADB_USER}
+      - MARIADB_PASSWORD=${MARIADB_PASSWORD}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MARIADB_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
   wordlist:
     image: jorgemartinezpizarro/wordlist:latest
     # Exposed locally to comunicate with node
@@ -27,3 +53,6 @@ services:
     # Exposed locally to comunicate with node
     ports:
       - 127.0.0.1:${STOCKFISH_PORT:-1007}:8080
+
+volumes:
+  mariadb_data:

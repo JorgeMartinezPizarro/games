@@ -73,13 +73,13 @@ export async function POST(req: NextRequest): Promise<Response> {
       return Response.json({ error: "move must be an object with from/to." }, { status: 400 });
     }
 
-    const stored = getChessGame(nonce);
+    const stored = await getChessGame(nonce);
     if (!stored || stored.userId !== user.id) {
       return Response.json({ error: "Invalid or expired nonce." }, { status: 400 });
     }
 
     if (stored.moves.length >= MAX_PLIES) {
-      deleteChessGame(nonce);
+      await deleteChessGame(nonce);
       return Response.json({ error: "Game exceeded maximum length." }, { status: 400 });
     }
 
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (!replay.valid) {
       // El propio servidor escribió este log: si está corrupto no hay forma
       // de recuperar la partida.
-      deleteChessGame(nonce);
+      await deleteChessGame(nonce);
       return Response.json({ error: `Corrupted game state: ${replay.reason}` }, { status: 500 });
     }
     if (replay.gameOver) {
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
 
     const playerUci = moveToUci(playerMove);
-    if (!appendChessMove(nonce, stored.movesJson, playerUci)) {
+    if (!(await appendChessMove(nonce, stored.movesJson, playerUci))) {
       return Response.json({ error: "Game state changed, please retry." }, { status: 409 });
     }
 
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     const aiUci = moveToUci(aiMove);
     const movesJsonAfterPlayer = JSON.stringify([...stored.moves, playerUci]);
-    if (!appendChessMove(nonce, movesJsonAfterPlayer, aiUci)) {
+    if (!(await appendChessMove(nonce, movesJsonAfterPlayer, aiUci))) {
       return Response.json({ error: "Game state changed, please retry." }, { status: 409 });
     }
 

@@ -33,7 +33,7 @@ describe("POST /api/numbers/new-game", () => {
   it("crea la partida para el usuario autenticado y responde 200 con el tablero", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     const board = [{ values: { n: 3, b: false, i: 0 } }];
-    vi.mocked(createNumbersGame).mockReturnValue({ nonce: "n1", timestamp: 123, board });
+    vi.mocked(createNumbersGame).mockResolvedValue({ nonce: "n1", timestamp: 123, board });
 
     const res = await POST(request());
     const body = await res.json();

@@ -1,4 +1,5 @@
 import { getDb } from "@/app/lib/scores/db";
+import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import crypto from "node:crypto";
 
 // Nonces caducan a los 60 minutos: a diferencia de numbers/words/tetris,
@@ -9,22 +10,28 @@ const NONCE_MAX_AGE_MS = 60 * 60 * 1000;
 const MIN_ELO = 400;
 const MAX_ELO = 3000;
 
-let _tableReady = false;
+let _tableReady: Promise<void> | null = null;
 
-function ensureTable(): void {
-  if (_tableReady) return;
+async function ensureTable(): Promise<void> {
+  if (_tableReady) return _tableReady;
 
-  getDb().exec(`
-    CREATE TABLE IF NOT EXISTS game_chess (
-      nonce TEXT PRIMARY KEY,
-      userId TEXT NOT NULL,
-      elo INTEGER NOT NULL,
-      moves TEXT NOT NULL DEFAULT '[]',
-      createdAt INTEGER NOT NULL
-    )
-  `);
+  _tableReady = (async () => {
+    const db = await getDb();
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS game_chess (
+        nonce VARCHAR(191) PRIMARY KEY,
+        userId VARCHAR(191) NOT NULL,
+        elo INT NOT NULL,
+        moves TEXT NOT NULL,
+        createdAt BIGINT NOT NULL
+      )
+    `);
+  })().catch((error) => {
+    _tableReady = null;
+    throw error;
+  });
 
-  _tableReady = true;
+  return _tableReady;
 }
 
 export type NewChessGame = {
@@ -32,8 +39,8 @@ export type NewChessGame = {
   timestamp: number;
 };
 
-export function createChessGame(userId: string, elo: number): NewChessGame {
-  ensureTable();
+export async function createChessGame(userId: string, elo: number): Promise<NewChessGame> {
+  await ensureTable();
 
   if (!Number.isInteger(elo) || elo < MIN_ELO || elo > MAX_ELO) {
     throw new Error(`elo must be an integer between ${MIN_ELO} and ${MAX_ELO}.`);
@@ -42,11 +49,11 @@ export function createChessGame(userId: string, elo: number): NewChessGame {
   const nonce = crypto.randomUUID();
   const timestamp = Date.now();
 
-  getDb()
-    .prepare(
-      `INSERT INTO game_chess (nonce, userId, elo, moves, createdAt) VALUES (?, ?, ?, '[]', ?)`
-    )
-    .run(nonce, userId, elo, timestamp);
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO game_chess (nonce, userId, elo, moves, createdAt) VALUES (?, ?, ?, '[]', ?)`,
+    [nonce, userId, elo, timestamp]
+  );
 
   return { nonce, timestamp };
 }
@@ -59,24 +66,26 @@ export type ChessGameState = {
   createdAt: number;
 };
 
-export function deleteChessGame(nonce: string): void {
-  ensureTable();
-  getDb().prepare(`DELETE FROM game_chess WHERE nonce = ?`).run(nonce);
+export async function deleteChessGame(nonce: string): Promise<void> {
+  await ensureTable();
+  const db = await getDb();
+  await db.execute(`DELETE FROM game_chess WHERE nonce = ?`, [nonce]);
 }
 
-export function getChessGame(nonce: string): ChessGameState | null {
-  ensureTable();
+export async function getChessGame(nonce: string): Promise<ChessGameState | null> {
+  await ensureTable();
 
-  const row = getDb()
-    .prepare(`SELECT userId, elo, moves, createdAt FROM game_chess WHERE nonce = ?`)
-    .get(nonce) as
-    | { userId: string; elo: number; moves: string; createdAt: number }
-    | undefined;
+  const db = await getDb();
+  const [rows] = await db.execute<RowDataPacket[]>(
+    `SELECT userId, elo, moves, createdAt FROM game_chess WHERE nonce = ?`,
+    [nonce]
+  );
+  const row = (rows as { userId: string; elo: number; moves: string; createdAt: number }[])[0];
 
   if (!row) return null;
 
   if (Date.now() - row.createdAt > NONCE_MAX_AGE_MS) {
-    deleteChessGame(nonce);
+    await deleteChessGame(nonce);
     return null;
   }
 
@@ -94,28 +103,30 @@ export function getChessGame(nonce: string): ChessGameState | null {
 // de numbers/words/tetris, aquí hay un await de red (Stockfish) entre la
 // jugada del jugador y la de la IA dentro de la misma petición — dos
 // peticiones concurrentes para el mismo nonce podrían pisarse sin esto.
-export function appendChessMove(
+export async function appendChessMove(
   nonce: string,
   expectedMovesJson: string,
   uciMove: string
-): boolean {
-  ensureTable();
+): Promise<boolean> {
+  await ensureTable();
 
   const moves = JSON.parse(expectedMovesJson) as string[];
   moves.push(uciMove);
 
-  const result = getDb()
-    .prepare(`UPDATE game_chess SET moves = ? WHERE nonce = ? AND moves = ?`)
-    .run(JSON.stringify(moves), nonce, expectedMovesJson);
+  const db = await getDb();
+  const [result] = await db.execute<ResultSetHeader>(
+    `UPDATE game_chess SET moves = ? WHERE nonce = ? AND moves = ?`,
+    [JSON.stringify(moves), nonce, expectedMovesJson]
+  );
 
-  return result.changes === 1;
+  return result.affectedRows === 1;
 }
 
 // Lectura + borrado en un paso: solo puede usarse una vez para guardar el
 // score final, tanto si la partida estaba completa como si no.
-export function consumeChessGame(nonce: string): ChessGameState | null {
-  const game = getChessGame(nonce);
+export async function consumeChessGame(nonce: string): Promise<ChessGameState | null> {
+  const game = await getChessGame(nonce);
   if (!game) return null;
-  deleteChessGame(nonce);
+  await deleteChessGame(nonce);
   return game;
 }

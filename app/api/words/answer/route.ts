@@ -24,7 +24,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       return Response.json({ error: "answer is required." }, { status: 400 });
     }
 
-    const game = getWordsGame(nonce);
+    const game = await getWordsGame(nonce);
     if (!game || game.userId !== user.id) {
       return Response.json({ error: "Invalid or expired nonce." }, { status: 400 });
     }
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     // rondas o reintentar una ya resuelta.
     const round = game.rounds[parsedIndex];
     if (parsedIndex !== game.answeredCount || !round) {
-      deleteWordsGame(nonce);
+      await deleteWordsGame(nonce);
       return Response.json({ error: "Unexpected round." }, { status: 400 });
     }
 
@@ -49,11 +49,11 @@ export async function POST(request: NextRequest): Promise<Response> {
       // gratis. Ya no se borra el nonce: queda marcado como terminado para
       // que /api/scores pueda puntuar los aciertos logrados hasta aquí
       // (cualquier partida que termine, ganada o perdida, puntúa).
-      markWordsGameEnded(nonce);
+      await markWordsGameEnded(nonce);
       return Response.json({ correct: false, target: round.target }, { status: 200 });
     }
 
-    const answeredCount = advanceWordsGame(nonce);
+    const answeredCount = await advanceWordsGame(nonce);
     const finished = answeredCount >= game.rounds.length;
 
     return Response.json({ correct: true, finished }, { status: 200 });

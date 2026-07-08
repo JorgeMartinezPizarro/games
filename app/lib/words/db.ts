@@ -5,29 +5,36 @@ import {
   type PublicWordsRound,
   type WordsRound,
 } from "@/app/lib/words/challenge";
+import type { RowDataPacket } from "mysql2/promise";
 import crypto from "node:crypto";
 
 // Nonces caducan a los 15 minutos, igual que en numbers: tiempo de sobra
 // para jugar una partida, evita filas huérfanas si nunca se termina.
 const NONCE_MAX_AGE_MS = 15 * 60 * 1000;
 
-let _tableReady = false;
+let _tableReady: Promise<void> | null = null;
 
-function ensureTable(): void {
-  if (_tableReady) return;
+async function ensureTable(): Promise<void> {
+  if (_tableReady) return _tableReady;
 
-  getDb().exec(`
-    CREATE TABLE IF NOT EXISTS words_games (
-      nonce TEXT PRIMARY KEY,
-      userId TEXT NOT NULL,
-      rounds TEXT NOT NULL,
-      answeredCount INTEGER NOT NULL DEFAULT 0,
-      ended INTEGER NOT NULL DEFAULT 0,
-      createdAt INTEGER NOT NULL
-    )
-  `);
+  _tableReady = (async () => {
+    const db = await getDb();
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS words_games (
+        nonce VARCHAR(191) PRIMARY KEY,
+        userId VARCHAR(191) NOT NULL,
+        rounds TEXT NOT NULL,
+        answeredCount INT NOT NULL DEFAULT 0,
+        ended TINYINT NOT NULL DEFAULT 0,
+        createdAt BIGINT NOT NULL
+      )
+    `);
+  })().catch((error) => {
+    _tableReady = null;
+    throw error;
+  });
 
-  _tableReady = true;
+  return _tableReady;
 }
 
 export type NewWordsGame = {
@@ -41,17 +48,17 @@ export async function createWordsGame(
   rounds: number,
   choices: number
 ): Promise<NewWordsGame> {
-  ensureTable();
+  await ensureTable();
 
   const fullRounds = await fetchChallenge(rounds, choices);
   const nonce = crypto.randomUUID();
   const timestamp = Date.now();
 
-  getDb()
-    .prepare(
-      `INSERT INTO words_games (nonce, userId, rounds, answeredCount, createdAt) VALUES (?, ?, ?, 0, ?)`
-    )
-    .run(nonce, userId, JSON.stringify(fullRounds), timestamp);
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO words_games (nonce, userId, rounds, answeredCount, createdAt) VALUES (?, ?, ?, 0, ?)`,
+    [nonce, userId, JSON.stringify(fullRounds), timestamp]
+  );
 
   return { nonce, timestamp, rounds: stripTargets(fullRounds) };
 }
@@ -64,35 +71,38 @@ export type WordsGameState = {
   createdAt: number;
 };
 
-export function deleteWordsGame(nonce: string): void {
-  ensureTable();
-  getDb().prepare(`DELETE FROM words_games WHERE nonce = ?`).run(nonce);
+export async function deleteWordsGame(nonce: string): Promise<void> {
+  await ensureTable();
+  const db = await getDb();
+  await db.execute(`DELETE FROM words_games WHERE nonce = ?`, [nonce]);
 }
 
 // Se llama al fallar una ronda: a diferencia de un salto de ronda inválido,
 // aquí NO se borra la partida, para que /api/scores pueda puntuar los
 // aciertos logrados hasta este punto. El nonce queda inutilizable para
 // más respuestas (ver /api/words/answer).
-export function markWordsGameEnded(nonce: string): void {
-  ensureTable();
-  getDb().prepare(`UPDATE words_games SET ended = 1 WHERE nonce = ?`).run(nonce);
+export async function markWordsGameEnded(nonce: string): Promise<void> {
+  await ensureTable();
+  const db = await getDb();
+  await db.execute(`UPDATE words_games SET ended = 1 WHERE nonce = ?`, [nonce]);
 }
 
-export function getWordsGame(nonce: string): WordsGameState | null {
-  ensureTable();
+export async function getWordsGame(nonce: string): Promise<WordsGameState | null> {
+  await ensureTable();
 
-  const row = getDb()
-    .prepare(
-      `SELECT userId, rounds, answeredCount, ended, createdAt FROM words_games WHERE nonce = ?`
-    )
-    .get(nonce) as
-    | { userId: string; rounds: string; answeredCount: number; ended: number; createdAt: number }
-    | undefined;
+  const db = await getDb();
+  const [rows] = await db.execute<RowDataPacket[]>(
+    `SELECT userId, rounds, answeredCount, ended, createdAt FROM words_games WHERE nonce = ?`,
+    [nonce]
+  );
+  const row = (
+    rows as { userId: string; rounds: string; answeredCount: number; ended: number; createdAt: number }[]
+  )[0];
 
   if (!row) return null;
 
   if (Date.now() - row.createdAt > NONCE_MAX_AGE_MS) {
-    deleteWordsGame(nonce);
+    await deleteWordsGame(nonce);
     return null;
   }
 
@@ -107,25 +117,28 @@ export function getWordsGame(nonce: string): WordsGameState | null {
 
 // Se llama tras validar una respuesta correcta: avanza la ronda esperada.
 // Devuelve el nuevo total de rondas acertadas.
-export function advanceWordsGame(nonce: string): number {
-  ensureTable();
+export async function advanceWordsGame(nonce: string): Promise<number> {
+  await ensureTable();
 
-  getDb()
-    .prepare(`UPDATE words_games SET answeredCount = answeredCount + 1 WHERE nonce = ?`)
-    .run(nonce);
+  const db = await getDb();
+  await db.execute(`UPDATE words_games SET answeredCount = answeredCount + 1 WHERE nonce = ?`, [
+    nonce,
+  ]);
 
-  const row = getDb()
-    .prepare(`SELECT answeredCount FROM words_games WHERE nonce = ?`)
-    .get(nonce) as { answeredCount: number } | undefined;
+  const [rows] = await db.execute<RowDataPacket[]>(
+    `SELECT answeredCount FROM words_games WHERE nonce = ?`,
+    [nonce]
+  );
+  const row = (rows as { answeredCount: number }[])[0];
 
   return row?.answeredCount ?? 0;
 }
 
 // Lectura + borrado en un paso: solo puede usarse una vez para guardar el
 // score final, tanto si la partida estaba completa como si no.
-export function consumeWordsGame(nonce: string): WordsGameState | null {
-  const game = getWordsGame(nonce);
+export async function consumeWordsGame(nonce: string): Promise<WordsGameState | null> {
+  const game = await getWordsGame(nonce);
   if (!game) return null;
-  deleteWordsGame(nonce);
+  await deleteWordsGame(nonce);
   return game;
 }

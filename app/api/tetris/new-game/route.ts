@@ -7,7 +7,7 @@ import { NextRequest } from "next/server";
 export async function POST(request: NextRequest): Promise<Response> {
   try {
     const user = await requireAuth(request);
-    const game = createTetrisGame(user.id);
+    const game = await createTetrisGame(user.id);
 
     return Response.json({ ...game, linesTarget: LINES_TARGET }, { status: 200 });
   } catch (error) {

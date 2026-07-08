@@ -1,5 +1,6 @@
 import { getDb } from "@/app/lib/scores/db";
 import { randomSeed } from "@/app/lib/tetris/rng";
+import type { RowDataPacket } from "mysql2/promise";
 import crypto from "node:crypto";
 
 // Nonces caducan a los 30 minutos: una partida de tetris puede alargarse
@@ -7,21 +8,27 @@ import crypto from "node:crypto";
 // líneas.
 const NONCE_MAX_AGE_MS = 30 * 60 * 1000;
 
-let _tableReady = false;
+let _tableReady: Promise<void> | null = null;
 
-function ensureTable(): void {
-  if (_tableReady) return;
+async function ensureTable(): Promise<void> {
+  if (_tableReady) return _tableReady;
 
-  getDb().exec(`
-    CREATE TABLE IF NOT EXISTS tetris_games (
-      nonce TEXT PRIMARY KEY,
-      userId TEXT NOT NULL,
-      seed INTEGER NOT NULL,
-      createdAt INTEGER NOT NULL
-    )
-  `);
+  _tableReady = (async () => {
+    const db = await getDb();
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS tetris_games (
+        nonce VARCHAR(191) PRIMARY KEY,
+        userId VARCHAR(191) NOT NULL,
+        seed BIGINT NOT NULL,
+        createdAt BIGINT NOT NULL
+      )
+    `);
+  })().catch((error) => {
+    _tableReady = null;
+    throw error;
+  });
 
-  _tableReady = true;
+  return _tableReady;
 }
 
 export type NewTetrisGame = {
@@ -30,16 +37,18 @@ export type NewTetrisGame = {
   seed: number;
 };
 
-export function createTetrisGame(userId: string): NewTetrisGame {
-  ensureTable();
+export async function createTetrisGame(userId: string): Promise<NewTetrisGame> {
+  await ensureTable();
 
   const nonce = crypto.randomUUID();
   const seed = randomSeed();
   const timestamp = Date.now();
 
-  getDb()
-    .prepare(`INSERT INTO tetris_games (nonce, userId, seed, createdAt) VALUES (?, ?, ?, ?)`)
-    .run(nonce, userId, seed, timestamp);
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO tetris_games (nonce, userId, seed, createdAt) VALUES (?, ?, ?, ?)`,
+    [nonce, userId, seed, timestamp]
+  );
 
   return { nonce, timestamp, seed };
 }
@@ -52,16 +61,19 @@ export type StoredTetrisGame = {
 
 // Lectura + borrado en un solo paso: el nonce solo puede usarse una vez,
 // tanto si la partida resulta válida como si no.
-export function consumeTetrisGame(nonce: string): StoredTetrisGame | null {
-  ensureTable();
+export async function consumeTetrisGame(nonce: string): Promise<StoredTetrisGame | null> {
+  await ensureTable();
 
-  const row = getDb()
-    .prepare(`SELECT userId, seed, createdAt FROM tetris_games WHERE nonce = ?`)
-    .get(nonce) as { userId: string; seed: number; createdAt: number } | undefined;
+  const db = await getDb();
+  const [rows] = await db.execute<RowDataPacket[]>(
+    `SELECT userId, seed, createdAt FROM tetris_games WHERE nonce = ?`,
+    [nonce]
+  );
+  const row = (rows as { userId: string; seed: number; createdAt: number }[])[0];
 
   if (!row) return null;
 
-  getDb().prepare(`DELETE FROM tetris_games WHERE nonce = ?`).run(nonce);
+  await db.execute(`DELETE FROM tetris_games WHERE nonce = ?`, [nonce]);
 
   if (Date.now() - row.createdAt > NONCE_MAX_AGE_MS) return null;
 

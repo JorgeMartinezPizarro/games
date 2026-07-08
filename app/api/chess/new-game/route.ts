@@ -19,7 +19,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
-    const game = createChessGame(user.id, parsedElo);
+    const game = await createChessGame(user.id, parsedElo);
     return Response.json(game, { status: 200 });
   } catch (error) {
     return Response.json({ error: errorMessage(error) }, { status: 500 });

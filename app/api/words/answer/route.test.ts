@@ -28,7 +28,7 @@ function request(body: unknown) {
   });
 }
 
-function makeGame(overrides: Partial<NonNullable<ReturnType<typeof getWordsGame>>> = {}) {
+function makeGame(overrides: Partial<NonNullable<Awaited<ReturnType<typeof getWordsGame>>>> = {}) {
   return {
     userId: "user-1",
     rounds: [
@@ -73,7 +73,7 @@ describe("POST /api/words/answer", () => {
 
   it("responde 400 si el nonce no existe o pertenece a otro usuario", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(getWordsGame).mockReturnValue(null);
+    vi.mocked(getWordsGame).mockResolvedValue(null);
 
     const res = await POST(request({ nonce: "n1", roundIndex: 0, answer: "hola" }));
     expect(res.status).toBe(400);
@@ -82,7 +82,7 @@ describe("POST /api/words/answer", () => {
 
   it("responde 400 y borra la partida si se salta una ronda", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(getWordsGame).mockReturnValue(makeGame({ answeredCount: 0 }));
+    vi.mocked(getWordsGame).mockResolvedValue(makeGame({ answeredCount: 0 }));
 
     const res = await POST(request({ nonce: "n1", roundIndex: 1, answer: "gato" }));
 
@@ -93,7 +93,7 @@ describe("POST /api/words/answer", () => {
 
   it("respuesta incorrecta: marca la partida como terminada (no la borra) y revela el target", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(getWordsGame).mockReturnValue(makeGame({ answeredCount: 0 }));
+    vi.mocked(getWordsGame).mockResolvedValue(makeGame({ answeredCount: 0 }));
 
     const res = await POST(request({ nonce: "n1", roundIndex: 0, answer: "adios" }));
     const body = await res.json();
@@ -107,7 +107,7 @@ describe("POST /api/words/answer", () => {
 
   it("responde 400 si la partida ya está marcada como terminada", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(getWordsGame).mockReturnValue(makeGame({ answeredCount: 0, ended: true }));
+    vi.mocked(getWordsGame).mockResolvedValue(makeGame({ answeredCount: 0, ended: true }));
 
     const res = await POST(request({ nonce: "n1", roundIndex: 0, answer: "hola" }));
 
@@ -118,8 +118,8 @@ describe("POST /api/words/answer", () => {
 
   it("respuesta correcta pero no es la última ronda: finished false", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(getWordsGame).mockReturnValue(makeGame({ answeredCount: 0 }));
-    vi.mocked(advanceWordsGame).mockReturnValue(1);
+    vi.mocked(getWordsGame).mockResolvedValue(makeGame({ answeredCount: 0 }));
+    vi.mocked(advanceWordsGame).mockResolvedValue(1);
 
     const res = await POST(request({ nonce: "n1", roundIndex: 0, answer: "hola" }));
     const body = await res.json();
@@ -131,8 +131,8 @@ describe("POST /api/words/answer", () => {
 
   it("respuesta correcta en la última ronda: finished true", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    vi.mocked(getWordsGame).mockReturnValue(makeGame({ answeredCount: 1 }));
-    vi.mocked(advanceWordsGame).mockReturnValue(2);
+    vi.mocked(getWordsGame).mockResolvedValue(makeGame({ answeredCount: 1 }));
+    vi.mocked(advanceWordsGame).mockResolvedValue(2);
 
     const res = await POST(request({ nonce: "n1", roundIndex: 1, answer: "gato" }));
     const body = await res.json();
