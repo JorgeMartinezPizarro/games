@@ -20,8 +20,19 @@ services:
     volumes:
       - ./cache/e2e/audio/:/app/cache/audio
   mariadb:
+    # Volumen nombrado (no bind mount a cache/e2e/): en Docker Desktop para
+    # Windows, un bind mount de host para /var/lib/mysql pasa por la capa de
+    # traducción gRPC-FUSE/VirtioFS, y ahí MariaDB puede ver una base de datos
+    # que acaba de crear como "no existente" para la primera conexión real
+    # (visto como "Unknown database 'games'" justo tras el `up --build` del
+    # webServer de Playwright, de forma reproducible). Un volumen nombrado
+    # vive nativamente en el filesystem de la VM de Docker, sin esa capa, que
+    # es justo lo que tanto Docker como MariaDB recomiendan para datos de BD.
     volumes:
-      - ./cache/e2e/mariadb-data/:/var/lib/mysql
+      - mariadb-e2e-data:/var/lib/mysql
   wordlist:
     volumes:
       - ./cache/e2e/audio/:/app/audio
+
+volumes:
+  mariadb-e2e-data:

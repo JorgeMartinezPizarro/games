@@ -9,7 +9,7 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
+    "test:e2e": "npm run test:e2e:down && playwright test",
     "test:e2e:down": "docker compose -f docker-compose.yml -f docker-compose.e2e.yml --env-file .env.e2e -p games-e2e down -v"
   },
   "dependencies": {

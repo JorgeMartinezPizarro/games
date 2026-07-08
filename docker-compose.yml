@@ -37,7 +37,13 @@ services:
     volumes:
       - ./cache/database:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MARIADB_ROOT_PASSWORD}"]
+      # No basta con que el servidor responda a ping (mariadb-admin ping):
+      # eso solo confirma que acepta conexiones, no que el schema/usuario que
+      # usa la app ya son consultables. Se comprueba con las credenciales
+      # reales de la app para que `depends_on: condition: service_healthy`
+      # signifique "games ya puede conectar y hacer queries", no solo "el
+      # puerto está abierto".
+      test: ["CMD", "mariadb", "-u", "${MARIADB_USER}", "-p${MARIADB_PASSWORD}", "${MARIADB_DATABASE}", "-e", "SELECT 1"]
       interval: 5s
       timeout: 5s
       retries: 10

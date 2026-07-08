@@ -41,7 +41,14 @@ export default defineConfig({
     command:
       "docker compose -f docker-compose.yml -f docker-compose.e2e.yml --env-file .env.e2e -p games-e2e up --build",
     url: `${BASE_URL}/bookmarks`,
-    reuseExistingServer: !process.env.CI,
+    // Siempre false, incluso en local: cada corrida debe partir de un
+    // leaderboard vacío (ver global-setup.ts), así que "reutilizar" un stack
+    // de un run anterior (con datos viejos, o con cache/e2e ya borrado bajo
+    // sus pies) nunca es correcto aquí. Con esto en false, si un stack previo
+    // sigue arriba, Playwright falla rápido y explícito ("already used") en
+    // vez de reusarlo o pisarlo a medias — la solución es bajarlo antes
+    // (`npm run test:e2e` ya lo hace solo, ver package.json).
+    reuseExistingServer: false,
     timeout: 5 * 60_000,
     stdout: "pipe",
     stderr: "pipe",

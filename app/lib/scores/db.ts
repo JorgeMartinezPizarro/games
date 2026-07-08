@@ -58,12 +58,29 @@ async function ensureSchema(): Promise<void> {
   `);
 }
 
+// mariadb pasa a "healthy" (depends_on/healthcheck) en cuanto acepta TCP;
+// margen de sobra en la práctica, pero un pequeño reintento con espera cubre
+// cualquier hipo transitorio justo tras un arranque/reinicio (p.ej. un
+// despliegue) sin que la primerísima petición real se quede colgada de un
+// error que se habría resuelto solo un segundo después.
+async function ensureSchemaWithRetry(retries = 6, delayMs = 500): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await ensureSchema();
+      return;
+    } catch (error) {
+      if (attempt >= retries) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
 // Memoiza la promesa de inicialización; si falla (p.ej. MariaDB no estaba
 // aún lista), se limpia para que la siguiente llamada pueda reintentar en
 // vez de quedar bloqueada para siempre con una promesa rechazada.
 export async function getDb(): Promise<Pool> {
   if (!_ready) {
-    _ready = ensureSchema().catch((error) => {
+    _ready = ensureSchemaWithRetry().catch((error) => {
       _ready = null;
       throw error;
     });
