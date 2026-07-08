@@ -2,6 +2,7 @@
 # (audio, base de datos, etc). No corre nada, solo empaqueta el contenido.
 FROM scratch
 
-COPY cache/ /cache/
+COPY cache/audio/ /cache/audio/
+COPY cache/database/ /cache/database/
 
 CMD ["true"]

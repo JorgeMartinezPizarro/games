@@ -20,13 +20,17 @@ start:
 stop:
 	docker compose down --remove-orphans
 save:
+	docker compose pause
 	docker build -f Dockerfile.volumes \
 		-t $(VOLUMES_IMAGE):gaming-app-latest \
 		-t $(VOLUMES_IMAGE):gaming-app-$(DATE) .
+	docker compose unpause
 	docker push $(VOLUMES_IMAGE):gaming-app-latest
 	docker push $(VOLUMES_IMAGE):gaming-app-$(DATE)
 load:
 	docker pull $(VOLUMES_IMAGE):gaming-app-latest
 	docker create --name gaming-app-volumes-tmp $(VOLUMES_IMAGE):gaming-app-latest
+	docker compose pause
 	docker cp gaming-app-volumes-tmp:/cache/. ./cache
+	docker compose unpause
 	docker rm gaming-app-volumes-tmp
