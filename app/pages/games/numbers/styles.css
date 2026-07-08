@@ -175,6 +175,62 @@
   filter: brightness(0.9);
 }
 
+/* === PLAY GATE (pantalla previa, sin números visibles) === */
+.play-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  max-width: 420px;
+  padding: 24px;
+  animation: play-gate-in 0.4s ease-out;
+}
+
+@keyframes play-gate-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.play-gate-title {
+  font-family: 'Press Start 2P', 'VT323', 'Courier New', monospace !important;
+  color: #fff;
+  text-shadow: 0 2px 2px #222, 0 6px 6px #15f3b5;
+  letter-spacing: 2px;
+}
+
+.play-gate-subtitle {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.play-btn {
+  font-size: 1.3rem !important;
+  padding: 16px 48px !important;
+  animation: play-btn-pulse 1.8s ease-in-out infinite;
+}
+
+.play-btn:hover {
+  animation-play-state: paused;
+}
+
+@keyframes play-btn-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 3px #03a9f4,
+      0 0 8px #03a9f4,
+      0 2px 6px 2px #222 inset,
+      0 10px 30px rgba(0,0,0,0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px #ffea00,
+      0 0 24px #ffea00,
+      0 2px 6px 2px #222 inset,
+      0 10px 30px rgba(0,0,0,0.2);
+  }
+}
+
 /* En landscape priorizamos la altura disponible */
 @media (orientation: landscape) {
     .box {

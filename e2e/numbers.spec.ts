@@ -13,7 +13,12 @@ test.describe("Numbers", () => {
   }) => {
     await page.goto("/bookmarks/pages/games/numbers");
 
-    // Tablero real servido por /api/numbers/new-game (con Docker real).
+    // Los números quedan ocultos hasta pulsar PLAY (ver page.tsx): el
+    // tablero real se pide a /api/numbers/new-game (con Docker real) solo
+    // al pulsar el botón.
+    await expect(page.locator('[data-testid="play-btn"]')).toBeVisible({ timeout: 15_000 });
+    await page.locator('[data-testid="play-btn"]').click();
+
     await expect(page.locator('[data-testid="cell-0"]')).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('[data-testid^="cell-"]')).toHaveCount(BOARD_SIZE);
 

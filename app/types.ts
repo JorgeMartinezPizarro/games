@@ -119,7 +119,7 @@ export interface UseNumbersConfig {
   onFinish?: (
 	finalScore: number,
 	finalSteps: number,
-	moves: number[],
+	moves: { i: number; t: number }[],
 	nonce: string | null,
 	board: CellValues[],
   ) => void | Promise<number | null>

@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { CellValues, RecordEntry } from "@/app/types";
 import { GAME_IDS, ScoreEntry } from "@/app/lib/scores/types";
 import { fetchTopScores } from "@/app/lib/scores/client";
+import { NumbersMove } from "@/app/lib/numbers/board";
 
 export type NumbersScoreEntry = {
   score: number;
@@ -48,7 +49,7 @@ export function useScoreNumbers() {
     async (
       _finalScore: number,
       finalSteps: number,
-      moves: number[],
+      moves: NumbersMove[],
       nonce: string | null,
       board: CellValues[]
     ): Promise<number | null> => {

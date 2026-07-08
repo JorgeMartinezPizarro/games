@@ -217,7 +217,8 @@ async function saveNumbersScore(request: NextRequest, user: AuthUser, params: an
     );
   }
 
-  const validation = validateMoves(stored.board, moves);
+  const elapsed = Date.now() - stored.createdAt;
+  const validation = validateMoves(stored.board, moves, elapsed);
   if (!validation.valid) {
     return Response.json(
       { error: `Invalid game: ${validation.reason}` },
@@ -225,7 +226,6 @@ async function saveNumbersScore(request: NextRequest, user: AuthUser, params: an
     );
   }
 
-  const elapsed = Date.now() - stored.createdAt;
   const finalScore = computeNumbersScore(validation.steps, elapsed);
   const serializedConfig = serializeGameConfig({ steps: validation.steps });
   if (!serializedConfig.ok) {

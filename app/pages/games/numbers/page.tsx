@@ -39,11 +39,14 @@ const GamesComponent = () => {
     newNumbers.slice(16, 20).reverse()
   ]
 
+  // La partida ya NO arranca sola al montar: el jugador la arranca pulsando
+  // el botón PLAY (ver más abajo), que dispara newGame() directamente. Así
+  // los números quedan ocultos hasta que decide empezar, y el cronómetro
+  // del score (que arranca en cuanto llega el tablero, ver useNumbers.ts)
+  // coincide con el momento real en que se revela.
   useEffect(() => {
     loadScores()
-    const timer = setTimeout(() => newGame(), 25)
-    return () => clearTimeout(timer)
-  }, [loadScores, newGame])
+  }, [loadScores])
 
   if (!mounted) {
     return (
@@ -108,6 +111,27 @@ const GamesComponent = () => {
         }}
       >
         {error && <pre style={{ color: "red" }}>{errorMessage(error)}</pre>}
+
+        {view === 'play' && numbers.length !== 20 && (
+          <Box className="play-gate">
+            <Typography variant="h3" className="play-gate-title">
+              🔢 Numbers
+            </Typography>
+            <Typography className="play-gate-subtitle">
+              Recorre las 20 casillas saltando la distancia exacta que marca
+              cada número, sin repetir ninguna. El reloj arranca en cuanto
+              pulses PLAY.
+            </Typography>
+            <Button
+              data-testid="play-btn"
+              className="arcade-btn play-btn"
+              onClick={newGame}
+              disabled={loading}
+            >
+              {loading ? "Cargando…" : "▶ PLAY"}
+            </Button>
+          </Box>
+        )}
 
         {view === 'play' && numbers.length === 20 && (
           <Box className={"box" + (loading ? " loading" : "")}>

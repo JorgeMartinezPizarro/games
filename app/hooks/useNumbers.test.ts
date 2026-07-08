@@ -97,8 +97,8 @@ describe("useNumbers", () => {
 
     expect(result.current.steps).toBe(1);
     // elapsedMs = 150 (startNewGame) + 1000 (avance del test) = 1150.
-    // liveScore = round(steps^3 * 3500 / elapsedMs) = round(3500/1150) = 3
-    expect(result.current.currentScore).toBe(3);
+    // pace = max(1150/1, 150) = 1150; score = round(1^2 * 1000 / 1150) = 1
+    expect(result.current.currentScore).toBe(1);
   });
 
   it("un clic sin relación de salto válida termina la partida sin sumar el paso", async () => {
@@ -118,7 +118,8 @@ describe("useNumbers", () => {
     expect(onFinish).toHaveBeenCalledTimes(1);
     const [, finalSteps, moves] = onFinish.mock.calls[0];
     expect(finalSteps).toBe(1);
-    expect(moves).toEqual([0]);
+    // t=150: ningún avance de reloj entre startNewGame y el clic.
+    expect(moves).toEqual([{ i: 0, t: 150 }]);
   });
 
   it("quedarse sin movimientos posibles (bloqueo) termina la partida", async () => {
@@ -141,7 +142,12 @@ describe("useNumbers", () => {
     expect(onFinish).toHaveBeenCalledTimes(1);
     const [, finalSteps, moves] = onFinish.mock.calls[0];
     expect(finalSteps).toBe(3);
-    expect(moves).toEqual([0, 4, 2]);
+    // Sin avances de reloj entre clics: los 3 caen en el mismo t=150.
+    expect(moves).toEqual([
+      { i: 0, t: 150 },
+      { i: 4, t: 150 },
+      { i: 2, t: 150 },
+    ]);
   });
 
   it("completar las 20 casillas termina la partida (ganada) y llama a onFinish", async () => {
@@ -159,7 +165,7 @@ describe("useNumbers", () => {
     expect(onFinish).toHaveBeenCalledTimes(1);
     const [, finalSteps, moves, nonce] = onFinish.mock.calls[0];
     expect(finalSteps).toBe(20);
-    expect(moves).toEqual(Array.from({ length: 20 }, (_, i) => i));
+    expect(moves).toEqual(Array.from({ length: 20 }, (_, i) => ({ i, t: 150 })));
     expect(nonce).toBe("nonce-1");
   });
 

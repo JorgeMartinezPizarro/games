@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react"
 import { CellValues, RecordEntry, UseNumbersConfig } from "@/app/types"
+import { computeNumbersScore, NumbersMove } from "@/app/lib/numbers/board"
 
 
 export function useNumbers(config: UseNumbersConfig = {}) {
@@ -14,15 +15,17 @@ export function useNumbers(config: UseNumbersConfig = {}) {
   const [numbers, setNumbers] = useState<CellValues[]>([])
   const [steps, setSteps] = useState<number>(0)
   const [time, setTime] = useState<number>(Date.now())
-  const [moves, setMoves] = useState<number[]>([])
+  const [moves, setMoves] = useState<NumbersMove[]>([])
   const [nonce, setNonce] = useState<string | null>(null)
   const [initialBoard, setInitialBoard] = useState<CellValues[]>([])
   // Score calculado localmente en vivo, hasta que el backend confirme el
   // suyo (fuente de verdad) al terminar la partida.
   const [confirmedScore, setConfirmedScore] = useState<number | null>(null)
 
-  const liveScore =
-    time - start === 0 ? 0 : Math.round((steps ** 3 * 3500) / (time - start))
+  // Misma fórmula que valida/recalcula el servidor (app/lib/numbers/board.ts)
+  // para que el score en vivo no diverja del que confirma el backend al
+  // terminar.
+  const liveScore = computeNumbersScore(steps, time - start)
   const currentScore = confirmedScore ?? liveScore
 
   const isBlocked = useCallback(
@@ -42,7 +45,7 @@ export function useNumbers(config: UseNumbersConfig = {}) {
   )
 
   const finish = useCallback(
-    (finalScore: number, finalSteps: number, finalMoves: number[]) => {
+    (finalScore: number, finalSteps: number, finalMoves: NumbersMove[]) => {
       const result = onFinish?.(finalScore, finalSteps, finalMoves, nonce, initialBoard)
       if (result && typeof (result as Promise<number | null>).then === "function") {
         (result as Promise<number | null>).then(confirmed => {
@@ -65,9 +68,7 @@ export function useNumbers(config: UseNumbersConfig = {}) {
       if (!clickIsRight) {
         const finalSteps = steps
         const finalTime = Date.now()
-        const elapsed = finalTime - start
-        const finalScore =
-          elapsed === 0 ? 0 : Math.round((finalSteps ** 3 * 3500) / elapsed)
+        const finalScore = computeNumbersScore(finalSteps, finalTime - start)
 
         finish(finalScore, finalSteps, moves)
 
@@ -84,7 +85,7 @@ export function useNumbers(config: UseNumbersConfig = {}) {
 
       const newTime = Date.now()
       const newSteps = steps + 1
-      const newMoves = [...moves, cell.values.i]
+      const newMoves = [...moves, { i: cell.values.i, t: newTime - start }]
 
       setTime(newTime)
       setNumbers(newNumbers)
@@ -94,9 +95,7 @@ export function useNumbers(config: UseNumbersConfig = {}) {
 
       // Completó todas las casillas
       if (newSteps === 20) {
-        const elapsed = newTime - start
-        const finalScore =
-          elapsed === 0 ? 0 : Math.round((newSteps ** 3 * 3500) / elapsed)
+        const finalScore = computeNumbersScore(newSteps, newTime - start)
         finish(finalScore, newSteps, newMoves)
         return false
       }
@@ -106,9 +105,7 @@ export function useNumbers(config: UseNumbersConfig = {}) {
         values: { ...cell.values, b: true },
       }
       if (isBlocked(updatedCell, newNumbers)) {
-        const elapsed = newTime - start
-        const finalScore =
-          elapsed === 0 ? 0 : Math.round((newSteps ** 3 * 3500) / elapsed)
+        const finalScore = computeNumbersScore(newSteps, newTime - start)
 
         finish(finalScore, newSteps, newMoves)
 

@@ -62,36 +62,70 @@ export function boardsMatch(a: CellValues[], b: unknown): boolean {
   });
 }
 
+export type NumbersMove = { i: number; t: number };
+
 export type MoveValidationResult =
   | { valid: true; steps: number }
   | { valid: false; reason: string };
 
+// Por debajo de este margen entre dos clics consecutivos, ya no es un click
+// humano (reflejo real ronda 150-200ms): corta scripts que resuelven el
+// tablero y disparan los clics de golpe. Deja margen de sobra a jugadores
+// rápidos legítimos.
+const MIN_MOVE_INTERVAL_MS = 80;
+
+// Cuánto se tolera que el timestamp de un clic (reloj del cliente) se
+// adelante al tiempo real transcurrido desde la creación del nonce (reloj
+// del servidor) — cubre latencia de red / pequeño desfase de reloj, no un
+// intento de simular una partida más larga de la que realmente ocurrió.
+const CLOCK_TOLERANCE_MS = 2000;
+
+function parseMove(raw: unknown): NumbersMove | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const i = Number((raw as { i?: unknown }).i);
+  const t = Number((raw as { t?: unknown }).t);
+  if (!Number.isInteger(i) || !Number.isFinite(t)) return null;
+  return { i, t };
+}
+
 // Reproduce la partida con los movimientos recibidos, aplicando las mismas
-// reglas que app/pages/games/numbers/useNumbers.ts (handleClick/isBlocked),
-// para que un score no pueda enviarse sin haber jugado una partida legal.
+// reglas que app/hooks/useNumbers.ts (handleClick/isBlocked), para que un
+// score no pueda enviarse sin haber jugado una partida legal. `elapsedMs` es
+// el tiempo real transcurrido desde la creación del nonce (reloj del
+// servidor, ver saveNumbersScore): ancla tanto el ritmo de los clics como el
+// score final al mismo reloj de confianza.
 export function validateMoves(
   board: CellValues[],
-  moves: unknown
+  rawMoves: unknown,
+  elapsedMs: number
 ): MoveValidationResult {
   const n = board.length;
 
-  if (!Array.isArray(moves) || moves.length === 0) {
+  if (!Array.isArray(rawMoves) || rawMoves.length === 0) {
     return { valid: false, reason: "No moves provided." };
   }
-  if (moves.length > n) {
+  if (rawMoves.length > n) {
     return { valid: false, reason: "Too many moves." };
   }
 
   const visited = new Array<boolean>(n).fill(false);
-  let last: { i: number; n: number } | null = null;
+  let last: { i: number; n: number; t: number } | null = null;
 
-  for (const rawIndex of moves) {
-    const index = Number(rawIndex);
+  for (const rawMove of rawMoves) {
+    const move = parseMove(rawMove);
+    if (!move) {
+      return { valid: false, reason: "Malformed move." };
+    }
+    const { i: index, t } = move;
+
     if (!Number.isInteger(index) || index < 0 || index >= n) {
       return { valid: false, reason: "Invalid cell index." };
     }
     if (visited[index]) {
       return { valid: false, reason: "Cell already visited." };
+    }
+    if (t < 0 || t > elapsedMs + CLOCK_TOLERANCE_MS) {
+      return { valid: false, reason: "Move timestamp out of range." };
     }
 
     if (last !== null) {
@@ -100,18 +134,30 @@ export function validateMoves(
       if (forward !== last.n && backward !== last.n) {
         return { valid: false, reason: "Illegal move distance." };
       }
+      if (t < last.t) {
+        return { valid: false, reason: "Move timestamps out of order." };
+      }
+      if (t - last.t < MIN_MOVE_INTERVAL_MS) {
+        return { valid: false, reason: "Moves too fast." };
+      }
     }
 
     visited[index] = true;
-    last = { i: index, n: board[index].values.n };
+    last = { i: index, n: board[index].values.n, t };
   }
 
-  return { valid: true, steps: moves.length };
+  return { valid: true, steps: rawMoves.length };
 }
 
-// Misma fórmula que useNumbers.ts, pero con steps/elapsed calculados
-// por el servidor a partir de la partida validada.
+// Cuadrática en steps (completar más tablero pesa, pero sin el disparo de
+// la cúbica anterior) con un suelo en el ritmo medio (ms/paso): evita que un
+// elapsedMs artificialmente bajo (p.ej. una partida resuelta al instante)
+// dispare el score — a partir de ese suelo, ir "más rápido" ya no suma más.
+const MIN_MS_PER_STEP = 150;
+const SCORE_K = 1000;
+
 export function computeNumbersScore(steps: number, elapsedMs: number): number {
-  if (elapsedMs <= 0) return 0;
-  return Math.round((steps ** 3 * 3500) / elapsedMs);
+  if (steps <= 0 || elapsedMs <= 0) return 0;
+  const pace = Math.max(elapsedMs / steps, MIN_MS_PER_STEP);
+  return Math.round((steps ** 2 * SCORE_K) / pace);
 }

@@ -150,11 +150,19 @@ function makeStoredNumbersGame(
   return { userId: "user-1", board: ringBoard(4), createdAt: CREATED_AT, ...overrides };
 }
 
+// Movimientos con timestamp, espaciados 100ms (por encima del umbral
+// anti-bot de 80ms) desde el arranque del nonce.
+function move(i: number, t: number) {
+  return { i, t };
+}
+
 describe("POST /api/scores (numbers)", () => {
   it("responde 400 si falta el nonce", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
 
-    const res = await POST(request({ gameId: 2, board: ringBoard(4), moves: [0, 1] }));
+    const res = await POST(
+      request({ gameId: 2, board: ringBoard(4), moves: [move(0, 0), move(1, 100)] })
+    );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/nonce/i);
   });
@@ -162,7 +170,7 @@ describe("POST /api/scores (numbers)", () => {
   it("responde 400 si falta el board", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
 
-    const res = await POST(request({ gameId: 2, nonce: "n1", moves: [0, 1] }));
+    const res = await POST(request({ gameId: 2, nonce: "n1", moves: [move(0, 0), move(1, 100)] }));
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/board/i);
   });
@@ -171,7 +179,9 @@ describe("POST /api/scores (numbers)", () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeNumbersGame).mockResolvedValue(null);
 
-    const res = await POST(request({ gameId: 2, nonce: "n1", board: ringBoard(4), moves: [0, 1] }));
+    const res = await POST(
+      request({ gameId: 2, nonce: "n1", board: ringBoard(4), moves: [move(0, 0), move(1, 100)] })
+    );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/Invalid, expired or already used nonce/);
     expect(insertScore).not.toHaveBeenCalled();
@@ -182,7 +192,9 @@ describe("POST /api/scores (numbers)", () => {
     vi.mocked(consumeNumbersGame).mockResolvedValue(makeStoredNumbersGame());
 
     const tamperedBoard = ringBoard(4).map((c) => ({ values: { ...c.values, n: 5 } }));
-    const res = await POST(request({ gameId: 2, nonce: "n1", board: tamperedBoard, moves: [0, 1] }));
+    const res = await POST(
+      request({ gameId: 2, nonce: "n1", board: tamperedBoard, moves: [move(0, 0), move(1, 100)] })
+    );
 
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/Board does not match the nonce/);
@@ -195,11 +207,36 @@ describe("POST /api/scores (numbers)", () => {
 
     // Salta directamente de 0 a 2 (distancia 2, pero el salto del tablero es 1).
     const res = await POST(
-      request({ gameId: 2, nonce: "n1", board: ringBoard(4), moves: [0, 2] })
+      request({ gameId: 2, nonce: "n1", board: ringBoard(4), moves: [move(0, 0), move(2, 100)] })
     );
 
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/Invalid game: Illegal move distance/);
+  });
+
+  it("responde 400 si dos clics llegan más rápido que el umbral anti-bot (80ms)", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+    vi.mocked(consumeNumbersGame).mockResolvedValue(makeStoredNumbersGame());
+
+    const res = await POST(
+      request({ gameId: 2, nonce: "n1", board: ringBoard(4), moves: [move(0, 0), move(1, 50)] })
+    );
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Invalid game: Moves too fast/);
+  });
+
+  it("responde 400 si el timestamp de un clic excede el tiempo real transcurrido", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+    vi.mocked(consumeNumbersGame).mockResolvedValue(makeStoredNumbersGame({ createdAt: CREATED_AT }));
+
+    // elapsed real = 37000ms; tolerancia de reloj = 2000ms => máximo t = 39000.
+    const res = await POST(
+      request({ gameId: 2, nonce: "n1", board: ringBoard(4), moves: [move(0, 0), move(1, 40000)] })
+    );
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Invalid game: Move timestamp out of range/);
   });
 
   it("partida válida: calcula el score con steps/tiempo del servidor y lo guarda", async () => {
@@ -208,15 +245,21 @@ describe("POST /api/scores (numbers)", () => {
     vi.mocked(insertScore).mockResolvedValue(55);
 
     // Tour completo de las 4 casillas del anillo: steps=4, elapsed=37000ms
-    // (NOW - CREATED_AT) => round(4^3*3500/37000) = round(6.0541...) = 6.
+    // (NOW - CREATED_AT). pace = max(37000/4, 150) = 9250 =>
+    // round(4^2 * 1000 / 9250) = round(1.7297...) = 2.
     const res = await POST(
-      request({ gameId: 2, nonce: "n1", board: ringBoard(4), moves: [0, 1, 2, 3] })
+      request({
+        gameId: 2,
+        nonce: "n1",
+        board: ringBoard(4),
+        moves: [move(0, 0), move(1, 100), move(2, 200), move(3, 300)],
+      })
     );
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toEqual({ message: "Score saved successfully.", id: 55, score: 6 });
-    expect(insertScore).toHaveBeenCalledWith(user, 2, 6, JSON.stringify({ steps: 4 }));
+    expect(body).toEqual({ message: "Score saved successfully.", id: 55, score: 2 });
+    expect(insertScore).toHaveBeenCalledWith(user, 2, 2, JSON.stringify({ steps: 4 }));
   });
 });
 
