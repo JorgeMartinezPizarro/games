@@ -35,7 +35,7 @@ services:
       - MARIADB_USER=${MARIADB_USER}
       - MARIADB_PASSWORD=${MARIADB_PASSWORD}
     volumes:
-      - mariadb_data:/var/lib/mysql
+      - ./cache/database:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MARIADB_ROOT_PASSWORD}"]
       interval: 5s
@@ -53,6 +53,3 @@ services:
     # Exposed locally to comunicate with node
     ports:
       - 127.0.0.1:${STOCKFISH_PORT:-1007}:8080
-
-volumes:
-  mariadb_data:

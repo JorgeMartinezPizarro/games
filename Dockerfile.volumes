@@ -1,0 +1,7 @@
+# Imagen usada solo como transporte para respaldar/restaurar ./cache
+# (audio, base de datos, etc). No corre nada, solo empaqueta el contenido.
+FROM scratch
+
+COPY cache/ /cache/
+
+CMD ["true"]
