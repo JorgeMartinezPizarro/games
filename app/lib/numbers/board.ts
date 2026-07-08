@@ -68,12 +68,6 @@ export type MoveValidationResult =
   | { valid: true; steps: number }
   | { valid: false; reason: string };
 
-// Por debajo de este margen entre dos clics consecutivos, ya no es un click
-// humano (reflejo real ronda 150-200ms): corta scripts que resuelven el
-// tablero y disparan los clics de golpe. Deja margen de sobra a jugadores
-// rápidos legítimos.
-const MIN_MOVE_INTERVAL_MS = 80;
-
 // Cuánto se tolera que el timestamp de un clic (reloj del cliente) se
 // adelante al tiempo real transcurrido desde la creación del nonce (reloj
 // del servidor) — cubre latencia de red / pequeño desfase de reloj, no un
@@ -92,8 +86,18 @@ function parseMove(raw: unknown): NumbersMove | null {
 // reglas que app/hooks/useNumbers.ts (handleClick/isBlocked), para que un
 // score no pueda enviarse sin haber jugado una partida legal. `elapsedMs` es
 // el tiempo real transcurrido desde la creación del nonce (reloj del
-// servidor, ver saveNumbersScore): ancla tanto el ritmo de los clics como el
-// score final al mismo reloj de confianza.
+// servidor, ver saveNumbersScore): ancla los timestamps de los clics (no
+// pueden ser posteriores a ese tiempo real) al mismo reloj de confianza que
+// usa el score final.
+//
+// No se rechaza por "clics demasiado rápidos": en la práctica, clics reales
+// en un tablero pequeño (botones adyacentes, sin desplazamiento de ratón)
+// caen habitualmente entre 50-80ms de diferencia — indistinguible de un
+// script a esta resolución, así que un suelo de ritmo ahí solo generaba
+// falsos positivos (partidas legítimas rechazadas en silencio). La defensa
+// real contra resolver el tablero al instante está en la propia fórmula de
+// score (computeNumbersScore ya tiene un suelo de ms/paso): ir más rápido
+// del suelo no aumenta el score, así que no hay incentivo a hacer trampa.
 export function validateMoves(
   board: CellValues[],
   rawMoves: unknown,
@@ -136,9 +140,6 @@ export function validateMoves(
       }
       if (t < last.t) {
         return { valid: false, reason: "Move timestamps out of order." };
-      }
-      if (t - last.t < MIN_MOVE_INTERVAL_MS) {
-        return { valid: false, reason: "Moves too fast." };
       }
     }
 

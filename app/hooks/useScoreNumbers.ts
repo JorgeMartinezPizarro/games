@@ -67,7 +67,11 @@ export function useScoreNumbers() {
           }),
         });
 
-        if (!response.ok) return null;
+        if (!response.ok) {
+          const errorBody = await response.json().catch(() => null);
+          setError(errorBody?.error || "No se pudo guardar el score.");
+          return null;
+        }
 
         const data = await response.json();
         const confirmedScore = typeof data.score === "number" ? data.score : null;
@@ -83,6 +87,7 @@ export function useScoreNumbers() {
         return confirmedScore;
       } catch (error) {
         console.error("Error saving score:", error);
+        setError("No se pudo guardar el score.");
         return null;
       }
     },

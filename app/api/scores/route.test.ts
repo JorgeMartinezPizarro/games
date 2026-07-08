@@ -214,16 +214,38 @@ describe("POST /api/scores (numbers)", () => {
     expect((await res.json()).error).toMatch(/Invalid game: Illegal move distance/);
   });
 
-  it("responde 400 si dos clics llegan más rápido que el umbral anti-bot (80ms)", async () => {
+  // Clics reales en un tablero pequeño (botones adyacentes, sin
+  // desplazamiento de ratón) caen habitualmente entre 50-80ms de diferencia
+  // (medido con Playwright contra la app real) — un suelo de ritmo por clic
+  // rechazaba partidas legítimas en silencio. No debe rechazarse solo por
+  // ser rápido: la fórmula de score ya acota el incentivo de ir al límite.
+  it("acepta clics muy rápidos (50ms) siempre que el tour sea legal", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+    vi.mocked(consumeNumbersGame).mockResolvedValue(makeStoredNumbersGame());
+    vi.mocked(insertScore).mockResolvedValue(1);
+
+    const res = await POST(
+      request({
+        gameId: 2,
+        nonce: "n1",
+        board: ringBoard(4),
+        moves: [move(0, 0), move(1, 50), move(2, 100), move(3, 150)],
+      })
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("responde 400 si los timestamps de los clics no son crecientes", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeNumbersGame).mockResolvedValue(makeStoredNumbersGame());
 
     const res = await POST(
-      request({ gameId: 2, nonce: "n1", board: ringBoard(4), moves: [move(0, 0), move(1, 50)] })
+      request({ gameId: 2, nonce: "n1", board: ringBoard(4), moves: [move(0, 100), move(1, 50)] })
     );
 
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toMatch(/Invalid game: Moves too fast/);
+    expect((await res.json()).error).toMatch(/Invalid game: Move timestamps out of order/);
   });
 
   it("responde 400 si el timestamp de un clic excede el tiempo real transcurrido", async () => {
