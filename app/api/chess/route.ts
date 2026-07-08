@@ -13,11 +13,11 @@ async function fetchStockfishMove(fen: string, elo: number): Promise<string> {
   const payload = `uci
 setoption name UCI_LimitStrength value true
 setoption name UCI_Elo value ${elo}
-setoption name Hash value 1024
-setoption name Threads value 2
+setoption name Hash value 2048
+setoption name Threads value 4
 isready
 position fen ${fen}
-go movetime 150
+go movetime 1500
 `.trim();
 
   const response = await fetch(STOCKFISH_API_URL, {
