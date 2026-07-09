@@ -2,13 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GAME_IDS, ScoreEntry } from "@/app/lib/scores/types";
-import { fetchMyRank, fetchTopScores, MyRank } from "@/app/lib/scores/client";
+import { fetchTopScores } from "@/app/lib/scores/client";
 
 export type ChessScoreEntry = {
   elo: number;
   time: string;
   userId: string;
 };
+
+// Posición de ESTA partida concreta (no el mejor histórico del jugador) en
+// el ranking completo del juego (no solo el top 10).
+export type MyRank = { rank: number; total: number };
 
 function parseScoreEntry(entry: ScoreEntry): ChessScoreEntry {
   return {
@@ -57,8 +61,13 @@ export function useChessScore() {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.error || "Error al guardar la puntuación");
         }
+        const data = await response.json();
         await loadScores();
-        setMyRank(await fetchMyRank(GAME_IDS.CHESS));
+        // El propio POST ya trae la posición de ESTA partida en el ranking
+        // completo (no el mejor histórico del jugador).
+        if (typeof data.rank === "number" && typeof data.total === "number") {
+          setMyRank({ rank: data.rank, total: data.total });
+        }
         return true;
       } catch (error) {
         console.error("Error saving score:", error);

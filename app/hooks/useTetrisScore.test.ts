@@ -8,22 +8,15 @@ function jsonResponse(body: unknown, ok = true): Response {
   return { ok, status: ok ? 200 : 500, json: async () => body } as unknown as Response;
 }
 
-// Se mantiene la query string completa como parte de la clave: loadScores
-// (GET .../scores?gameId=3) y fetchMyRank (GET .../scores?me=true&gameId=3)
-// comparten path pero son endpoints distintos.
 function routeFetch(handlers: Record<string, () => Response | Promise<Response>>) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input.toString();
-    const key = `${init?.method ?? "GET"} ${url}`;
+    const key = `${init?.method ?? "GET"} ${url.split("?")[0]}`;
     const handler = handlers[key];
     if (!handler) throw new Error(`Unhandled fetch call: ${key}`);
     return handler();
   });
 }
-
-const GET_SCORES = "GET /bookmarks/api/scores?gameId=3";
-const GET_MY_RANK = "GET /bookmarks/api/scores?me=true&gameId=3";
-const POST_SCORES = "POST /bookmarks/api/scores";
 
 afterEach(() => {
   cleanup();
@@ -46,7 +39,7 @@ describe("useScore (tetris)", () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
-        [GET_SCORES]: () =>
+        "GET /bookmarks/api/scores": () =>
           jsonResponse({
             scores: [
               { score: 45230, userId: "u1", username: "u1", gameConfig: { linesTarget: 25 }, createdAt: "t" },
@@ -65,7 +58,7 @@ describe("useScore (tetris)", () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
-        [GET_SCORES]: () =>
+        "GET /bookmarks/api/scores": () =>
           jsonResponse({
             scores: [{ score: 52000, userId: "u2", username: "u2", gameConfig: null, createdAt: "t" }],
           }),
@@ -86,7 +79,7 @@ describe("useScore (tetris)", () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
-        [GET_SCORES]: () =>
+        "GET /bookmarks/api/scores": () =>
           jsonResponse({
             scores: [{ score: 20, userId: "u3", username: "u3", gameConfig: { timer: 37 }, createdAt: "t" }],
           }),
@@ -101,9 +94,9 @@ describe("useScore (tetris)", () => {
 
   it("saveScore manda el nonce y el log de acciones, y solo guarda una vez hasta resetSaveGuard", async () => {
     const fetchMock = routeFetch({
-      [GET_SCORES]: () => jsonResponse({ scores: [] }),
-      [GET_MY_RANK]: () => jsonResponse({ username: "me", games: [] }),
-      [POST_SCORES]: () => jsonResponse({ message: "ok", id: 1, score: 45230 }),
+      "GET /bookmarks/api/scores": () => jsonResponse({ scores: [] }),
+      "POST /bookmarks/api/scores": () =>
+        jsonResponse({ message: "ok", id: 1, score: 45230, rank: 2, total: 8 }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -136,28 +129,13 @@ describe("useScore (tetris)", () => {
     expect(third).toBe(45230);
   });
 
-  it("saveScore adopta la posición (rank/total/bestTimeMs) que devuelve fetchMyRank cuando entra en el top 10", async () => {
+  it("saveScore adopta el rank/total del resultado de ESTA partida (no el mejor histórico) tal cual los devuelve el POST", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
-        [GET_SCORES]: () => jsonResponse({ scores: [] }),
-        [GET_MY_RANK]: () =>
-          jsonResponse({
-            username: "me",
-            games: [
-              {
-                gameId: 3,
-                gameName: "Tetris",
-                found: true,
-                score: 20_000,
-                rank: 1,
-                total: 10,
-                gameConfig: null,
-                createdAt: "t",
-              },
-            ],
-          }),
-        [POST_SCORES]: () => jsonResponse({ message: "ok", id: 1, score: 20_000 }),
+        "GET /bookmarks/api/scores": () => jsonResponse({ scores: [] }),
+        "POST /bookmarks/api/scores": () =>
+          jsonResponse({ message: "ok", id: 1, score: 20_000, rank: 25, total: 40 }),
       })
     );
 
@@ -168,56 +146,18 @@ describe("useScore (tetris)", () => {
       await result.current.saveScore("nonce-1", [{ type: "resume", t: 0 } as const] as any);
     });
 
-    expect(result.current.lastResult).toEqual({ rank: 1, total: 10, bestTimeMs: 20_000 });
-  });
-
-  it("saveScore deja rank/total/bestTimeMs en null cuando fetchMyRank no encuentra puntuación", async () => {
-    vi.stubGlobal(
-      "fetch",
-      routeFetch({
-        [GET_SCORES]: () => jsonResponse({ scores: [] }),
-        [GET_MY_RANK]: () =>
-          jsonResponse({
-            username: "me",
-            games: [
-              { gameId: 3, gameName: "Tetris", found: false, score: null, rank: null, total: null, gameConfig: null, createdAt: null },
-            ],
-          }),
-        [POST_SCORES]: () => jsonResponse({ message: "ok", id: 1, score: 99_999 }),
-      })
-    );
-
-    const { result } = renderHook(() => useScore());
-
-    await act(async () => {
-      await result.current.saveScore("nonce-1", [{ type: "resume", t: 0 } as const] as any);
-    });
-
-    expect(result.current.lastResult).toEqual({ rank: null, total: null, bestTimeMs: null });
+    // Aunque el jugador ya tuviera un mejor puesto guardado de antes, lo que
+    // se muestra es el resultado de ESTA ronda (posición 25 de 40).
+    expect(result.current.lastResult).toEqual({ timeMs: 20_000, rank: 25, total: 40 });
   });
 
   it("resetSaveGuard limpia lastResult", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
-        [GET_SCORES]: () => jsonResponse({ scores: [] }),
-        [GET_MY_RANK]: () =>
-          jsonResponse({
-            username: "me",
-            games: [
-              {
-                gameId: 3,
-                gameName: "Tetris",
-                found: true,
-                score: 5_000,
-                rank: 3,
-                total: 5,
-                gameConfig: null,
-                createdAt: "t",
-              },
-            ],
-          }),
-        [POST_SCORES]: () => jsonResponse({ message: "ok", id: 1, score: 5_000 }),
+        "GET /bookmarks/api/scores": () => jsonResponse({ scores: [] }),
+        "POST /bookmarks/api/scores": () =>
+          jsonResponse({ message: "ok", id: 1, score: 5_000, rank: 3, total: 5 }),
       })
     );
 
@@ -237,8 +177,8 @@ describe("useScore (tetris)", () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
-        [GET_SCORES]: () => jsonResponse({ scores: [] }),
-        [POST_SCORES]: () => jsonResponse({ error: "Invalid game" }, false),
+        "GET /bookmarks/api/scores": () => jsonResponse({ scores: [] }),
+        "POST /bookmarks/api/scores": () => jsonResponse({ error: "Invalid game" }, false),
       })
     );
 

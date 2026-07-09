@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GAME_IDS } from "@/app/lib/scores/types";
-import { fetchMyRank, fetchTopScores } from "@/app/lib/scores/client";
+import { fetchTopScores } from "@/app/lib/scores/client";
 import { ROUNDS_TOTAL, WordsSaveResult } from "./useWordsGame";
 
 export type WordsScoreEntry = {
@@ -68,12 +68,12 @@ export function useWordsScore() {
         const confirmedScore = typeof data.score === "number" ? data.score : null;
         if (confirmedScore === null) return null;
 
-        // Posición en el ranking completo (no solo el top 10 recargado).
-        const myRank = await fetchMyRank(GAME_IDS.WORDS);
+        // El propio POST ya trae la posición de ESTA partida en el ranking
+        // completo (no el mejor histórico del jugador).
         return {
           score: confirmedScore,
-          rank: myRank?.rank ?? null,
-          total: myRank?.total ?? null,
+          rank: typeof data.rank === "number" ? data.rank : null,
+          total: typeof data.total === "number" ? data.total : null,
         };
       } catch (e) {
         console.error("Error saving score:", e);

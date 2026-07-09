@@ -16,7 +16,7 @@ vi.mock("mysql2/promise", () => ({
   },
 }));
 
-import { getScoresForGame, insertScore } from "./db";
+import { getScoreRank, getScoresForGame, insertScore } from "./db";
 
 beforeEach(() => {
   executeMock.mockClear();
@@ -45,6 +45,35 @@ describe("getScoresForGame", () => {
       const [sql] = executeMock.mock.calls.at(-1) as [string, unknown[]];
       expect(sql).toMatch(/ORDER BY s\.score DESC/);
     }
+  });
+});
+
+describe("getScoreRank", () => {
+  it("busca el rank/total de UNA fila concreta (por id), ordenando ASC para tetris", async () => {
+    executeMock.mockResolvedValueOnce([[{ rank: 4, total: 12 }]]);
+
+    const result = await getScoreRank(3, 77);
+
+    expect(result).toEqual({ rank: 4, total: 12 });
+    const [sql, params] = executeMock.mock.calls.at(-1) as [string, unknown[]];
+    expect(sql).toMatch(/ORDER BY score ASC/);
+    expect(sql).not.toMatch(/WHERE userId/);
+    expect(params).toEqual([3, 77]);
+  });
+
+  it("ordena DESC para el resto de juegos", async () => {
+    executeMock.mockResolvedValueOnce([[{ rank: 1, total: 1 }]]);
+
+    await getScoreRank(1, 5);
+
+    const [sql] = executeMock.mock.calls.at(-1) as [string, unknown[]];
+    expect(sql).toMatch(/ORDER BY score DESC/);
+  });
+
+  it("lanza si la fila insertada no aparece en el resultado (invariante rota)", async () => {
+    executeMock.mockResolvedValueOnce([[]]);
+
+    await expect(getScoreRank(3, 999)).rejects.toThrow(/not found/);
   });
 });
 

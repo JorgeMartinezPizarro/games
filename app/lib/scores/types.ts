@@ -29,6 +29,10 @@ export type SaveScoreResponse = {
   message: string;
   id: number;
   score: number;
+  // Posición del score recién guardado (esta partida concreta, no
+  // necesariamente el mejor histórico del jugador) en el ranking completo.
+  rank: number;
+  total: number;
 };
 
 export type ScoresErrorResponse = {

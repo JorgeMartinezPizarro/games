@@ -222,6 +222,39 @@ export async function insertScore(
   return result.insertId;
 }
 
+export type ScoreRank = { rank: number; total: number };
+
+function scoreRankByIdQuery(direction: "ASC" | "DESC"): string {
+  return `
+    SELECT rank, total FROM (
+      SELECT
+        id,
+        ROW_NUMBER() OVER (ORDER BY score ${direction}) AS rank,
+        COUNT(*) OVER () AS total
+      FROM scores
+      WHERE gameId = ?
+    ) ranked
+    WHERE id = ?
+  `;
+}
+
+// Posición de UNA partida concreta (por id, no "tu mejor histórico") dentro
+// del ranking completo de ese juego: el resultado conseguido en ESA ronda,
+// aunque el jugador ya tuviera un puesto mejor guardado de antes.
+export async function getScoreRank(gameId: GameId, scoreId: number): Promise<ScoreRank> {
+  const direction = GAME_DIRECTIONS[gameId] === "asc" ? "ASC" : "DESC";
+  const db = await getDb();
+  const [rows] = await db.execute<RowDataPacket[]>(scoreRankByIdQuery(direction), [
+    gameId,
+    scoreId,
+  ]);
+  const row = (rows as ScoreRank[])[0];
+  if (!row) {
+    throw new Error(`Score ${scoreId} not found for gameId ${gameId} when computing rank.`);
+  }
+  return row;
+}
+
 export async function getScoresForGame(gameId: GameId): Promise<ScoreEntry[]> {
   // La dirección "ganadora" depende del juego (ver GAME_DIRECTIONS): en la
   // mayoría mayor score es mejor, pero tetris guarda tiempo en ms (menor es

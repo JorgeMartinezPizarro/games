@@ -7,21 +7,17 @@ function jsonResponse(body: unknown, ok = true): Response {
   return { ok, status: ok ? 200 : 500, json: async () => body } as unknown as Response;
 }
 
-// Se mantiene la query string completa como parte de la clave: loadScores
-// (GET .../scores?gameId=4) y fetchMyRank (GET .../scores?me=true&gameId=4)
-// comparten path pero son endpoints distintos.
 function routeFetch(handlers: Record<string, () => Response | Promise<Response>>) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input.toString();
-    const key = `${init?.method ?? "GET"} ${url}`;
+    const key = `${init?.method ?? "GET"} ${url.split("?")[0]}`;
     const handler = handlers[key];
     if (!handler) throw new Error(`Unhandled fetch call: ${key}`);
     return handler();
   });
 }
 
-const GET_SCORES = "GET /bookmarks/api/scores?gameId=4";
-const GET_MY_RANK = "GET /bookmarks/api/scores?me=true&gameId=4";
+const GET_SCORES = "GET /bookmarks/api/scores";
 const POST_SCORES = "POST /bookmarks/api/scores";
 
 afterEach(() => {
@@ -75,28 +71,12 @@ describe("useWordsScore", () => {
     });
   });
 
-  it("saveScore adopta la posición en el ranking completo (rank/total) vía fetchMyRank", async () => {
+  it("saveScore adopta el rank/total de ESTA partida (no el mejor histórico) tal cual los devuelve el POST", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
         [GET_SCORES]: () => jsonResponse({ scores: [] }),
-        [GET_MY_RANK]: () =>
-          jsonResponse({
-            username: "me",
-            games: [
-              {
-                gameId: 4,
-                gameName: "Wording",
-                found: true,
-                score: 3000,
-                rank: 1,
-                total: 25,
-                gameConfig: null,
-                createdAt: "t",
-              },
-            ],
-          }),
-        [POST_SCORES]: () => jsonResponse({ score: 3000 }),
+        [POST_SCORES]: () => jsonResponse({ score: 3000, rank: 25, total: 40 }),
       })
     );
 
@@ -107,15 +87,16 @@ describe("useWordsScore", () => {
       saveResult = await result.current.saveScore("nonce-1");
     });
 
-    expect(saveResult).toEqual({ score: 3000, rank: 1, total: 25 });
+    // Aunque el jugador ya tuviera un mejor puesto guardado de antes, lo que
+    // se muestra es el resultado de ESTA ronda (posición 25 de 40).
+    expect(saveResult).toEqual({ score: 3000, rank: 25, total: 40 });
   });
 
-  it("saveScore deja rank/total en null cuando fetchMyRank no encuentra puntuación", async () => {
+  it("saveScore deja rank/total en null cuando el backend no los manda", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
         [GET_SCORES]: () => jsonResponse({ scores: [] }),
-        [GET_MY_RANK]: () => jsonResponse({ username: "me", games: [] }),
         [POST_SCORES]: () => jsonResponse({ score: 500 }),
       })
     );
@@ -133,8 +114,7 @@ describe("useWordsScore", () => {
   it("saveScore no vuelve a guardar hasta que se llama a resetSaveGuard", async () => {
     const fetchMock = routeFetch({
       [GET_SCORES]: () => jsonResponse({ scores: [] }),
-      [GET_MY_RANK]: () => jsonResponse({ username: "me", games: [] }),
-      [POST_SCORES]: () => jsonResponse({ score: 1000 }),
+      [POST_SCORES]: () => jsonResponse({ score: 1000, rank: 1, total: 1 }),
     });
     vi.stubGlobal("fetch", fetchMock);
 

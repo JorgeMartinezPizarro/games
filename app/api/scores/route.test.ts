@@ -18,6 +18,7 @@ vi.mock("@/app/lib/scores/db", () => ({
   getDb: vi.fn(),
   ensureUser: vi.fn(),
   insertScore: vi.fn(),
+  getScoreRank: vi.fn(),
   getScoresForGame: vi.fn(),
   getPlayerBestScoreForGame: vi.fn(),
   getPlayerBestScores: vi.fn(),
@@ -28,7 +29,7 @@ import { consumeTetrisGame } from "@/app/lib/tetris/db";
 import { consumeNumbersGame } from "@/app/lib/numbers/db";
 import { consumeWordsGame } from "@/app/lib/words/db";
 import { consumeChessGame } from "@/app/lib/chess/db";
-import { insertScore } from "@/app/lib/scores/db";
+import { insertScore, getScoreRank } from "@/app/lib/scores/db";
 import { LINES_TARGET } from "@/app/lib/tetris/engine";
 import { buildTwoRowClearActions, findSeedWithConsecutiveOPieces } from "@/app/lib/tetris/testFixtures";
 import type { CellValues } from "@/app/types";
@@ -116,13 +117,20 @@ describe("POST /api/scores (tetris)", () => {
     const seed = findSeedWithConsecutiveOPieces(5);
     vi.mocked(consumeTetrisGame).mockResolvedValue(makeStoredGame({ seed }));
     vi.mocked(insertScore).mockResolvedValue(77);
+    vi.mocked(getScoreRank).mockResolvedValue({ rank: 4, total: 12 });
 
     const actions = buildTwoRowClearActions();
     const res = await POST(request({ gameId: 3, nonce: "n1", actions }));
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toEqual({ message: "Score saved successfully.", id: 77, score: 37_000 });
+    expect(body).toEqual({
+      message: "Score saved successfully.",
+      id: 77,
+      score: 37_000,
+      rank: 4,
+      total: 12,
+    });
     expect(insertScore).toHaveBeenCalledWith(
       user,
       3,
@@ -225,6 +233,7 @@ describe("POST /api/scores (numbers)", () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeNumbersGame).mockResolvedValue(makeStoredNumbersGame());
     vi.mocked(insertScore).mockResolvedValue(1);
+    vi.mocked(getScoreRank).mockResolvedValue({ rank: 1, total: 1 });
 
     const res = await POST(
       request({
@@ -267,6 +276,7 @@ describe("POST /api/scores (numbers)", () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeNumbersGame).mockResolvedValue(makeStoredNumbersGame({ createdAt: CREATED_AT }));
     vi.mocked(insertScore).mockResolvedValue(55);
+    vi.mocked(getScoreRank).mockResolvedValue({ rank: 6, total: 20 });
 
     // Tour completo de las 4 casillas del anillo: steps=4, elapsed=37000ms
     // (NOW - CREATED_AT). pace = max(37000/4, 150) = 9250 =>
@@ -282,7 +292,13 @@ describe("POST /api/scores (numbers)", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toEqual({ message: "Score saved successfully.", id: 55, score: 2 });
+    expect(body).toEqual({
+      message: "Score saved successfully.",
+      id: 55,
+      score: 2,
+      rank: 6,
+      total: 20,
+    });
     expect(insertScore).toHaveBeenCalledWith(user, 2, 2, JSON.stringify({ steps: 4 }));
   });
 });
@@ -347,13 +363,20 @@ describe("POST /api/scores (words)", () => {
       makeStoredWordsGame({ answeredCount: 4, ended: true })
     );
     vi.mocked(insertScore).mockResolvedValue(11);
+    vi.mocked(getScoreRank).mockResolvedValue({ rank: 7, total: 15 });
 
     // elapsed=37000ms (NOW - CREATED_AT) => round(4^3*11000/37000) = round(19.027...) = 19.
     const res = await POST(request({ gameId: 4, nonce: "n1" }));
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toEqual({ message: "Score saved successfully.", id: 11, score: 19 });
+    expect(body).toEqual({
+      message: "Score saved successfully.",
+      id: 11,
+      score: 19,
+      rank: 7,
+      total: 15,
+    });
     expect(insertScore).toHaveBeenCalledWith(
       user,
       4,
@@ -368,13 +391,20 @@ describe("POST /api/scores (words)", () => {
       makeStoredWordsGame({ answeredCount: 10, ended: false })
     );
     vi.mocked(insertScore).mockResolvedValue(22);
+    vi.mocked(getScoreRank).mockResolvedValue({ rank: 1, total: 15 });
 
     // elapsed=37000ms => round(10^3*11000/37000) = round(297.297...) = 297.
     const res = await POST(request({ gameId: 4, nonce: "n1" }));
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toEqual({ message: "Score saved successfully.", id: 22, score: 297 });
+    expect(body).toEqual({
+      message: "Score saved successfully.",
+      id: 22,
+      score: 297,
+      rank: 1,
+      total: 15,
+    });
     expect(insertScore).toHaveBeenCalledWith(
       user,
       4,
@@ -464,12 +494,19 @@ describe("POST /api/scores (chess)", () => {
       makeStoredChessGame({ elo: 1500, moves: SCHOLARS_MATE })
     );
     vi.mocked(insertScore).mockResolvedValue(99);
+    vi.mocked(getScoreRank).mockResolvedValue({ rank: 3, total: 10 });
 
     const res = await POST(request({ gameId: 1, nonce: "n1" }));
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toEqual({ message: "Score saved successfully.", id: 99, score: 1500 });
+    expect(body).toEqual({
+      message: "Score saved successfully.",
+      id: 99,
+      score: 1500,
+      rank: 3,
+      total: 10,
+    });
     expect(insertScore).toHaveBeenCalledWith(
       user,
       1,

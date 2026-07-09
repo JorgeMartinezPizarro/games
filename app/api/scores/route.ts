@@ -3,6 +3,7 @@ import {
   getPlayerBestScoreForGame,
   getPlayerBestScores,
   getPlayersBeatenByScore,
+  getScoreRank,
   getScoresForGame,
   insertScore,
 } from "@/app/lib/scores/db";
@@ -180,11 +181,14 @@ async function saveChessScore(request: NextRequest, user: AuthUser, params: any)
   await createActivity(request, GAME_IDS.CHESS, score, user.id);
 
   const id = await insertScore(user, GAME_IDS.CHESS, score, serializedConfig.value);
+  const { rank, total } = await getScoreRank(GAME_IDS.CHESS, id);
 
   const body: SaveScoreResponse = {
     message: "Score saved successfully.",
     id,
     score,
+    rank,
+    total,
   };
   return Response.json(body, { status: 200 });
 }
@@ -234,11 +238,14 @@ async function saveNumbersScore(request: NextRequest, user: AuthUser, params: an
 
   await createActivity(request, GAME_IDS.NUMBERS, finalScore, user.id);
   const id = await insertScore(user, GAME_IDS.NUMBERS, finalScore, serializedConfig.value);
+  const { rank, total } = await getScoreRank(GAME_IDS.NUMBERS, id);
 
   const body: SaveScoreResponse = {
     message: "Score saved successfully.",
     id,
     score: finalScore,
+    rank,
+    total,
   };
   return Response.json(body, { status: 200 });
 }
@@ -281,11 +288,14 @@ async function saveWordsScore(request: NextRequest, user: AuthUser, params: any)
   await createActivity(request, GAME_IDS.WORDS, finalScore, user.id);
 
   const id = await insertScore(user, GAME_IDS.WORDS, finalScore, serializedConfig.value);
+  const { rank, total } = await getScoreRank(GAME_IDS.WORDS, id);
 
   const body: SaveScoreResponse = {
     message: "Score saved successfully.",
     id,
     score: finalScore,
+    rank,
+    total,
   };
   return Response.json(body, { status: 200 });
 }
@@ -325,11 +335,14 @@ async function saveTetrisScore(request: NextRequest, user: AuthUser, params: any
   await createActivity(request, GAME_IDS.TETRIS, elapsed, user.id);
 
   const id = await insertScore(user, GAME_IDS.TETRIS, elapsed, serializedConfig.value);
+  const { rank, total } = await getScoreRank(GAME_IDS.TETRIS, id);
 
   const body: SaveScoreResponse = {
     message: "Score saved successfully.",
     id,
     score: elapsed,
+    rank,
+    total,
   };
   return Response.json(body, { status: 200 });
 }
@@ -392,11 +405,14 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     const id = await insertScore(user, parsedGameId, parsedScore, serializedConfig.value);
+    const { rank, total } = await getScoreRank(parsedGameId, id);
 
     const body: SaveScoreResponse = {
       message: "Score saved successfully.",
       id,
       score: parsedScore,
+      rank,
+      total,
     };
 
     return Response.json(body, { status: 200 });

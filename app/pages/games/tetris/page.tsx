@@ -431,7 +431,7 @@ const Tetris: React.FC = () => {
 				topScores={score.topScores}
 				mineTimeMs={
 					score.lastResult?.rank != null && score.lastResult.rank <= 10
-						? score.lastResult.bestTimeMs
+						? score.lastResult.timeMs
 						: null
 				}
 			/>

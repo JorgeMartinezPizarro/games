@@ -3,8 +3,12 @@
 import { useCallback, useState } from "react";
 import { CellValues, RecordEntry } from "@/app/types";
 import { GAME_IDS, ScoreEntry } from "@/app/lib/scores/types";
-import { fetchMyRank, fetchTopScores, MyRank } from "@/app/lib/scores/client";
+import { fetchTopScores } from "@/app/lib/scores/client";
 import { NumbersMove } from "@/app/lib/numbers/board";
+
+// Posición de ESTA partida concreta (no el mejor histórico del jugador) en
+// el ranking completo del juego (no solo el top 10).
+export type MyRank = { rank: number; total: number };
 
 export type NumbersScoreEntry = {
   score: number;
@@ -88,8 +92,11 @@ export function useScoreNumbers() {
         }
 
         await loadScores();
-        if (confirmedScore !== null) {
-          setMyRank(await fetchMyRank(GAME_IDS.NUMBERS));
+        // El propio POST ya trae la posición de ESTA partida en el ranking
+        // completo (calculada sobre la fila recién insertada), no el mejor
+        // histórico del jugador.
+        if (confirmedScore !== null && typeof data.rank === "number" && typeof data.total === "number") {
+          setMyRank({ rank: data.rank, total: data.total });
         }
         return confirmedScore;
       } catch (error) {
