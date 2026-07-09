@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { CellValues, RecordEntry } from "@/app/types";
 import { GAME_IDS, ScoreEntry } from "@/app/lib/scores/types";
-import { fetchTopScores } from "@/app/lib/scores/client";
+import { fetchMyRank, fetchTopScores, MyRank } from "@/app/lib/scores/client";
 import { NumbersMove } from "@/app/lib/numbers/board";
 
 export type NumbersScoreEntry = {
@@ -32,6 +32,10 @@ export function useScoreNumbers() {
   // Marca la fila a resaltar en la lista cuando el score confirmado por el
   // backend supera el mejor score que había en el leaderboard hasta ahora.
   const [recordEntry, setRecordEntry] = useState<RecordEntry | null>(null);
+
+  // Posición del jugador en el ranking completo (no solo el top 10),
+  // consultada aparte tras guardar el score.
+  const [myRank, setMyRank] = useState<MyRank | null>(null);
 
   const loadScores = useCallback(async () => {
     setError(undefined);
@@ -84,6 +88,9 @@ export function useScoreNumbers() {
         }
 
         await loadScores();
+        if (confirmedScore !== null) {
+          setMyRank(await fetchMyRank(GAME_IDS.NUMBERS));
+        }
         return confirmedScore;
       } catch (error) {
         console.error("Error saving score:", error);
@@ -97,7 +104,8 @@ export function useScoreNumbers() {
   const resetScore = useCallback(() => {
     setScoreSaved(false);
     setRecordEntry(null);
+    setMyRank(null);
   }, []);
 
-  return { topScores, error, loadScores, saveScore, resetScore, recordEntry };
+  return { topScores, error, loadScores, saveScore, resetScore, recordEntry, myRank };
 }

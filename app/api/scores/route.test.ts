@@ -13,6 +13,7 @@ vi.mock("@/app/lib/auth", () => ({ requireAuth: vi.fn() }));
 vi.mock("@/app/lib/tetris/db", () => ({ consumeTetrisGame: vi.fn() }));
 vi.mock("@/app/lib/numbers/db", () => ({ consumeNumbersGame: vi.fn() }));
 vi.mock("@/app/lib/words/db", () => ({ consumeWordsGame: vi.fn() }));
+vi.mock("@/app/lib/chess/db", () => ({ consumeChessGame: vi.fn() }));
 vi.mock("@/app/lib/scores/db", () => ({
   getDb: vi.fn(),
   ensureUser: vi.fn(),
@@ -26,6 +27,7 @@ import { requireAuth } from "@/app/lib/auth";
 import { consumeTetrisGame } from "@/app/lib/tetris/db";
 import { consumeNumbersGame } from "@/app/lib/numbers/db";
 import { consumeWordsGame } from "@/app/lib/words/db";
+import { consumeChessGame } from "@/app/lib/chess/db";
 import { insertScore } from "@/app/lib/scores/db";
 import { LINES_TARGET } from "@/app/lib/tetris/engine";
 import { buildTwoRowClearActions, findSeedWithConsecutiveOPieces } from "@/app/lib/tetris/testFixtures";
@@ -379,5 +381,107 @@ describe("POST /api/scores (words)", () => {
       297,
       JSON.stringify({ wordsTotal: 10, correctAnswers: 10 })
     );
+  });
+});
+
+// Secuencias reales de ajedrez (UCI) usadas para probar saveChessScore /
+// replayChessMoves de verdad (sin mockear chess.js): el mate del pastor
+// (el jugador, con blancas, da mate) y el mate del necio (el jugador recibe
+// mate en su propia jugada 2, el caso "autoinfligido" que NO debe puntuar).
+const SCHOLARS_MATE = ["e2e4", "e7e5", "d1h5", "b8c6", "f1c4", "g8f6", "h5f7"];
+const FOOLS_MATE = ["f2f3", "e7e5", "g2g4", "d8h4"];
+
+function makeStoredChessGame(
+  overrides: Partial<{ userId: string; elo: number; moves: string[]; createdAt: number }> = {}
+) {
+  return {
+    userId: "user-1",
+    elo: 1500,
+    moves: SCHOLARS_MATE,
+    movesJson: JSON.stringify(overrides.moves ?? SCHOLARS_MATE),
+    createdAt: CREATED_AT,
+    ...overrides,
+  };
+}
+
+describe("POST /api/scores (chess)", () => {
+  it("responde 400 si falta el nonce", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+
+    const res = await POST(request({ gameId: 1, nonce: "" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/nonce/i);
+  });
+
+  it("responde 400 si el nonce no existe, expiró o pertenece a otro usuario", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+    vi.mocked(consumeChessGame).mockResolvedValue(null);
+
+    const res = await POST(request({ gameId: 1, nonce: "n1" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Invalid, expired or already used nonce/);
+    expect(insertScore).not.toHaveBeenCalled();
+  });
+
+  it("responde 400 si el log de jugadas guardado tiene una jugada ilegal", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+    vi.mocked(consumeChessGame).mockResolvedValue(makeStoredChessGame({ moves: ["e2e5"] }));
+
+    const res = await POST(request({ gameId: 1, nonce: "n1" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Invalid game: Illegal move in recorded history/);
+    expect(insertScore).not.toHaveBeenCalled();
+  });
+
+  it("responde 400 si la partida guardada no ha terminado", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+    vi.mocked(consumeChessGame).mockResolvedValue(
+      makeStoredChessGame({ moves: ["e2e4", "e7e5"] })
+    );
+
+    const res = await POST(request({ gameId: 1, nonce: "n1" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Game is not complete/);
+    expect(insertScore).not.toHaveBeenCalled();
+  });
+
+  // Mate del necio: la partida SÍ termina, pero es el propio jugador (blancas)
+  // quien recibe jaque mate — el caso "autoinfligido" que el comentario de
+  // saveChessScore explícitamente dice que no debe puntuar.
+  it("responde 400 si la partida termina en mate autoinfligido (pierde el jugador)", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+    vi.mocked(consumeChessGame).mockResolvedValue(makeStoredChessGame({ moves: FOOLS_MATE }));
+
+    const res = await POST(request({ gameId: 1, nonce: "n1" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Game did not end in a win for the player/);
+    expect(insertScore).not.toHaveBeenCalled();
+  });
+
+  it("partida válida (el jugador da mate): guarda el score (elo) y el nº de jugadas", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+    vi.mocked(consumeChessGame).mockResolvedValue(
+      makeStoredChessGame({ elo: 1500, moves: SCHOLARS_MATE })
+    );
+    vi.mocked(insertScore).mockResolvedValue(99);
+
+    const res = await POST(request({ gameId: 1, nonce: "n1" }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ message: "Score saved successfully.", id: 99, score: 1500 });
+    expect(insertScore).toHaveBeenCalledWith(
+      user,
+      1,
+      1500,
+      JSON.stringify({ elo: 1500, plies: SCHOLARS_MATE.length })
+    );
+  });
+
+  it("responde 500 si requireAuth lanza", async () => {
+    vi.mocked(requireAuth).mockRejectedValue(new Error("No session cookie"));
+
+    const res = await POST(request({ gameId: 1, nonce: "n1" }));
+    expect(res.status).toBe(500);
   });
 });

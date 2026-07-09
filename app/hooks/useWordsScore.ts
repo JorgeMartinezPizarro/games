@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GAME_IDS } from "@/app/lib/scores/types";
-import { fetchTopScores } from "@/app/lib/scores/client";
+import { fetchMyRank, fetchTopScores } from "@/app/lib/scores/client";
 import { ROUNDS_TOTAL, WordsSaveResult } from "./useWordsGame";
 
 export type WordsScoreEntry = {
@@ -64,14 +64,17 @@ export function useWordsScore() {
           return null;
         }
 
-        const updated = await loadScores();
+        await loadScores();
         const confirmedScore = typeof data.score === "number" ? data.score : null;
         if (confirmedScore === null) return null;
 
-        // Mayor score es mejor (cubo de aciertos entre tiempo), igual que numbers.
-        const sorted = [...updated].sort((a, b) => b.score - a.score);
-        const idx = sorted.findIndex((s) => s.score === confirmedScore);
-        return { score: confirmedScore, rank: idx >= 0 && idx < 10 ? idx + 1 : null };
+        // Posición en el ranking completo (no solo el top 10 recargado).
+        const myRank = await fetchMyRank(GAME_IDS.WORDS);
+        return {
+          score: confirmedScore,
+          rank: myRank?.rank ?? null,
+          total: myRank?.total ?? null,
+        };
       } catch (e) {
         console.error("Error saving score:", e);
         scoreSavedRef.current = false;

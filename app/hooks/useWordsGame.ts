@@ -14,7 +14,7 @@ export type Round = {
 
 export type WordsGameState = "idle" | "loading" | "playing" | "finished";
 
-export type WordsSaveResult = { score: number; rank: number | null };
+export type WordsSaveResult = { score: number; rank: number | null; total: number | null };
 
 // Estimación local con la misma fórmula que el servidor
 // (computeWordsScore en app/lib/words/scoring.ts), para mostrar algo
@@ -68,6 +68,7 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
   // rellena al ganar o perder una ronda, nunca al finalizar con "quit".
   const [finishedScore, setFinishedScore] = useState<number | null>(null);
   const [finishedRank, setFinishedRank] = useState<number | null>(null);
+  const [finishedTotal, setFinishedTotal] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
   const [pickedChoice, setPickedChoice] = useState<string | null>(null);
   const [revealedTarget, setRevealedTarget] = useState<string | null>(null);
@@ -114,6 +115,7 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
     setFinishedTime(null);
     setFinishedScore(null);
     setFinishedRank(null);
+    setFinishedTotal(null);
     setFeedback(null);
     setPickedChoice(null);
     setRevealedTarget(null);
@@ -186,6 +188,7 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
             if (result) {
               setFinishedScore(result.score);
               setFinishedRank(result.rank);
+              setFinishedTotal(result.total);
             }
           }, 500);
           return;
@@ -208,6 +211,7 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
             if (result) {
               setFinishedScore(result.score);
               setFinishedRank(result.rank);
+              setFinishedTotal(result.total);
             }
           } else {
             setCurrentRound((c) => c + 1);
@@ -252,6 +256,7 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
     finishedTime,
     finishedScore,
     finishedRank,
+    finishedTotal,
     feedback,
     pickedChoice,
     revealedTarget,

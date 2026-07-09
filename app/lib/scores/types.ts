@@ -148,6 +148,7 @@ export type PlayerGameBest = {
   found: boolean;
   score: number | null;
   rank: number | null;
+  total: number | null;
   gameConfig: ReturnType<typeof parseStoredGameConfig> | null;
   createdAt: string | null;
 };

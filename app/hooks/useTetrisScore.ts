@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GAME_IDS, ScoreEntry } from "@/app/lib/scores/types";
-import { fetchTopScores } from "@/app/lib/scores/client";
+import { fetchMyRank, fetchTopScores } from "@/app/lib/scores/client";
 import { formatTimeMs } from "@/app/lib/scores/format";
 import { LINES_TARGET, TetrisAction } from "./useTetris";
 
@@ -33,19 +33,16 @@ function parseLeaderboardEntry(entry: ScoreEntry): LeaderboardEntry {
   };
 }
 
-// Resultado de la última partida confirmada por el backend: el tiempo final
-// y, si entró en el top 10 del leaderboard, la posición (1-based) que ocupa
-// ahí. `rank` queda a null si el tiempo no entró en el top 10.
+// Resultado de la última partida confirmada por el backend: tu posición
+// (1-based) en el ranking completo del juego (no solo el top 10) y el total
+// de partidas guardadas, más el tiempo de tu mejor marca histórica (puede no
+// ser el de esta partida si ya tenías uno mejor) — este último solo se usa
+// para resaltar tu fila en la tabla de top 10 cuando aplica.
 export type LastResult = {
-  timeMs: number;
   rank: number | null;
+  total: number | null;
+  bestTimeMs: number | null;
 };
-
-function rankInTop10(scores: LeaderboardEntry[], timeMs: number): number | null {
-  const sorted = [...scores].sort((a, b) => a.timeMs - b.timeMs).slice(0, 10);
-  const idx = sorted.findIndex((entry) => entry.timeMs === timeMs);
-  return idx === -1 ? null : idx + 1;
-}
 
 /**
  * Hook con toda la lógica de marcador (carga y guardado de puntuaciones).
@@ -71,8 +68,9 @@ export function useScore() {
   // partir del seed y el log de acciones (app/lib/tetris/replay.ts) y solo
   // si llega de forma legal a LINES_TARGET calcula el tiempo con su propio
   // reloj. Devolvemos ese valor para que useTetris lo adopte como
-  // elapsedMs final. También calculamos, con el leaderboard recién
-  // recargado, si ese tiempo entra en el top 10 y en qué posición.
+  // elapsedMs final. También pedimos, aparte, tu posición exacta en el
+  // ranking completo (fetchMyRank), sin depender de que tu tiempo esté
+  // entre las primeras filas que devuelve el top 10.
   const saveScore = useCallback(
     async (nonce: string, actions: TetrisAction[]): Promise<number | null> => {
       if (scoreSavedRef.current) return null;
@@ -90,9 +88,14 @@ export function useScore() {
         if (response.ok) {
           const data = await response.json();
           const confirmed = typeof data.score === "number" ? data.score : null;
-          const freshScores = await loadScores();
+          await loadScores();
           if (confirmed !== null) {
-            setLastResult({ timeMs: confirmed, rank: rankInTop10(freshScores, confirmed) });
+            const myRank = await fetchMyRank(GAME_IDS.TETRIS);
+            setLastResult({
+              rank: myRank?.rank ?? null,
+              total: myRank?.total ?? null,
+              bestTimeMs: myRank?.bestScore ?? null,
+            });
           }
           return confirmed;
         }

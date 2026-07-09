@@ -344,6 +344,7 @@ function toPlayerGameBest(
     found: best !== null,
     score: best?.score ?? null,
     rank: best?.rank ?? null,
+    total: best?.total ?? null,
     gameConfig: best?.gameConfig ?? null,
     createdAt: best?.createdAt ?? null,
   };

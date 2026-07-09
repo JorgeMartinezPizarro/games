@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GAME_IDS, ScoreEntry } from "@/app/lib/scores/types";
-import { fetchTopScores } from "@/app/lib/scores/client";
+import { fetchMyRank, fetchTopScores, MyRank } from "@/app/lib/scores/client";
 
 export type ChessScoreEntry = {
   elo: number;
@@ -25,6 +25,7 @@ function parseScoreEntry(entry: ScoreEntry): ChessScoreEntry {
 export function useChessScore() {
   const [topScores, setTopScores] = useState<ChessScoreEntry[]>([]);
   const [scoreError, setScoreError] = useState<string | null>(null);
+  const [myRank, setMyRank] = useState<MyRank | null>(null);
   const scoreSavedRef = useRef(false);
 
   const loadScores = useCallback(async () => {
@@ -57,6 +58,7 @@ export function useChessScore() {
           throw new Error(errorData.error || "Error al guardar la puntuación");
         }
         await loadScores();
+        setMyRank(await fetchMyRank(GAME_IDS.CHESS));
         return true;
       } catch (error) {
         console.error("Error saving score:", error);
@@ -71,11 +73,12 @@ export function useChessScore() {
   // Se debe llamar al reiniciar partida para permitir guardar de nuevo
   const resetSaveGuard = useCallback(() => {
     scoreSavedRef.current = false;
+    setMyRank(null);
   }, []);
 
   useEffect(() => {
     loadScores();
   }, [loadScores]);
 
-  return { topScores, scoreError, loadScores, saveScore, resetSaveGuard };
+  return { topScores, scoreError, myRank, loadScores, saveScore, resetSaveGuard };
 }

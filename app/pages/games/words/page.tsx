@@ -7,6 +7,17 @@ import "./styles.css";
 import { CHOICES, ROUNDS_TOTAL, useWordsGame } from "@/app/hooks/useWordsGame";
 import { formatMs, useWordsScore } from "@/app/hooks/useWordsScore";
 
+// Posición en el ranking completo (no solo el top 10): se muestra siempre
+// que se conoce, con más brillo si de verdad entró en el top 10.
+function RankLine({ rank, total }: { rank: number | null; total: number | null }) {
+  if (rank === null || total === null) return null;
+  return (
+    <p className={"finished-summary__rank" + (rank <= 10 ? " finished-summary__rank--top10" : "")}>
+      Tu posición: #{rank} de {total}
+    </p>
+  );
+}
+
 const Wording = () => {
   const [showScores, setShowScores] = useState(false);
 
@@ -25,6 +36,7 @@ const Wording = () => {
     finishedTime,
     finishedScore,
     finishedRank,
+    finishedTotal,
     feedback,
     pickedChoice,
     revealedTarget,
@@ -165,15 +177,7 @@ const Wording = () => {
                         Fallaste en la ronda {currentRound + 1}.
                       </p>
                     )}
-                    {finishedRank !== null ? (
-                      <p className="finished-summary__rank">
-                        🏆 ¡Puesto #{finishedRank} del top 10!
-                      </p>
-                    ) : (
-                      <p className="finished-summary__rank finished-summary__rank--outside">
-                        No has entrado en el top 10 esta vez.
-                      </p>
-                    )}
+                    <RankLine rank={finishedRank} total={finishedTotal} />
                   </>
                 )}
               </div>
@@ -205,13 +209,7 @@ const Wording = () => {
               <div className="finished-summary__time">
                 🎯 Tu puntuación: {finishedScore}
               </div>
-              {finishedRank !== null ? (
-                <p className="finished-summary__rank">🏆 ¡Puesto #{finishedRank} del top 10!</p>
-              ) : (
-                <p className="finished-summary__rank finished-summary__rank--outside">
-                  No has entrado en el top 10 esta vez.
-                </p>
-              )}
+              <RankLine rank={finishedRank} total={finishedTotal} />
             </div>
           )}
 

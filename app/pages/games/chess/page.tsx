@@ -284,6 +284,17 @@ const ChessGame: React.FC = () => {
 
               <Typography
                 variant="body2"
+                sx={{
+                  fontWeight: "bold",
+                  color: score.myRank && score.myRank.rank <= 10 ? "secondary.main" : "text.secondary",
+                  visibility: score.myRank ? "visible" : "hidden",
+                }}
+              >
+                {score.myRank ? `Tu posición: #${score.myRank.rank} de ${score.myRank.total}` : "placeholder"}
+              </Typography>
+
+              <Typography
+                variant="body2"
                 color="textSecondary"
                 sx={{ visibility: isAIThinking ? "visible" : "hidden" }}
               >

@@ -207,6 +207,21 @@
     color: #ff5252;
 }
 
+/* Posición en el ranking completo (no solo el top 10), mostrada siempre que
+   se conoce al terminar la partida. Un poco más de brillo si sí entró en
+   el top 10. */
+.center-panel-rank {
+    font-family: 'Press Start 2P', 'VT323', 'Courier New', monospace !important;
+    font-size: clamp(9px, 2.4vw, 12px);
+    margin-top: 4px;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.center-panel-rank-top10 {
+    color: #ffea00;
+    text-shadow: 0 0 8px #ff9800;
+}
+
 .center-reset-btn {
     margin-top: 12px;
     font-size: clamp(14px, 3.6vw, 18px) !important;

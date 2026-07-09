@@ -410,8 +410,13 @@ const Tetris: React.FC = () => {
 			</Typography>
 			)}
 			{gameCompleted && score.lastResult?.rank != null && (
-			<Typography className="tetris-status tetris-status--rank">
-				Has hecho {formatTimeMs(score.lastResult.timeMs)} y has entrado en la posición {score.lastResult.rank}
+			<Typography
+				className={
+					"tetris-status tetris-status--rank" +
+					(score.lastResult.rank <= 10 ? " tetris-status--rank-top10" : "")
+				}
+			>
+				Tu posición: #{score.lastResult.rank} de {score.lastResult.total}
 			</Typography>
 			)}
 			{gameOver && <Typography className="tetris-status tetris-status--over">GAME OVER</Typography>}
@@ -422,7 +427,14 @@ const Tetris: React.FC = () => {
 		{showGame ? (
 			<BoardView board={board} piece={piece} pos={pos} active={ready} lockVisual={lockVisual} lockBoard={lockBoard} />
 		) : (
-			<Scoreboard topScores={score.topScores} mineTimeMs={score.lastResult?.rank != null ? score.lastResult.timeMs : null} />
+			<Scoreboard
+				topScores={score.topScores}
+				mineTimeMs={
+					score.lastResult?.rank != null && score.lastResult.rank <= 10
+						? score.lastResult.bestTimeMs
+						: null
+				}
+			/>
 		)}
 	  </Box>
 

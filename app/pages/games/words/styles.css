@@ -219,16 +219,23 @@
   margin: 2px 0;
 }
 
+/* Se muestra siempre que se conoce la posición (top 10 o no); la variante
+   --top10 reutiliza el dorado de antes cuando de verdad entra en el top 10. */
 .finished-summary__rank {
   font-size: clamp(12px, 3vw, 15px);
-  color: var(--neon-gold);
-  font-weight: bold;
+  color: var(--text-muted);
+  font-weight: normal;
   margin: 4px 0 0 0;
 }
 
 .finished-summary__rank--outside {
   color: var(--text-muted);
   font-weight: normal;
+}
+
+.finished-summary__rank--top10 {
+  color: var(--neon-gold);
+  font-weight: bold;
 }
 
 /* Solo este wrapper scrollea, nunca el panel completo */

@@ -97,7 +97,7 @@ type ScoreRow = {
   createdAt: string;
 };
 
-type RankedScoreRow = ScoreRow & { userId: string | null; rank: number };
+type RankedScoreRow = ScoreRow & { userId: string | null; rank: number; total: number };
 
 // Dirección "ganadora" por juego: 'desc' = mayor score es mejor (Chess,
 // Numbers y Wording: cubo de aciertos entre tiempo), 'asc' = menor score es
@@ -111,16 +111,20 @@ const GAME_DIRECTIONS: Record<GameId, "asc" | "desc"> = {
 
 const ALL_GAME_IDS: GameId[] = [1, 2, 3, 4];
 
+// `total` (COUNT(*) OVER (), sin filtrar) viaja en la misma fila que el
+// mejor puesto del jugador: así "tu posición: #Z de N" sale de una sola
+// consulta, sin depender del LIMIT 100 de getScoresForGame.
 function rankQuery(direction: "ASC" | "DESC"): string {
   return `
-    SELECT userId, username, score, gameConfig, createdAt, rank FROM (
+    SELECT userId, username, score, gameConfig, createdAt, rank, total FROM (
       SELECT
         s.userId AS userId,
         COALESCE(u.name, s.username) AS username,
         s.score AS score,
         s.gameConfig AS gameConfig,
         s.createdAt AS createdAt,
-        ROW_NUMBER() OVER (ORDER BY s.score ${direction}) AS rank
+        ROW_NUMBER() OVER (ORDER BY s.score ${direction}) AS rank,
+        COUNT(*) OVER () AS total
       FROM scores s
       LEFT JOIN users u ON s.userId = u.id
       WHERE s.gameId = ?
@@ -219,6 +223,13 @@ export async function insertScore(
 }
 
 export async function getScoresForGame(gameId: GameId): Promise<ScoreEntry[]> {
+  // La dirección "ganadora" depende del juego (ver GAME_DIRECTIONS): en la
+  // mayoría mayor score es mejor, pero tetris guarda tiempo en ms (menor es
+  // mejor). Antes esto siempre ordenaba DESC, así que en tetris el LIMIT 100
+  // se quedaba con las 100 partidas MÁS LENTAS y podía dejar fuera del
+  // ranking (y de cualquier cálculo de posición) los mejores tiempos en
+  // cuanto hubiera más de 100 partidas guardadas.
+  const direction = GAME_DIRECTIONS[gameId] === "asc" ? "ASC" : "DESC";
   const db = await getDb();
   const [rows] = await db.execute<RowDataPacket[]>(
     `
@@ -226,7 +237,7 @@ export async function getScoresForGame(gameId: GameId): Promise<ScoreEntry[]> {
       FROM scores s
       LEFT JOIN users u ON s.userId = u.id
       WHERE s.gameId = ?
-      ORDER BY s.score DESC
+      ORDER BY s.score ${direction}
       LIMIT 100
     `,
     [gameId]
@@ -248,6 +259,7 @@ export type PlayerBestScore = {
   gameConfig: ReturnType<typeof parseStoredGameConfig>;
   createdAt: string;
   rank: number;
+  total: number;
 };
 
 export async function getPlayerBestScoreForGame(
@@ -269,6 +281,7 @@ export async function getPlayerBestScoreForGame(
     gameConfig: parseStoredGameConfig(row.gameConfig),
     createdAt: row.createdAt,
     rank: row.rank,
+    total: row.total,
   };
 }
 

@@ -8,15 +8,22 @@ function jsonResponse(body: unknown, ok = true): Response {
   return { ok, status: ok ? 200 : 500, json: async () => body } as unknown as Response;
 }
 
+// Se mantiene la query string completa como parte de la clave: loadScores
+// (GET .../scores?gameId=2) y fetchMyRank (GET .../scores?me=true&gameId=2)
+// comparten path pero son endpoints distintos.
 function routeFetch(handlers: Record<string, () => Response | Promise<Response>>) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input.toString();
-    const key = `${init?.method ?? "GET"} ${url.split("?")[0]}`;
+    const key = `${init?.method ?? "GET"} ${url}`;
     const handler = handlers[key];
     if (!handler) throw new Error(`Unhandled fetch call: ${key}`);
     return handler();
   });
 }
+
+const GET_SCORES = "GET /bookmarks/api/scores?gameId=2";
+const GET_MY_RANK = "GET /bookmarks/api/scores?me=true&gameId=2";
+const POST_SCORES = "POST /bookmarks/api/scores";
 
 const board: CellValues[] = [{ values: { n: 1, b: false, i: 0 } }];
 
@@ -31,7 +38,7 @@ describe("useScoreNumbers", () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
-        "GET /bookmarks/api/scores": () =>
+        [GET_SCORES]: () =>
           jsonResponse({
             scores: [
               { score: 1200, userId: "u1", username: "u1", gameConfig: { steps: 18 }, createdAt: "t1" },
@@ -84,8 +91,9 @@ describe("useScoreNumbers", () => {
 
   it("saveScore manda el nonce/board/moves y adopta el score confirmado por el servidor", async () => {
     const fetchMock = routeFetch({
-      "GET /bookmarks/api/scores": () => jsonResponse({ scores: [] }),
-      "POST /bookmarks/api/scores": () => jsonResponse({ message: "ok", id: 1, score: 555 }),
+      [GET_SCORES]: () => jsonResponse({ scores: [] }),
+      [GET_MY_RANK]: () => jsonResponse({ username: "me", games: [] }),
+      [POST_SCORES]: () => jsonResponse({ message: "ok", id: 1, score: 555 }),
     });
     vi.stubGlobal("fetch", fetchMock);
     const { result } = renderHook(() => useScoreNumbers());
@@ -103,8 +111,9 @@ describe("useScoreNumbers", () => {
 
   it("saveScore solo guarda una vez hasta resetScore", async () => {
     const fetchMock = routeFetch({
-      "GET /bookmarks/api/scores": () => jsonResponse({ scores: [] }),
-      "POST /bookmarks/api/scores": () => jsonResponse({ score: 100 }),
+      [GET_SCORES]: () => jsonResponse({ scores: [] }),
+      [GET_MY_RANK]: () => jsonResponse({ username: "me", games: [] }),
+      [POST_SCORES]: () => jsonResponse({ score: 100 }),
     });
     vi.stubGlobal("fetch", fetchMock);
     const { result } = renderHook(() => useScoreNumbers());
@@ -132,9 +141,10 @@ describe("useScoreNumbers", () => {
 
   it("marca recordEntry solo cuando el score confirmado supera el mejor anterior", async () => {
     const fetchMock = routeFetch({
-      "GET /bookmarks/api/scores": () =>
+      [GET_SCORES]: () =>
         jsonResponse({ scores: [{ score: 500, userId: "u1", gameConfig: {}, createdAt: "t" }] }),
-      "POST /bookmarks/api/scores": () => jsonResponse({ score: 300 }),
+      [GET_MY_RANK]: () => jsonResponse({ username: "me", games: [] }),
+      [POST_SCORES]: () => jsonResponse({ score: 300 }),
     });
     vi.stubGlobal("fetch", fetchMock);
     const { result } = renderHook(() => useScoreNumbers());
@@ -151,11 +161,44 @@ describe("useScoreNumbers", () => {
     expect(result.current.recordEntry).toBeNull();
   });
 
+  it("saveScore consulta y adopta la posición en el ranking completo (myRank) tras guardar", async () => {
+    const fetchMock = routeFetch({
+      [GET_SCORES]: () => jsonResponse({ scores: [] }),
+      [GET_MY_RANK]: () =>
+        jsonResponse({
+          username: "me",
+          games: [
+            {
+              gameId: 2,
+              gameName: "Numbers",
+              found: true,
+              score: 555,
+              rank: 4,
+              total: 37,
+              gameConfig: null,
+              createdAt: "t",
+            },
+          ],
+        }),
+      [POST_SCORES]: () => jsonResponse({ score: 555 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useScoreNumbers());
+
+    expect(result.current.myRank).toBeNull();
+
+    await act(async () => {
+      await result.current.saveScore(10, 5, [0, 1, 2], "nonce-1", board);
+    });
+
+    expect(result.current.myRank).toEqual({ rank: 4, total: 37, bestScore: 555 });
+  });
+
   it("saveScore devuelve null si el servidor responde con fallo, sin bloquear reintentos", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
-        "POST /bookmarks/api/scores": () => jsonResponse({ error: "bad" }, false),
+        [POST_SCORES]: () => jsonResponse({ error: "bad" }, false),
       })
     );
     const { result } = renderHook(() => useScoreNumbers());
@@ -181,10 +224,17 @@ describe("useScoreNumbers", () => {
     expect(secondAttempted).toBe(true);
   });
 
-  it("resetScore limpia recordEntry", async () => {
+  it("resetScore limpia recordEntry y myRank", async () => {
     const fetchMock = routeFetch({
-      "GET /bookmarks/api/scores": () => jsonResponse({ scores: [] }),
-      "POST /bookmarks/api/scores": () => jsonResponse({ score: 42 }),
+      [GET_SCORES]: () => jsonResponse({ scores: [] }),
+      [GET_MY_RANK]: () =>
+        jsonResponse({
+          username: "me",
+          games: [
+            { gameId: 2, gameName: "Numbers", found: true, score: 42, rank: 9, total: 12, gameConfig: null, createdAt: "t" },
+          ],
+        }),
+      [POST_SCORES]: () => jsonResponse({ score: 42 }),
     });
     vi.stubGlobal("fetch", fetchMock);
     const { result } = renderHook(() => useScoreNumbers());
@@ -193,8 +243,10 @@ describe("useScoreNumbers", () => {
       await result.current.saveScore(1, 3, [0], "n1", board);
     });
     expect(result.current.recordEntry).toEqual({ score: 42, steps: 3 });
+    expect(result.current.myRank).toEqual({ rank: 9, total: 12, bestScore: 42 });
 
     act(() => result.current.resetScore());
     expect(result.current.recordEntry).toBeNull();
+    expect(result.current.myRank).toBeNull();
   });
 });

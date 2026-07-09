@@ -12,7 +12,7 @@ const GamesComponent = () => {
   const [view, setView] = useState<'play' | 'scores'>('play')
   const [mounted, setMounted] = useState(false)
 
-  const { topScores, error, loadScores, saveScore, resetScore, recordEntry } = useScoreNumbers()
+  const { topScores, error, loadScores, saveScore, resetScore, recordEntry, myRank } = useScoreNumbers()
 
   const {
     numbers,
@@ -188,6 +188,13 @@ const GamesComponent = () => {
                   {gameOver && (
                     <Typography className={"center-panel-status" + (!isRight ? " danger" : " win")}>
                       {!isRight ? "💀 GAME OVER" : "🏆 ¡COMPLETADO!"}
+                    </Typography>
+                  )}
+                  {gameOver && myRank && (
+                    <Typography
+                      className={"center-panel-rank" + (myRank.rank <= 10 ? " center-panel-rank-top10" : "")}
+                    >
+                      Tu posición: #{myRank.rank} de {myRank.total}
                     </Typography>
                   )}
                 </>

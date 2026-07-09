@@ -237,15 +237,25 @@
   box-shadow: 0 0 16px #ffcc0088, 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
+/* Posición en el ranking: se muestra siempre que se conoce (top 10 o no).
+   Estilo neutro por defecto; si de verdad entró en el top 10, la variante
+   --rank-top10 reutiliza el tratamiento dorado para que destaque más. */
 .tetris-status--rank {
   display: inline-block;
   margin: 0 auto 3px;
-  color: #1a1a2e;
-  background: linear-gradient(90deg, #ffcc00, #ff9900);
+  color: #aaffcc;
+  background: rgba(0, 255, 204, 0.08);
   text-shadow: none;
   font-size: 11px;
   padding: 4px 12px;
   border-radius: 6px;
+  border: 1px solid #00ffcc44;
+}
+
+.tetris-status--rank-top10 {
+  color: #1a1a2e;
+  background: linear-gradient(90deg, #ffcc00, #ff9900);
+  border: none;
   box-shadow: 0 0 20px #ff990088, 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 

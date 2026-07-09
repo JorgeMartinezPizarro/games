@@ -161,7 +161,7 @@ describe("useWordsGame", () => {
           jsonResponse({ correct: false, target: "correcta" }),
       })
     );
-    const onComplete = vi.fn().mockResolvedValue({ score: 42, rank: 7 });
+    const onComplete = vi.fn().mockResolvedValue({ score: 42, rank: 7, total: 20 });
 
     const { result } = renderHook(() => useWordsGame({ onComplete }));
     await act(async () => {
@@ -182,6 +182,7 @@ describe("useWordsGame", () => {
     expect(onComplete).toHaveBeenCalledWith("nonce-1");
     expect(result.current.finishedScore).toBe(42);
     expect(result.current.finishedRank).toBe(7);
+    expect(result.current.finishedTotal).toBe(20);
   });
 
   it("la última ronda correcta llama a onComplete y adopta su resultado", async () => {
@@ -193,7 +194,7 @@ describe("useWordsGame", () => {
         "POST /bookmarks/api/words/answer": () => jsonResponse({ correct: true, finished: true }),
       })
     );
-    const onComplete = vi.fn().mockResolvedValue({ score: 12345, rank: 3 });
+    const onComplete = vi.fn().mockResolvedValue({ score: 12345, rank: 3, total: 50 });
 
     const { result } = renderHook(() => useWordsGame({ onComplete }));
     await act(async () => {
@@ -213,6 +214,7 @@ describe("useWordsGame", () => {
     expect(result.current.score).toBe(1);
     expect(result.current.finishedScore).toBe(12345);
     expect(result.current.finishedRank).toBe(3);
+    expect(result.current.finishedTotal).toBe(50);
   });
 
   it("handleQuit termina la partida en curso sin marcarla como ganada", async () => {
