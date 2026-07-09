@@ -223,6 +223,32 @@
   text-shadow: 0 0 8px #ff3030;
 }
 
+/* Score recién conseguido: sombreado en dorado para que destaque sobre el
+   resto de la cabecera. Si además entró en el top 10, la línea de posición
+   (tetris-status--rank) reutiliza el mismo tratamiento. */
+.tetris-status--highlight {
+  display: inline-block;
+  margin: 0 auto 3px;
+  color: #1a1a2e;
+  background: linear-gradient(90deg, #ffe066, #ffcc00);
+  text-shadow: none;
+  padding: 4px 12px;
+  border-radius: 6px;
+  box-shadow: 0 0 16px #ffcc0088, 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.tetris-status--rank {
+  display: inline-block;
+  margin: 0 auto 3px;
+  color: #1a1a2e;
+  background: linear-gradient(90deg, #ffcc00, #ff9900);
+  text-shadow: none;
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  box-shadow: 0 0 20px #ff990088, 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
 /* ───────────────────────── Tablero ─────────────────────────
    El tamaño se resuelve enteramente en CSS (sin medir el DOM por JS),
    para evitar el parpadeo/recalculo que provocaba que el tablero se

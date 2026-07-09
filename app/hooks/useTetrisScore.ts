@@ -33,19 +33,37 @@ function parseLeaderboardEntry(entry: ScoreEntry): LeaderboardEntry {
   };
 }
 
+// Resultado de la última partida confirmada por el backend: el tiempo final
+// y, si entró en el top 10 del leaderboard, la posición (1-based) que ocupa
+// ahí. `rank` queda a null si el tiempo no entró en el top 10.
+export type LastResult = {
+  timeMs: number;
+  rank: number | null;
+};
+
+function rankInTop10(scores: LeaderboardEntry[], timeMs: number): number | null {
+  const sorted = [...scores].sort((a, b) => a.timeMs - b.timeMs).slice(0, 10);
+  const idx = sorted.findIndex((entry) => entry.timeMs === timeMs);
+  return idx === -1 ? null : idx + 1;
+}
+
 /**
  * Hook con toda la lógica de marcador (carga y guardado de puntuaciones).
  * No contiene nada de UI.
  */
 export function useScore() {
   const [topScores, setTopScores] = useState<LeaderboardEntry[]>([]);
+  const [lastResult, setLastResult] = useState<LastResult | null>(null);
   const scoreSavedRef = useRef(false);
 
-  const loadScores = useCallback(async () => {
+  const loadScores = useCallback(async (): Promise<LeaderboardEntry[]> => {
     try {
-      setTopScores(await fetchTopScores(GAME_IDS.TETRIS, parseLeaderboardEntry));
+      const scores = await fetchTopScores(GAME_IDS.TETRIS, parseLeaderboardEntry);
+      setTopScores(scores);
+      return scores;
     } catch {
       // silencioso: el marcador simplemente no se actualiza
+      return [];
     }
   }, []);
 
@@ -53,7 +71,8 @@ export function useScore() {
   // partir del seed y el log de acciones (app/lib/tetris/replay.ts) y solo
   // si llega de forma legal a LINES_TARGET calcula el tiempo con su propio
   // reloj. Devolvemos ese valor para que useTetris lo adopte como
-  // elapsedMs final.
+  // elapsedMs final. También calculamos, con el leaderboard recién
+  // recargado, si ese tiempo entra en el top 10 y en qué posición.
   const saveScore = useCallback(
     async (nonce: string, actions: TetrisAction[]): Promise<number | null> => {
       if (scoreSavedRef.current) return null;
@@ -70,8 +89,12 @@ export function useScore() {
         });
         if (response.ok) {
           const data = await response.json();
-          await loadScores();
-          return typeof data.score === "number" ? data.score : null;
+          const confirmed = typeof data.score === "number" ? data.score : null;
+          const freshScores = await loadScores();
+          if (confirmed !== null) {
+            setLastResult({ timeMs: confirmed, rank: rankInTop10(freshScores, confirmed) });
+          }
+          return confirmed;
         }
         scoreSavedRef.current = false;
         return null;
@@ -86,11 +109,12 @@ export function useScore() {
   // Se debe llamar al reiniciar partida para permitir guardar de nuevo
   const resetSaveGuard = useCallback(() => {
     scoreSavedRef.current = false;
+    setLastResult(null);
   }, []);
 
   useEffect(() => {
     loadScores();
   }, [loadScores]);
 
-  return { topScores, loadScores, saveScore, resetSaveGuard };
+  return { topScores, loadScores, saveScore, resetSaveGuard, lastResult };
 }

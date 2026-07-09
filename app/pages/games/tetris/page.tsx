@@ -289,7 +289,13 @@ const MobileControls = React.memo(function MobileControls({
 
 // ───────────────────────── Marcador (memoizado) ─────────────────────────
 
-const Scoreboard = React.memo(function Scoreboard({ topScores }: { topScores: LeaderboardEntry[] }) {
+const Scoreboard = React.memo(function Scoreboard({
+  topScores,
+  mineTimeMs,
+}: {
+  topScores: LeaderboardEntry[];
+  mineTimeMs?: number | null;
+}) {
   const sorted = useMemo(() => [...topScores].sort((a, b) => a.timeMs - b.timeMs).slice(0, 10), [topScores]);
   return (
     <Box className="tetris-panel-width tetris-scoreboard">
@@ -306,14 +312,20 @@ const Scoreboard = React.memo(function Scoreboard({ topScores }: { topScores: Le
             </tr>
           </thead>
           <tbody>
-            {sorted.map((entry, i) => (
-              <tr key={`${entry.userId}-${entry.timeMs}-${i}`} className={i === 0 ? "is-first" : "is-rest"}>
-                <td>{i + 1}</td>
-                <td>{entry.userId}</td>
-                <td>{formatTimeMs(entry.timeMs)}</td>
-                <td>{entry.linesTarget}</td>
-              </tr>
-            ))}
+            {sorted.map((entry, i) => {
+              const isMine = mineTimeMs != null && entry.timeMs === mineTimeMs;
+              return (
+                <tr
+                  key={`${entry.userId}-${entry.timeMs}-${i}`}
+                  className={(i === 0 ? "is-first" : "is-rest") + (isMine ? " is-mine" : "")}
+                >
+                  <td>{i + 1}</td>
+                  <td>{entry.userId}</td>
+                  <td>{formatTimeMs(entry.timeMs)}</td>
+                  <td>{entry.linesTarget}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
@@ -393,8 +405,13 @@ const Tetris: React.FC = () => {
 			</Box>
 
 			{gameCompleted && (
-			<Typography className="tetris-status tetris-status--complete">
+			<Typography className="tetris-status tetris-status--complete tetris-status--highlight">
 				★ COMPLETE: {formatTimeMs(elapsedMs)} ★
+			</Typography>
+			)}
+			{gameCompleted && score.lastResult?.rank != null && (
+			<Typography className="tetris-status tetris-status--rank">
+				Has hecho {formatTimeMs(score.lastResult.timeMs)} y has entrado en la posición {score.lastResult.rank}
 			</Typography>
 			)}
 			{gameOver && <Typography className="tetris-status tetris-status--over">GAME OVER</Typography>}
@@ -405,7 +422,7 @@ const Tetris: React.FC = () => {
 		{showGame ? (
 			<BoardView board={board} piece={piece} pos={pos} active={ready} lockVisual={lockVisual} lockBoard={lockBoard} />
 		) : (
-			<Scoreboard topScores={score.topScores} />
+			<Scoreboard topScores={score.topScores} mineTimeMs={score.lastResult?.rank != null ? score.lastResult.timeMs : null} />
 		)}
 	  </Box>
 
