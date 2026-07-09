@@ -59,13 +59,8 @@ const GamesComponent = () => {
     )
   }
 
-  const getCenterButtonText = (rowIndex: number, colIndex: number) => {
-    if (steps === 0 && rowIndex === 1 && colIndex === 1) return "Let's"
-    if (steps === 0 && rowIndex === 1 && colIndex === 2) return "Play"
-    if (!isRight && rowIndex === 1 && colIndex === 1) return "GAME"
-    if (!isRight && rowIndex === 1 && colIndex === 2) return "OVER"
-    return ""
-  }
+  const gameStarted = steps > 0 || !isRight
+  const gameOver = steps === 20 || !isRight
 
   return (
     <>
@@ -135,19 +130,6 @@ const GamesComponent = () => {
 
         {view === 'play' && numbers.length === 20 && (
           <Box className={"box" + (loading ? " loading" : "")}>
-            <Box className="controls">
-              <Button data-testid="reset-btn" className={"arcade-btn" + (!isRight ? " danger" : "")} onClick={newGame}>Reset</Button>
-              <Button className="arcade-btn" disabled>Score</Button>
-              <Button data-testid="score-value" className="arcade-btn" disabled>{currentScore}</Button>
-              <Button className="arcade-btn" disabled>Steps</Button>
-              <Button data-testid="steps-value" className="arcade-btn" disabled>{steps}</Button>
-              {isRight ? (
-                <Button className="arcade-btn" disabled>{}</Button>
-              ) : (
-                <Button className="arcade-btn danger" disabled>💀</Button>
-              )}
-            </Box>
-
             {topRow.map(number => (
               <Box key={`top-${number.values.i}`} className="cell-border">
                 <Button
@@ -177,11 +159,7 @@ const GamesComponent = () => {
                 </Box>
 
                 {[0, 1, 2, 3].map(colIndex => (
-                  <Box key={`center-${rowIndex}-${colIndex}`} className="cell-center">
-                    <Button disabled className={"arcade-btn" + (!isRight ? " danger" : "")}>
-                      {getCenterButtonText(rowIndex, colIndex)}
-                    </Button>
-                  </Box>
+                  <Box key={`center-${rowIndex}-${colIndex}`} className="cell-center" />
                 ))}
 
                 <Box key={`right-${rowIndex}`} className="cell-border">
@@ -197,6 +175,35 @@ const GamesComponent = () => {
                 </Box>
               </React.Fragment>
             ))}
+
+            <Box className="center-panel">
+              {!gameStarted ? (
+                <Typography className="center-panel-hint">¡Let&apos;s Play!</Typography>
+              ) : (
+                <>
+                  <Typography className="center-panel-label">Score</Typography>
+                  <Typography data-testid="score-value" className="center-panel-value">{currentScore}</Typography>
+                  <Typography className="center-panel-label">Steps</Typography>
+                  <Typography data-testid="steps-value" className="center-panel-value center-panel-value-steps">{steps}</Typography>
+                  {gameOver && (
+                    <Typography className={"center-panel-status" + (!isRight ? " danger" : " win")}>
+                      {!isRight ? "💀 GAME OVER" : "🏆 ¡COMPLETADO!"}
+                    </Typography>
+                  )}
+                </>
+              )}
+              <Button
+                data-testid="reset-btn"
+                className={
+                  "arcade-btn center-reset-btn" +
+                  (!isRight ? " danger" : "") +
+                  (gameOver ? " reset-btn-prominent" : "")
+                }
+                onClick={newGame}
+              >
+                {gameOver ? "🔄 REINTENTAR" : "🔄 RESET"}
+              </Button>
+            </Box>
 
             {bottomRow.map(number => (
               <Box key={`bot-${number.values.i}`} className="cell-border">
