@@ -151,7 +151,11 @@ test.describe("Numbers", () => {
     const numbersBadge = page
       .locator(".MuiCard-root", { hasText: "Numbers" })
       .locator(".MuiTypography-caption");
-    await expect(numbersBadge).not.toHaveText("Sin registro", { timeout: 15_000 });
+    // "not Sin registro" no basta: mientras useBestScores carga, el badge
+    // muestra "..." (tampoco es "Sin registro"), así que hay que esperar de
+    // verdad al patrón final "<score> · #<rank>", no solo a que cambie.
+    const scorePattern = /[\d.,]+\s*·\s*#\d+/;
+    await expect(numbersBadge).toHaveText(scorePattern, { timeout: 15_000 });
     const badgeMatch = (await numbersBadge.innerText()).match(/([\d.,]+)\s*·\s*#(\d+)/);
     expect(Number(badgeMatch?.[1].replace(/[^\d]/g, ""))).toBe(body.score);
     expect(Number(badgeMatch?.[2])).toBe(1);
