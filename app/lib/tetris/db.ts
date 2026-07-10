@@ -1,6 +1,6 @@
 import { getDb } from "@/app/lib/scores/db";
 import { randomSeed } from "@/app/lib/tetris/rng";
-import type { RowDataPacket } from "mysql2/promise";
+import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import crypto from "node:crypto";
 
 // Nonces caducan a los 30 minutos: una partida de tetris puede alargarse
@@ -60,7 +60,11 @@ export type StoredTetrisGame = {
 };
 
 // Lectura + borrado en un solo paso: el nonce solo puede usarse una vez,
-// tanto si la partida resulta válida como si no.
+// tanto si la partida resulta válida como si no. El DELETE comprueba
+// affectedRows en vez de asumir éxito: si dos peticiones concurrentes leen
+// el mismo nonce antes de que ninguna borre, ambas verían la fila y
+// puntuarían la misma partida dos veces sin esto — solo la que de verdad
+// borra la fila (affectedRows === 1) sigue adelante.
 export async function consumeTetrisGame(nonce: string): Promise<StoredTetrisGame | null> {
   await ensureTable();
 
@@ -73,7 +77,11 @@ export async function consumeTetrisGame(nonce: string): Promise<StoredTetrisGame
 
   if (!row) return null;
 
-  await db.execute(`DELETE FROM tetris_games WHERE nonce = ?`, [nonce]);
+  const [result] = await db.execute<ResultSetHeader>(
+    `DELETE FROM tetris_games WHERE nonce = ?`,
+    [nonce]
+  );
+  if (result.affectedRows !== 1) return null;
 
   if (Date.now() - row.createdAt > NONCE_MAX_AGE_MS) return null;
 

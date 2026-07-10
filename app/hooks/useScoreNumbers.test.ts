@@ -2,7 +2,15 @@
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CellValues } from "@/app/types";
+import type { NumbersMove } from "@/app/lib/numbers/board";
 import { useScoreNumbers } from "./useScoreNumbers";
+
+// saveScore espera NumbersMove[] ({i, t}), no índices sueltos: los
+// timestamps crecientes son arbitrarios, solo hace falta que sean válidos
+// como forma (el servidor real los valida, aquí solo se serializan).
+function moves(...indices: number[]): NumbersMove[] {
+  return indices.map((i, idx) => ({ i, t: idx * 100 }));
+}
 
 function jsonResponse(body: unknown, ok = true): Response {
   return { ok, status: ok ? 200 : 500, json: async () => body } as unknown as Response;
@@ -78,7 +86,7 @@ describe("useScoreNumbers", () => {
 
     let saved: number | null = 0;
     await act(async () => {
-      saved = await result.current.saveScore(10, 5, [0, 1], null, board);
+      saved = await result.current.saveScore(10, 5, moves(0, 1), null, board);
     });
 
     expect(saved).toBeNull();
@@ -95,13 +103,13 @@ describe("useScoreNumbers", () => {
 
     let saved: number | null = null;
     await act(async () => {
-      saved = await result.current.saveScore(10, 5, [0, 1, 2], "nonce-1", board);
+      saved = await result.current.saveScore(10, 5, moves(0, 1, 2), "nonce-1", board);
     });
 
     expect(saved).toBe(555);
     const postCall = fetchMock.mock.calls.find(([, init]) => (init as RequestInit)?.method === "POST");
     const body = JSON.parse((postCall![1] as RequestInit).body as string);
-    expect(body).toEqual({ gameId: 2, nonce: "nonce-1", board, moves: [0, 1, 2] });
+    expect(body).toEqual({ gameId: 2, nonce: "nonce-1", board, moves: moves(0, 1, 2) });
   });
 
   it("saveScore solo guarda una vez hasta resetScore", async () => {
@@ -115,10 +123,10 @@ describe("useScoreNumbers", () => {
     let first: number | null = null;
     let second: number | null = null;
     await act(async () => {
-      first = await result.current.saveScore(1, 1, [0], "n1", board);
+      first = await result.current.saveScore(1, 1, moves(0), "n1", board);
     });
     await act(async () => {
-      second = await result.current.saveScore(1, 1, [0], "n1", board);
+      second = await result.current.saveScore(1, 1, moves(0), "n1", board);
     });
 
     expect(first).toBe(100);
@@ -128,7 +136,7 @@ describe("useScoreNumbers", () => {
 
     let third: number | null = null;
     await act(async () => {
-      third = await result.current.saveScore(1, 1, [0], "n1", board);
+      third = await result.current.saveScore(1, 1, moves(0), "n1", board);
     });
     expect(third).toBe(100);
   });
@@ -147,7 +155,7 @@ describe("useScoreNumbers", () => {
     await waitFor(() => expect(result.current.topScores).toHaveLength(1));
 
     await act(async () => {
-      await result.current.saveScore(1, 7, [0], "n1", board);
+      await result.current.saveScore(1, 7, moves(0), "n1", board);
     });
 
     // 300 no supera el mejor previo (500): no hay récord
@@ -165,7 +173,7 @@ describe("useScoreNumbers", () => {
     expect(result.current.myRank).toBeNull();
 
     await act(async () => {
-      await result.current.saveScore(10, 5, [0, 1, 2], "nonce-1", board);
+      await result.current.saveScore(10, 5, moves(0, 1, 2), "nonce-1", board);
     });
 
     // Aunque el jugador ya tuviera un mejor puesto guardado de antes, lo que
@@ -184,7 +192,7 @@ describe("useScoreNumbers", () => {
 
     let saved: number | null = 0;
     await act(async () => {
-      saved = await result.current.saveScore(1, 1, [0], "n1", board);
+      saved = await result.current.saveScore(1, 1, moves(0), "n1", board);
     });
     expect(saved).toBeNull();
 
@@ -198,7 +206,7 @@ describe("useScoreNumbers", () => {
       })
     );
     await act(async () => {
-      saved = await result.current.saveScore(1, 1, [0], "n1", board);
+      saved = await result.current.saveScore(1, 1, moves(0), "n1", board);
     });
     expect(secondAttempted).toBe(true);
   });
@@ -212,7 +220,7 @@ describe("useScoreNumbers", () => {
     const { result } = renderHook(() => useScoreNumbers());
 
     await act(async () => {
-      await result.current.saveScore(1, 3, [0], "n1", board);
+      await result.current.saveScore(1, 3, moves(0), "n1", board);
     });
     expect(result.current.recordEntry).toEqual({ score: 42, steps: 3 });
     expect(result.current.myRank).toEqual({ rank: 9, total: 12 });

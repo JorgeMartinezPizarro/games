@@ -40,8 +40,8 @@ export type TetrisAction = {
 // Cotas de cordura: nada que ver con partidas reales, solo evitan que un
 // payload absurdo (array gigante o duración disparatada) haga trabajar de
 // más al servidor.
-const MAX_ACTIONS = 40000;
-const MAX_DURATION_MS = 60 * 60 * 1000; // 1h
+export const MAX_ACTIONS = 40000;
+export const MAX_DURATION_MS = 60 * 60 * 1000; // 1h
 
 export type ReplayResult =
   | { valid: true; lines: number }

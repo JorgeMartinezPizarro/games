@@ -5,7 +5,7 @@ import {
   type PublicWordsRound,
   type WordsRound,
 } from "@/app/lib/words/challenge";
-import type { RowDataPacket } from "mysql2/promise";
+import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import crypto from "node:crypto";
 
 // Nonces caducan a los 15 minutos, igual que en numbers: tiempo de sobra
@@ -135,10 +135,21 @@ export async function advanceWordsGame(nonce: string): Promise<number> {
 }
 
 // Lectura + borrado en un paso: solo puede usarse una vez para guardar el
-// score final, tanto si la partida estaba completa como si no.
+// score final, tanto si la partida estaba completa como si no. El DELETE
+// comprueba affectedRows en vez de asumir éxito: si dos peticiones
+// concurrentes leen el mismo nonce antes de que ninguna borre, ambas verían
+// la partida como válida y puntuarían dos veces la misma partida sin esto —
+// solo la que de verdad borra la fila (affectedRows === 1) sigue adelante.
 export async function consumeWordsGame(nonce: string): Promise<WordsGameState | null> {
   const game = await getWordsGame(nonce);
   if (!game) return null;
-  await deleteWordsGame(nonce);
+
+  const db = await getDb();
+  const [result] = await db.execute<ResultSetHeader>(
+    `DELETE FROM words_games WHERE nonce = ?`,
+    [nonce]
+  );
+  if (result.affectedRows !== 1) return null;
+
   return game;
 }

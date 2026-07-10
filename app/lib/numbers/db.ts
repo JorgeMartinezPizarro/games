@@ -1,7 +1,7 @@
 import { getDb } from "@/app/lib/scores/db";
 import { generateBoard } from "@/app/lib/numbers/board";
 import type { CellValues } from "@/app/types";
-import type { RowDataPacket } from "mysql2/promise";
+import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import crypto from "node:crypto";
 
 // Nonces caducan a los 15 minutos: tiempo de sobra para jugar una partida,
@@ -60,7 +60,11 @@ export type StoredNumbersGame = {
 };
 
 // Lee y borra el nonce en el mismo paso: solo puede consumirse una vez,
-// tanto si la partida resulta válida como si no.
+// tanto si la partida resulta válida como si no. El DELETE comprueba
+// affectedRows en vez de asumir éxito: si dos peticiones concurrentes leen
+// el mismo nonce antes de que ninguna borre, ambas verían la fila y
+// puntuarían la misma partida dos veces sin esto — solo la que de verdad
+// borra la fila (affectedRows === 1) sigue adelante.
 export async function consumeNumbersGame(nonce: string): Promise<StoredNumbersGame | null> {
   await ensureTable();
 
@@ -73,7 +77,11 @@ export async function consumeNumbersGame(nonce: string): Promise<StoredNumbersGa
 
   if (!row) return null;
 
-  await db.execute(`DELETE FROM numbers_games WHERE nonce = ?`, [nonce]);
+  const [result] = await db.execute<ResultSetHeader>(
+    `DELETE FROM numbers_games WHERE nonce = ?`,
+    [nonce]
+  );
+  if (result.affectedRows !== 1) return null;
 
   if (Date.now() - row.createdAt > NONCE_MAX_AGE_MS) return null;
 

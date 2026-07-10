@@ -32,6 +32,7 @@ import { consumeChessGame } from "@/app/lib/chess/db";
 import { insertScore, getScoreRank } from "@/app/lib/scores/db";
 import { LINES_TARGET } from "@/app/lib/tetris/engine";
 import { buildTwoRowClearActions, findSeedWithConsecutiveOPieces } from "@/app/lib/tetris/testFixtures";
+import { THREEFOLD_REPETITION_DRAW } from "@/app/lib/chess/testFixtures";
 import type { CellValues } from "@/app/types";
 import { POST } from "./route";
 
@@ -481,6 +482,22 @@ describe("POST /api/scores (chess)", () => {
   it("responde 400 si la partida termina en mate autoinfligido (pierde el jugador)", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeChessGame).mockResolvedValue(makeStoredChessGame({ moves: FOOLS_MATE }));
+
+    const res = await POST(request({ gameId: 1, nonce: "n1" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Game did not end in a win for the player/);
+    expect(insertScore).not.toHaveBeenCalled();
+  });
+
+  // Tablas por triple repetición: replay.gameOver es true (chess.isGameOver()
+  // también lo es en tablas), pero no es checkmate — no debe confundirse con
+  // una victoria del jugador ni puntuar. No depende de Stockfish/docker: es
+  // una partida real jugable con chess.js (ver app/lib/chess/testFixtures.ts).
+  it("responde 400 si la partida termina en tablas (no cuenta como victoria)", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+    vi.mocked(consumeChessGame).mockResolvedValue(
+      makeStoredChessGame({ moves: THREEFOLD_REPETITION_DRAW })
+    );
 
     const res = await POST(request({ gameId: 1, nonce: "n1" }));
     expect(res.status).toBe(400);
