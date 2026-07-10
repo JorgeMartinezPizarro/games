@@ -38,8 +38,16 @@ export default defineConfig({
   // la imagen de games con el código local en cada corrida; al terminar,
   // Playwright mata este proceso y compose para los contenedores.
   webServer: {
+    // Todo el output de docker compose (los 4 servicios + compose en sí) se
+    // redirige a cache/e2e-docker.log en vez de al stdout del proceso: con
+    // stdout/stderr:"pipe" quedaba intercalado en tiempo real con la tabla
+    // de resultados de Playwright, así que un test que terminaba a mitad de
+    // un chorro de logs de Stockfish/MariaDB quedaba invisible entre medias.
+    // Los logs no se pierden (siguen enteros en el fichero, útiles para
+    // depurar un arranque colgado) — solo dejan de competir por el mismo
+    // stdout mientras corren los tests, así la tabla final sale junta.
     command:
-      "docker compose -f docker-compose.yml -f docker-compose.e2e.yml --env-file .env.e2e -p games-e2e up --build",
+      "docker compose -f docker-compose.yml -f docker-compose.e2e.yml --env-file .env.e2e -p games-e2e up --build > cache/e2e-docker.log 2>&1",
     url: `${BASE_URL}/bookmarks`,
     // Siempre false, incluso en local: cada corrida debe partir de un
     // leaderboard vacío (ver global-setup.ts), así que "reutilizar" un stack
@@ -50,7 +58,7 @@ export default defineConfig({
     // (`npm run test:e2e` ya lo hace solo, ver package.json).
     reuseExistingServer: false,
     timeout: 5 * 60_000,
-    stdout: "pipe",
-    stderr: "pipe",
+    stdout: "ignore",
+    stderr: "ignore",
   },
 });

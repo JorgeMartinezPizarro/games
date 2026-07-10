@@ -50,6 +50,12 @@ test.describe("Words", () => {
     expect(typeof body.score).toBe("number");
     expect(body.score).toBeGreaterThanOrEqual(0);
 
+    // Leaderboard vacío al empezar la suite (ver global-setup.ts): esta es
+    // la primera partida de words, así que es récord por definición (#1 de
+    // 1) — se comprueba el aviso real, no solo que el score se guardó.
+    await expect(page.getByText(/Tu posición: #1 de 1/)).toBeVisible();
+    await expect(page.locator(".finished-summary__rank--top10")).toBeVisible();
+
     // El score guardado aparece en el ranking real (misma sesión, se recarga solo).
     await page.getByRole("button", { name: /Ver puntuaciones/ }).click();
     await expect(page.getByText("Mejores Puntuaciones")).toBeVisible();
@@ -58,5 +64,16 @@ test.describe("Words", () => {
       has: page.locator("td", { hasText: new RegExp(`^${body.score}$`) }),
     });
     await expect(targetRow.first()).toBeVisible();
+
+    // La portada (app/page.tsx) también debe cargar este score recién
+    // jugado en el botón de Wording, no solo el ranking del propio juego.
+    await page.goto("/bookmarks");
+    const wordingBadge = page
+      .locator(".MuiCard-root", { hasText: "Wording" })
+      .locator(".MuiTypography-caption");
+    await expect(wordingBadge).not.toHaveText("Sin registro", { timeout: 15_000 });
+    const badgeMatch = (await wordingBadge.innerText()).match(/([\d.,]+)\s*·\s*#(\d+)/);
+    expect(Number(badgeMatch?.[1].replace(/[^\d]/g, ""))).toBe(body.score);
+    expect(Number(badgeMatch?.[2])).toBe(1);
   });
 });

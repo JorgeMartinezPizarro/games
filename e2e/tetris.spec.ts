@@ -4,13 +4,14 @@ import { expect, test } from "@playwright/test";
 // completar eso de verdad requiere una estrategia real de apilado, fuera
 // de alcance para un smoke test. En su lugar: movimientos reales por
 // teclado (prueban la integración real con el seed del servidor) y luego
-// se deja que la gravedad natural (sin mover más) termine apilando hasta
-// un game over real, sin ningún atajo de test.
+// se mantiene S pulsada (soft drop real, mismo listener que useTetris probó
+// en los tests unitarios) sin mover más la columna de salida, hasta que
+// apila piezas y llega a un game over real, sin ningún atajo de test.
 test.describe("Tetris", () => {
   test("se puede jugar con teclado real y la partida termina en game over real", async ({
     page,
   }) => {
-    test.setTimeout(150_000);
+    test.setTimeout(90_000);
 
     await page.goto("/bookmarks/pages/games/tetris");
 
@@ -26,13 +27,15 @@ test.describe("Tetris", () => {
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("o"); // rotar izquierda
     await page.keyboard.press("p"); // rotar derecha
-    await page.keyboard.down("s"); // soft drop mantenido
-    await page.waitForTimeout(300);
-    await page.keyboard.up("s");
 
-    // Sin mover más: la gravedad sigue apilando piezas en la misma columna
-    // de salida hasta que topa (game over real, sin atajos).
-    await expect(page.getByText("GAME OVER")).toBeVisible({ timeout: 120_000 });
+    // Mantener S pulsada acelera la caída (soft drop repetido cada 100ms,
+    // HOLD_REPEAT_RATE en useTetris.ts) frente a la gravedad natural
+    // (184ms/fila, DROP_SPEED_MS): sin mover más la columna de salida, esto
+    // apila piezas y llega a un game over real bastante antes que soltar la
+    // tecla y esperar solo a la gravedad.
+    await page.keyboard.down("s");
+    await expect(page.getByText("GAME OVER")).toBeVisible({ timeout: 60_000 });
+    await page.keyboard.up("s");
     await expect(page.getByRole("button", { name: "START" })).toBeVisible();
   });
 });

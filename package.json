@@ -7,9 +7,9 @@
     "build": "next build",
     "start": "node run.js start",
     "lint": "next lint",
-    "test": "vitest run",
+    "test": "node run-unit-tests.js",
     "test:watch": "vitest",
-    "test:e2e": "npm run test:e2e:down && playwright test",
+    "test:e2e": "npm run test:e2e:down && node -e \"require('fs').mkdirSync('cache',{recursive:true})\" && playwright test",
     "test:e2e:down": "docker compose -f docker-compose.yml -f docker-compose.e2e.yml --env-file .env.e2e -p games-e2e down -v"
   },
   "dependencies": {
