@@ -11,6 +11,7 @@ services:
     environment:
       - PORT=${PORT}
       - NEXTCLOUD_URL=${NEXTCLOUD_URL}
+      - NEXTCLOUD_PUBLIC_URL=${NEXTCLOUD_PUBLIC_URL:-}
       - NEXTCLOUD_GAMING_SECRET=${NEXTCLOUD_GAMING_SECRET}
       - NEXT_PUBLIC_CHESS_URL=http://stockfish:8080
       - NEXT_PUBLIC_WORD_URL=http://wordlist:5000

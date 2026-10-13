@@ -1,0 +1,111 @@
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+/* --- StatTile --- */
+/* Tamaños ajustables desde fuera con --stat-pad / --stat-label / --stat-value
+   (p. ej. el marcador compacto de Tetris en móvil). */
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--stat-pad, 10px 14px);
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.statLabel {
+  color: var(--text-muted);
+  font-size: var(--stat-label, 11px);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.statValue {
+  font-size: var(--stat-value, 20px);
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+/* --- RankBadge --- */
+.rank {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.rank[data-top10="true"] {
+  background: rgba(251, 191, 36, 0.14);
+  color: var(--gold);
+  font-weight: 600;
+}
+
+/* --- GameIntro (pantalla antes de empezar) --- */
+.intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 420px;
+  margin: auto;
+  padding: 24px;
+  text-align: center;
+  animation: rise 320ms var(--ease) both;
+}
+
+.introIcon {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  margin-bottom: 6px;
+  border-radius: 26px;
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 0 0 10px var(--accent-soft), var(--shadow);
+}
+
+.introTitle {
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.introText {
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.introActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* --- Notice (errores y avisos discretos) --- */
+.notice {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 14px;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}

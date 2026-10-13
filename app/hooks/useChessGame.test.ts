@@ -207,4 +207,42 @@ describe("useChessGame", () => {
     expect(result.current.isGameOver).toBe(true);
     expect(result.current.gameResult).toBe("Jugador gana (mate)");
   });
+
+  it("expone el historial en SAN, la última jugada y el rey en jaque para pintarlos", async () => {
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "POST /bookmarks/api/chess/new-game": [() => jsonResponse({ nonce: "n1", timestamp: 1 })],
+        "POST /bookmarks/api/chess": [
+          () => jsonResponse({ bestmove: "e7e5", gameOver: false }),
+          () => jsonResponse({ bestmove: "b8c6", gameOver: false }),
+          () => jsonResponse({ bestmove: "g8f6", gameOver: false }),
+          () => jsonResponse({ bestmove: null, gameOver: true }),
+        ],
+      })
+    );
+
+    const { result } = renderHook(() => useChessGame());
+    expect(result.current.history).toEqual([]);
+    expect(result.current.lastMove).toBeNull();
+    expect(result.current.checkSquare).toBeNull();
+
+    await playAndSettle(result.current.onDrop, "e2", "e4");
+    // La respuesta de la IA también cuenta como última jugada.
+    expect(result.current.history).toEqual(["e4", "e5"]);
+    expect(result.current.lastMove).toEqual({ from: "e7", to: "e5" });
+
+    await playAndSettle(result.current.onDrop, "d1", "h5");
+    await playAndSettle(result.current.onDrop, "f1", "c4");
+    await playAndSettle(result.current.onDrop, "h5", "f7");
+
+    expect(result.current.history).toEqual(["e4", "e5", "Qh5", "Nc6", "Bc4", "Nf6", "Qxf7#"]);
+    expect(result.current.lastMove).toEqual({ from: "h5", to: "f7" });
+    expect(result.current.checkSquare).toBe("e8");
+
+    act(() => result.current.resetGame());
+    expect(result.current.history).toEqual([]);
+    expect(result.current.lastMove).toBeNull();
+    expect(result.current.checkSquare).toBeNull();
+  });
 });

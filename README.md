@@ -43,7 +43,12 @@ make occ ARGS="user:list"   # occ against the dev Nextcloud
 
 Log in to Nextcloud as `ana` or `bob` (password `gaming-dev-4480`, admin:
 `admin`) and open the Gaming app. The session is shared with the games on
-every localhost port, exactly like in prod.
+every localhost port, exactly like in prod. Opening a game without a session
+sends you to the Nextcloud login, and from there back to that game inside
+Nextcloud.
+
+Use `localhost`, not the machine's network IP: the Nextcloud session cookie
+belongs to `localhost`, so on `192.168.x.x:4400` the games never see it.
 
 - **Nextcloud app**: `nextcloud/custom_apps/gaming` is mounted into the
   container; PHP/JS changes show up on reload. The first `make dev` installs

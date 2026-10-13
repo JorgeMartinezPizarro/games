@@ -15,10 +15,10 @@ test.describe("Tetris", () => {
 
     await page.goto("/bookmarks/pages/games/tetris");
 
-    await page.getByRole("button", { name: "START" }).click();
-    await expect(page.getByRole("button", { name: "STOP" })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: /^Jugar/ }).click();
+    await expect(page.getByRole("button", { name: "Parar" })).toBeVisible({ timeout: 15_000 });
 
-    const linesBefore = await page.getByText(/LINES:/).innerText();
+    const linesBefore = await page.getByTestId("lines").innerText();
     expect(linesBefore).toContain("0/25");
 
     // Controles reales por teclado (mismos listeners que useTetris probó en
@@ -34,14 +34,14 @@ test.describe("Tetris", () => {
     // apila piezas y llega a un game over real bastante antes que soltar la
     // tecla y esperar solo a la gravedad.
     await page.keyboard.down("s");
-    await expect(page.getByText("GAME OVER")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByTestId("result-title")).toHaveText("Game over", { timeout: 60_000 });
     await page.keyboard.up("s");
-    await expect(page.getByRole("button", { name: "START" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Jugar/ })).toBeVisible();
   });
 });
 
-// Los controles táctiles (MobileControls en page.tsx) solo se muestran en
-// el layout móvil (.mobile-only, ver styles.css: max-width 768px o
+// Los controles táctiles (TouchControls) solo se muestran en
+// el layout móvil (ver Tetris.module.css: max-width 768px o
 // hover:none+pointer:coarse), así que hace falta emular un viewport móvil
 // real (Pixel 7, hasTouch) para que se rendericen y comprobar que el juego
 // también se puede jugar por touch, no solo con teclado.
@@ -59,10 +59,10 @@ test.describe("Tetris (móvil)", () => {
 
     await page.goto("/bookmarks/pages/games/tetris");
 
-    await page.getByRole("button", { name: "START" }).click();
-    await expect(page.getByRole("button", { name: "STOP" })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: /^Jugar/ }).click();
+    await expect(page.getByRole("button", { name: "Parar" })).toBeVisible({ timeout: 15_000 });
 
-    const linesBefore = await page.getByText(/LINES:/).innerText();
+    const linesBefore = await page.getByTestId("lines").innerText();
     expect(linesBefore).toContain("0/25");
 
     // Mismos controles reales que el test de teclado, pero disparados por
@@ -78,8 +78,8 @@ test.describe("Tetris (móvil)", () => {
     // columna de salida, esto apila piezas hasta un game over real.
     const downButton = page.getByRole("button", { name: "Bajar (S)" });
     await downButton.dispatchEvent("touchstart");
-    await expect(page.getByText("GAME OVER")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByTestId("result-title")).toHaveText("Game over", { timeout: 60_000 });
     await downButton.dispatchEvent("touchend");
-    await expect(page.getByRole("button", { name: "START" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Jugar/ })).toBeVisible();
   });
 });

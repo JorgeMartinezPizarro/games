@@ -156,6 +156,8 @@ export function useNumbers(config: UseNumbersConfig = {}) {
   return {
     numbers,
     steps,
+    // Casillas pisadas en orden (para pintar el rastro).
+    moves,
     isRight,
     loading,
     currentScore,

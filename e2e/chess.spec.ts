@@ -41,9 +41,12 @@ test.describe("Chess", () => {
         page.locator(`[data-square="${targetSquare}"] [data-piece^="b"]`)
       ).toBeVisible({ timeout: 10_000 });
     }
+
+    // La lista de jugadas recoge la del jugador.
+    await expect(page.getByText("e4", { exact: true })).toBeVisible();
   });
 
-  test("Restart reinicia el tablero a la posición de salida", async ({ page }) => {
+  test("Nueva partida reinicia el tablero a la posición de salida", async ({ page }) => {
     await page.goto("/bookmarks/pages/games/chess");
     await expect(page.locator('[data-square="e2"] [data-piece="wP"]')).toBeVisible({
       timeout: 15_000,
@@ -53,7 +56,7 @@ test.describe("Chess", () => {
     await page.locator('[data-square="e4"]').click();
     await expect(page.locator('[data-square="e4"] [data-piece="wP"]')).toBeVisible();
 
-    await page.getByRole("button", { name: /Restart/ }).click();
+    await page.getByRole("button", { name: "Nueva partida" }).click();
 
     await expect(page.locator('[data-square="e2"] [data-piece="wP"]')).toBeVisible();
     await expect(page.locator('[data-square="e4"] [data-piece]')).toHaveCount(0);

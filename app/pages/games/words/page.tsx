@@ -1,25 +1,32 @@
 'use client';
 
-import MainMenu from "@/app/components/MainMenu";
+import { useMemo, useState } from "react";
 import { Button } from "@mui/material";
-import { useState } from "react";
-import "./styles.css";
-import { CHOICES, ROUNDS_TOTAL, useWordsGame } from "@/app/hooks/useWordsGame";
-import { formatMs, useWordsScore } from "@/app/hooks/useWordsScore";
-
-// Posición en el ranking completo (no solo el top 10): se muestra siempre
-// que se conoce, con más brillo si de verdad entró en el top 10.
-function RankLine({ rank, total }: { rank: number | null; total: number | null }) {
-  if (rank === null || total === null) return null;
-  return (
-    <p className={"finished-summary__rank" + (rank <= 10 ? " finished-summary__rank--top10" : "")}>
-      Tu posición: #{rank} de {total}
-    </p>
-  );
-}
+import EmojiEventsOutlined from "@mui/icons-material/EmojiEventsOutlined";
+import FlagOutlined from "@mui/icons-material/FlagOutlined";
+import PlayArrowRounded from "@mui/icons-material/PlayArrowRounded";
+import ReplayRounded from "@mui/icons-material/ReplayRounded";
+import GameShell from "@/app/components/GameShell";
+import Leaderboard from "@/app/components/Leaderboard";
+import ResultPanel from "@/app/components/ResultPanel";
+import { GameIntro, RankBadge } from "@/app/components/ui";
+import {
+  AnswerGrid,
+  ListenOrb,
+  RoundProgress,
+  type AnswerState,
+  type SegmentState,
+} from "@/app/components/words/WordsParts";
+import styles from "@/app/components/words/Words.module.css";
+import { useAudioPlaying } from "@/app/hooks/useAudioPlaying";
+import { ROUNDS_TOTAL, useWordsGame } from "@/app/hooks/useWordsGame";
+import { useWordsKeyboard } from "@/app/hooks/useWordsKeyboard";
+import { formatMs, useWordsScore, type WordsScoreEntry } from "@/app/hooks/useWordsScore";
+import { useUser } from "@/app/hooks/useUser";
 
 const Wording = () => {
   const [showScores, setShowScores] = useState(false);
+  const { user } = useUser();
 
   const score = useWordsScore();
   const game = useWordsGame({
@@ -50,207 +57,158 @@ const Wording = () => {
     handleReplay,
   } = game;
 
+  const playing = gameState === "playing" && Boolean(round);
+  const audioPlaying = useAudioPlaying(audioRef, round?.audio);
+  const locked = Boolean(feedback) || checking;
+
+  useWordsKeyboard({
+    enabled: playing && !locked,
+    choices: round?.choices ?? [],
+    onChoice: handleChoice,
+    onReplay: handleReplay,
+  });
+
   // Mayor score es mejor (cubo de aciertos entre tiempo), igual que numbers.
-  const sortedScores = [...score.topScores].sort((a, b) => b.score - a.score).slice(0, 10);
+  const sortedScores = useMemo(
+    () => [...score.topScores].sort((a, b) => b.score - a.score),
+    [score.topScores]
+  );
+
+  const segments: SegmentState[] = Array.from({ length: ROUNDS_TOTAL }, (_, i) => {
+    if (gameState === "finished" && won) return "ok";
+    if (i < currentRound) return "ok";
+    if (i > currentRound) return "todo";
+    if (feedback === "correct") return "ok";
+    if (feedback === "wrong" || (gameState === "finished" && !quit)) return "bad";
+    return gameState === "playing" ? "now" : "todo";
+  });
+
+  const answerStates: AnswerState[] = (round?.choices ?? []).map((choice) => {
+    if (feedback === "correct") return choice === pickedChoice ? "correct" : "dim";
+    if (feedback === "wrong") {
+      if (choice === pickedChoice) return "wrong";
+      return choice === revealedTarget ? "reveal" : "dim";
+    }
+    return "idle";
+  });
+
+  const newGame = () => {
+    setShowScores(false);
+    startGame();
+  };
+
+  const result = won
+    ? { tone: "win" as const, title: "¡Completado!", subtitle: "Diez de diez sin fallar." }
+    : quit
+    ? { tone: "neutral" as const, title: "Partida terminada", subtitle: "Las partidas abandonadas no puntúan." }
+    : { tone: "lose" as const, title: "Game over", subtitle: `Fallaste en la ronda ${currentRound + 1}.` };
 
   return (
-    <div className="wording-page">
-      <MainMenu />
-
-      <div className="wording-header">
-        <Button
-          className="toggle-view-btn"
-          variant="contained"
-          onClick={() => setShowScores(s => !s)}
-        >
-          {showScores ? '🎮 Jugar' : '🏆 Puntuaciones'}
+    <GameShell
+      game="words"
+      actions={
+        <Button variant="outlined" onClick={() => setShowScores((v) => !v)} startIcon={<EmojiEventsOutlined />}>
+          {showScores ? "Volver" : "Ranking"}
         </Button>
-      </div>
-
-      {!showScores && (
-        <div className="panel">
-
-          {/* IDLE */}
-          {gameState === 'idle' && (
-            <>
-              <h2 className="panel-title">👂 Wording</h2>
-              <p className="panel-subtitle">
-                Escucha la palabra y selecciona la correcta entre las opciones.
-              </p>
-              <Button className="action-btn action-btn--play" variant="contained" onClick={startGame}>
-                JUGAR
-              </Button>
-            </>
-          )}
-
-          {/* LOADING */}
-          {gameState === 'loading' && (
-            <>
-              <h2 className="panel-title">Cargando partida…</h2>
-              <div className="loading-spinner" />
-            </>
-          )}
-
-          {/* PLAYING */}
-          {gameState === 'playing' && round && (
-            <>
-              <p className="round-counter">
-                Ronda <strong>{currentRound + 1}</strong> / {ROUNDS_TOTAL}
-              </p>
-
-              <p className="stats-line">
-                ⏱ {formatMs(elapsedMs)} &nbsp;|&nbsp; ✅ {correctCount}
-              </p>
-
-              <audio ref={audioRef} key={round.audio}>
-                <source src={round.audio} type="audio/mpeg" />
-              </audio>
-
-              <div className="button-row">
-                <Button
-                  className="action-btn action-btn--replay"
-                  variant="outlined"
-                  onClick={handleReplay}
-                >
-                  🔁 Escuchar de nuevo
-                </Button>
-                <Button
-                  className="action-btn action-btn--neutral"
-                  variant="outlined"
-                  onClick={handleQuit}
-                >
-                  🚩 Finalizar partida
-                </Button>
-              </div>
-
-              <div className={`choices-grid choices-grid--${CHOICES}`}>
-                {round.choices.map((choice) => {
-                  let cls = 'choice-btn';
-                  if (feedback === 'correct' && choice === pickedChoice) cls += ' choice-btn--correct';
-                  if (feedback === 'wrong'   && choice === revealedTarget) cls += ' choice-btn--reveal';
-                  if (feedback === 'wrong'   && choice !== revealedTarget) cls += ' choice-btn--wrong';
-
-                  return (
-                    <Button
-                      key={choice}
-                      className={cls}
-                      variant="contained"
-                      disabled={!!feedback || checking}
-                      onClick={() => handleChoice(choice)}
-                    >
-                      {choice}
-                    </Button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          {/* FINISHED */}
-          {gameState === 'finished' && (
-            <>
-              <h2 className="panel-title">
-                {won ? '🎉 ¡Completado!' : '💀 Game Over'}
-              </h2>
-
-              <div className="finished-summary">
-                <div className="finished-summary__time">
-                  ⏱ Tiempo: <strong>{finishedTime !== null ? formatMs(finishedTime) : '—'}</strong>
-                </div>
-                <div className="finished-summary__time">
-                  ✅ Aciertos: <strong>{correctCount} / {ROUNDS_TOTAL}</strong>
-                </div>
-                {finishedScore !== null && (
-                  <div className="finished-summary__time">
-                    🎯 Puntos: <strong>{finishedScore}</strong>
-                  </div>
-                )}
-
-                {quit ? (
-                  <p className="finished-summary__rank finished-summary__rank--outside">
-                    Partida finalizada. ¡Inténtalo de nuevo!
-                  </p>
-                ) : (
-                  <>
-                    {!won && (
-                      <p className="finished-summary__rank finished-summary__rank--outside">
-                        Fallaste en la ronda {currentRound + 1}.
-                      </p>
-                    )}
-                    <RankLine rank={finishedRank} total={finishedTotal} />
-                  </>
-                )}
-              </div>
-
-              <div className="button-row">
-                <Button className="action-btn action-btn--play" variant="contained" onClick={startGame}>
-                  🔄 Nueva partida
-                </Button>
-                <Button
-                  className="action-btn action-btn--neutral"
-                  variant="outlined"
-                  onClick={() => setShowScores(true)}
-                >
-                  🏆 Ver puntuaciones
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
+      }
+    >
+      {/* El <audio> vive fuera de las vistas para que el ranking no corte la ronda. */}
+      {round && (
+        <audio ref={audioRef} key={round.audio}>
+          <source src={round.audio} type="audio/mpeg" />
+        </audio>
       )}
 
-      {/* VISTA SCORES */}
-      {showScores && (
-        <div className="scoreboard-panel">
-          <h3 className="scoreboard-title">🏆 Mejores Puntuaciones</h3>
+      {showScores ? (
+        <Leaderboard<WordsScoreEntry>
+          testId="leaderboard"
+          title="Ranking"
+          subtitle="Aciertos³ entre el tiempo"
+          rows={sortedScores}
+          userOf={(entry) => entry.userId}
+          currentUserId={user.id}
+          columns={[
+            { label: "Puntos", value: (entry) => entry.score, align: "right", strong: true },
+            { label: "Aciertos", value: (entry) => `${entry.correctAnswers}/${entry.wordsTotal}`, align: "right" },
+          ]}
+        />
+      ) : gameState === "idle" ? (
+        <GameIntro
+          game="words"
+          title="Palabras"
+          actions={
+            <Button variant="contained" size="large" onClick={startGame} startIcon={<PlayArrowRounded />}>
+              Jugar
+            </Button>
+          }
+        >
+          Escucha cada palabra y elige la correcta entre cuatro. Diez rondas: un fallo termina la partida.
+          Puntúan los aciertos y la rapidez.
+        </GameIntro>
+      ) : gameState === "loading" ? (
+        <div className={styles.center}>
+          <div className={styles.loading}>
+            <div className={styles.spinner} />
+            Preparando las palabras…
+          </div>
+        </div>
+      ) : (
+        <div className={styles.play}>
+          <div className={styles.stats}>
+            <span>
+              Ronda <b className="num">{Math.min(currentRound + 1, ROUNDS_TOTAL)}</b>/{ROUNDS_TOTAL}
+            </span>
+            <span className={`num ${styles.time}`}>
+              {formatMs(gameState === "finished" && finishedTime !== null ? finishedTime : elapsedMs)}
+            </span>
+            <span>
+              Aciertos <b className="num">{correctCount}</b>
+            </span>
+          </div>
+          <RoundProgress segments={segments} />
 
-          {gameState === 'finished' && !quit && finishedScore !== null && (
-            <div className="finished-summary">
-              <div className="finished-summary__time">
-                🎯 Tu puntuación: {finishedScore}
+          {playing && round ? (
+            <>
+              <ListenOrb playing={audioPlaying} onReplay={handleReplay} />
+              <p className={`${styles.hint} ${styles.hintTouch}`}>Toca el círculo para volver a escuchar</p>
+              <p className={`${styles.hint} ${styles.hintKeys}`}>
+                Pulsa el círculo o <kbd>espacio</kbd> para volver a escuchar · responde con <kbd>1</kbd>–<kbd>4</kbd>
+              </p>
+              <AnswerGrid choices={round.choices} states={answerStates} disabled={locked} onChoice={handleChoice} />
+              <div className={styles.footer}>
+                <Button variant="text" onClick={handleQuit} startIcon={<FlagOutlined />}>
+                  Terminar partida
+                </Button>
               </div>
-              <RankLine rank={finishedRank} total={finishedTotal} />
+            </>
+          ) : (
+            <div className={styles.center}>
+              <ResultPanel
+                tone={result.tone}
+                title={result.title}
+                subtitle={result.subtitle}
+                stats={[
+                  { label: "Tiempo", value: finishedTime !== null ? formatMs(finishedTime) : "—" },
+                  { label: "Aciertos", value: `${correctCount}/${ROUNDS_TOTAL}` },
+                  ...(finishedScore !== null ? [{ label: "Puntos", value: finishedScore }] : []),
+                ]}
+                footer={!quit && <RankBadge rank={finishedRank} total={finishedTotal} />}
+                actions={
+                  <>
+                    <Button variant="contained" onClick={newGame} startIcon={<ReplayRounded />}>
+                      Jugar otra vez
+                    </Button>
+                    <Button variant="outlined" onClick={() => setShowScores(true)}>
+                      Ver ranking
+                    </Button>
+                  </>
+                }
+              />
             </div>
           )}
-
-          <div className="scoreboard-table-wrapper">
-            {sortedScores.length === 0 ? (
-              <p className="no-scores">No hay puntuaciones aún</p>
-            ) : (
-              <table className="scoreboard-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Usuario</th>
-                    <th>Puntos</th>
-                    <th>Aciertos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedScores.map((s, i) => (
-                    <tr key={i}>
-                      <td>{i + 1}</td>
-                      <td>{s.userId}</td>
-                      <td>{s.score}</td>
-                      <td>{s.correctAnswers} / {s.wordsTotal}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          <Button
-            className="action-btn action-btn--play"
-            variant="contained"
-            onClick={() => { setShowScores(false); startGame(); }}
-            style={{ marginTop: '1.5rem' }}
-          >
-            🎮 Jugar
-          </Button>
         </div>
       )}
-    </div>
+    </GameShell>
   );
 };
 

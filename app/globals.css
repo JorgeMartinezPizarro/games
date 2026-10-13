@@ -1,30 +1,97 @@
-html, body {
-	background: #999!important;
-	color: #e1e1e1;
-	height: calc(100% - 80px);
-	width: calc(100% - 0px);
-	margin: 0;
-	padding: 0;
+/* Tokens del sistema visual. Cada juego redefine --accent (ver GameShell). */
+:root {
+  --bg: #0b0e14;
+  --surface: #131823;
+  --surface-2: #1a2030;
+  --surface-3: #222a3c;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --text: #edf0f7;
+  --text-muted: #8b93a7;
+  --text-faint: #5d6478;
+
+  --accent: #8b93ff;
+  --on-accent: #0b0e14;
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 45%, transparent);
+
+  --chess: #f5b544;
+  --words: #a78bfa;
+  --numbers: #2dd4bf;
+  --tetris: #f472b6;
+
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.14);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.14);
+  --gold: #fbbf24;
+
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 30px 60px rgba(0, 0, 0, 0.45);
+
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur: 180ms;
+
+  color-scheme: dark;
 }
 
-.intro button img {
-	filter: brightness(0) invert(1);
-	background: transparent;
+/* Los derivados de --accent se recalculan en el elemento que lo redefine:
+   una custom property con var() se resuelve donde se declara, no donde se usa. */
+.accent-scope {
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
-.intro p {
-	color: white;
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-.intro .MuiFormControl-root {
-	border: 1px solid white;
-	border-radius: 8px;
-	color: silver;
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-.intro input {
-	background-color: grey;
-	border-radius: 8px;
-	color: white;
-	text-align: center;
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-family: var(--font-display), var(--font-sans), sans-serif;
+  letter-spacing: -0.01em;
+}
+
+p {
+  margin: 0;
+}
+
+/* Cifras que cambian (tiempos, puntos): ancho fijo para que no bailen. */
+.num {
+  font-family: var(--font-display), var(--font-sans), sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }

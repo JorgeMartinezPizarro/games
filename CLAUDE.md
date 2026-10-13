@@ -44,7 +44,23 @@ Each game follows the same 3-layer split — keep this shape when touching a gam
   `rng.ts`, `replay.ts`). No React, no Next.js imports.
 - **`app/hooks/use<Game>.ts` / `use<Game>Score.ts`** — all state and business logic as React
   hooks. `use<Game>Score` handles submitting the finished game's score.
+- **`app/components/<game>/`** — presentational pieces of that game, styled with a CSS module
+  (`<Game>.module.css`).
 - **`app/pages/games/<game>/page.tsx`** — composition/rendering only, no business logic.
+
+### UI system
+
+- Dark design tokens (`--bg`, `--surface`, `--line`, `--text`, per-game `--chess`/`--words`/
+  `--numbers`/`--tetris`) live in `app/globals.css`; `app/theme.ts` maps MUI onto them. Each game
+  sets its `--accent` through `GameShell`, and anything that derives from it needs the
+  `accent-scope` class on the element that redefines it.
+- Shared components in `app/components/`: `GameShell` (top bar + accent), `Leaderboard`,
+  `ResultPanel`, `ui.tsx` (`StatTile`, `RankBadge`, `GameIntro`, `Notice`), `gameCatalog.ts`
+  (names, descriptions, routes of the 4 games).
+- Fonts come from `next/font` (self-hosted at build time): never load fonts or other assets from
+  third-party CDNs at runtime ("no tracking").
+- E2E tests select by role, label or `data-testid` (`answer`, `result-title`, `rank`, `lines`,
+  `cell-N`, `best-<game>`…), never by CSS class: CSS module class names are hashed.
 
 `AGENTS.md` at the repo root encodes stricter rules for *refactor* requests specifically (diff-only
 output, one change per response, several routes/areas marked as never-touch). Read it before doing
@@ -76,9 +92,11 @@ stay in sync, or legitimate wins will be silently rejected by `/api/scores`.
 
 ### Auth
 
-- `proxy.ts` (Next middleware, matches `/pages/:path*`) gates page navigation: validates the
-  Nextcloud session cookie against `${NEXTCLOUD_URL}/ocs/v2.php/cloud/user`, redirects to `/login`
-  on any failure.
+- `proxy.ts` (Next middleware, matches `/` and `/pages/:path*`) gates page navigation: validates
+  the Nextcloud session cookie against `${NEXTCLOUD_URL}/ocs/v2.php/cloud/user` and on any failure
+  redirects to the Nextcloud login (`NEXTCLOUD_PUBLIC_URL`, default `NEXTCLOUD_URL`) with
+  `redirect_url=/index.php/apps/gaming/<same path>`, so after logging in the user lands on that
+  page inside the Nextcloud app. There is no `/login` page in this app.
 - `app/lib/auth.ts#requireAuth` does the equivalent check for API routes, with a 60s in-memory
   cache keyed by the raw cookie string to avoid hitting Nextcloud on every request.
 - Validated scores are forwarded to the Nextcloud `gaming` app (`nextcloud/custom_apps/gaming`)

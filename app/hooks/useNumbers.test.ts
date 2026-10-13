@@ -148,6 +148,8 @@ describe("useNumbers", () => {
       { i: 4, t: 150 },
       { i: 2, t: 150 },
     ]);
+    // El mismo rastro queda expuesto para pintar el orden de las casillas.
+    expect(result.current.moves.map((m) => m.i)).toEqual([0, 4, 2]);
   });
 
   it("completar las 20 casillas termina la partida (ganada) y llama a onFinish", async () => {

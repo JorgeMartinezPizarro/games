@@ -1,0 +1,267 @@
+.layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, auto) 320px;
+  justify-content: center;
+  align-items: start;
+  gap: 24px;
+}
+
+.boardColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* El tablero es cuadrado: tan ancho como permita la altura disponible.
+   react-chessboard se ajusta solo al ancho de este contenedor. */
+.boardWrap {
+  position: relative;
+  width: min(calc(100vw - 400px), calc(100dvh - 150px), 720px);
+  touch-action: none;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(11, 14, 20, 0.55);
+  animation: fade 240ms var(--ease) both;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.panel {
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.panelTitle {
+  margin-bottom: 10px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* --- Jugadores --- */
+.player {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.player[data-active="true"] {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--surface-3);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.avatar[data-you="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.playerName {
+  display: block;
+  font-weight: 650;
+}
+
+.playerMeta {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.thinking {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.thinking i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: blink 1s infinite ease-in-out;
+}
+
+.thinking i:nth-child(2) { animation-delay: 150ms; }
+.thinking i:nth-child(3) { animation-delay: 300ms; }
+
+/* --- Jugadas --- */
+.moves {
+  flex: 1;
+  min-height: 120px;
+  max-height: 260px;
+  overflow-y: auto;
+  font-size: 14px;
+  scrollbar-width: thin;
+}
+
+.moveRow {
+  display: grid;
+  grid-template-columns: 34px 1fr 1fr;
+  padding: 5px 8px;
+  border-radius: 8px;
+}
+
+.moveRow:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.moveNumber {
+  color: var(--text-faint);
+}
+
+.current {
+  width: fit-content;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* --- Dificultad --- */
+.presets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.preset {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 7px 4px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.preset b {
+  font-size: 14px;
+}
+
+.preset:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.preset[aria-pressed="true"] {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.preset:disabled {
+  cursor: default;
+}
+
+.fine {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 0 6px;
+}
+
+.eloValue {
+  min-width: 44px;
+  font-size: 14px;
+  text-align: right;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* --- Móvil y tablet: todo en columna --- */
+/* El panel lateral se deshace (display: contents) para reordenar sus piezas:
+   rival encima del tablero, tú debajo, luego acciones, jugadas y dificultad. */
+@media (max-width: 900px) {
+  .layout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .side {
+    display: contents;
+  }
+
+  .boardColumn,
+  .side > * {
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .boardWrap {
+    width: 100%;
+  }
+
+  .layout [data-slot="opponent"] { order: -1; }
+  .boardColumn { order: 0; }
+  .layout [data-slot="you"] { order: 1; }
+  .layout [data-slot="new"] { order: 2; }
+  .layout [data-slot="moves"] { order: 3; }
+  .layout [data-slot="difficulty"] { order: 4; }
+
+  .moves {
+    max-height: 140px;
+  }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+}

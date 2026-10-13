@@ -1,7 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess, Square } from "chess.js";
+
+export type LastMove = { from: Square; to: Square };
+
+// Casilla del rey del bando al que le toca mover si está en jaque.
+function findCheckedKing(game: Chess): Square | null {
+  if (!game.inCheck()) return null;
+  for (const row of game.board()) {
+    for (const piece of row) {
+      if (piece && piece.type === "k" && piece.color === game.turn()) return piece.square;
+    }
+  }
+  return null;
+}
 
 export interface UseChessGameOptions {
   /**
@@ -24,6 +37,10 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
   const [gameError, setGameError] = useState<string | null>(null);
+  // Solo para pintar: jugadas en SAN y última jugada. No intervienen en la
+  // validación, que sigue siendo cosa del servidor.
+  const [history, setHistory] = useState<string[]>([]);
+  const [lastMove, setLastMove] = useState<LastMove | null>(null);
 
   // --- Sistema de dos clics ---
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
@@ -74,6 +91,8 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
       gameRef.current = newGame;
       nonceRef.current = null;
       setFen("start");
+      setHistory([]);
+      setLastMove(null);
       setGameResult(null);
       setGameStarted(false);
       setIsAIThinking(false);
@@ -141,6 +160,8 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
             if (move) {
               const newFen = game.fen();
               setFen(newFen);
+              setHistory(game.history());
+              setLastMove({ from: move.from, to: move.to });
 
               if (game.isGameOver()) {
                 handleGameOver(game);
@@ -206,6 +227,8 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
 
         const newFen = game.fen();
         setFen(newFen);
+        setHistory(game.history());
+        setLastMove({ from: move.from, to: move.to });
         if (!gameStarted) setGameStarted(true);
 
         const isOver = game.isGameOver();
@@ -243,15 +266,16 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
 
       const newSquares: Record<string, any> = {
         [square]: {
-          background: "rgba(255, 255, 0, 0.4)",
+          background: "rgba(245, 181, 68, 0.5)",
         },
       };
 
+      // Punto en casillas vacías, anillo en capturas.
       moves.forEach((m) => {
         newSquares[m.to] = {
-          background:
-            "radial-gradient(circle, rgba(0,0,0,0.25) 25%, transparent 26%)",
-          borderRadius: "50%",
+          background: game.get(m.to as Square)
+            ? "radial-gradient(circle, transparent 58%, rgba(11, 14, 20, 0.3) 60%)"
+            : "radial-gradient(circle, rgba(11, 14, 20, 0.3) 20%, transparent 22%)",
         };
       });
 
@@ -327,9 +351,19 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
     setFen(chess.fen());
   }, []);
 
+  // Se recalcula con cada posición nueva (fen cambia tras cada jugada).
+  const checkSquare = useMemo(
+    () => (gameRef.current ? findCheckedKing(gameRef.current) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [fen]
+  );
+
   return {
     fen,
     elo,
+    history,
+    lastMove,
+    checkSquare,
     gameResult,
     gameStarted,
     isAIThinking,

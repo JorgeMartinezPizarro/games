@@ -139,11 +139,12 @@ export function getErrorResponseMessage(error: unknown): string {
   return errorMessage(error);
 }
 
+// Nombres que se ven fuera de la app (actividad de Nextcloud).
 export const GAME_NAMES: Record<GameId, string> = {
-  1: "Chess",
-  2: "Numbers",
+  1: "Ajedrez",
+  2: "Números",
   3: "Tetris",
-  4: "Wording",
+  4: "Palabras",
 };
 
 // Ruta de cada juego dentro de la app (sin el basePath /bookmarks). La app

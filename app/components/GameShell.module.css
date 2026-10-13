@@ -1,0 +1,104 @@
+.shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  isolation: isolate;
+}
+
+/* Halo del color del juego en la parte superior. */
+.shell::before {
+  content: "";
+  position: absolute;
+  inset: -30% -10% auto;
+  height: 60%;
+  z-index: -1;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 13%, transparent), transparent);
+  pointer-events: none;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px clamp(12px, 3vw, 28px);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px 0 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 14px;
+  text-decoration: none;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.back:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+.tile {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 clamp(12px, 3vw, 28px) clamp(12px, 3vw, 28px);
+}
+
+@media (max-width: 560px) {
+  .topbar {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .backLabel {
+    display: none;
+  }
+
+  .back {
+    padding: 0 10px;
+  }
+
+  .tile {
+    width: 36px;
+    height: 36px;
+  }
+
+  .title {
+    font-size: 18px;
+  }
+}

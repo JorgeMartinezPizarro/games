@@ -1,0 +1,276 @@
+/* Cada pieza existe una sola vez; la rejilla las recoloca según el tamaño.
+   Escritorio: marcador | tablero | siguiente y controles. */
+.layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 200px auto 200px;
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    "lines board next"
+    "time  board keys"
+    ".     board .";
+  justify-content: center;
+  align-content: start;
+  gap: 12px 24px;
+}
+
+.areaLines { grid-area: lines; }
+.areaTime { grid-area: time; }
+.areaNext { grid-area: next; }
+.areaKeys { grid-area: keys; }
+.areaBoard { grid-area: board; }
+.areaPads { grid-area: pads; display: none; }
+
+.bar {
+  height: 5px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 240ms var(--ease);
+}
+
+/* --- Tablero --- */
+.boardWrap {
+  position: relative;
+  --board-h: min(calc(100dvh - 120px), 720px);
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(20, 1fr);
+  gap: 2px;
+  height: var(--board-h);
+  aspect-ratio: 1 / 2;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #0f131c;
+  box-shadow: var(--shadow-lg);
+  transition: box-shadow 200ms var(--ease);
+}
+
+.board[data-flash="true"] {
+  box-shadow: 0 0 0 2px var(--accent), 0 0 40px color-mix(in srgb, var(--accent) 45%, transparent), var(--shadow-lg);
+}
+
+.cell {
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.block {
+  background: var(--c);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35), inset 0 -3px 0 rgba(0, 0, 0, 0.25);
+}
+
+.ghost {
+  background: transparent;
+  outline: 1.5px dashed color-mix(in srgb, var(--c) 70%, transparent);
+  outline-offset: -2px;
+}
+
+.locked {
+  opacity: 0.8;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(11, 14, 20, 0.6);
+  backdrop-filter: blur(2px);
+  animation: fade 220ms var(--ease) both;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 240px;
+  text-align: center;
+}
+
+.intro h2 {
+  font-size: 26px;
+}
+
+.intro p {
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* --- Siguiente pieza --- */
+.next {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 3px;
+  width: 84px;
+  margin-top: 8px;
+}
+
+.next i {
+  aspect-ratio: 1;
+  border-radius: 4px;
+}
+
+/* --- Teclas (escritorio) --- */
+.keys {
+  display: grid;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.keys div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.keys kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 3px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: 600 12px var(--font-sans), sans-serif;
+}
+
+/* --- Controles táctiles, como una Game Boy en vertical ---
+   Cruceta para el pulgar izquierdo (← → arriba, ↓ ancho debajo) y dos botones
+   altos de giro para el derecho. Sin botones físicos, tienen que ser grandes:
+   ocupan ~una cuarta parte de la pantalla. */
+.pads {
+  display: grid;
+  grid-template-columns: 1fr 1fr 0.85fr 0.85fr;
+  grid-template-rows: 1fr 1fr;
+  grid-template-areas:
+    "left right rotl rotr"
+    "down down  rotl rotr";
+  gap: 10px;
+  width: 100%;
+  height: var(--pads-h);
+}
+
+.pad {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-bottom-width: 4px;
+  border-radius: 22px;
+  background: var(--surface);
+  color: var(--text);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 70ms var(--ease), background 70ms var(--ease), border-bottom-width 70ms var(--ease);
+}
+
+/* Al pulsar, el botón "se hunde" (pierde el borde inferior grueso). */
+.pad:active {
+  transform: translateY(3px);
+  border-bottom-width: 1px;
+  background: var(--surface-3);
+}
+
+.pad[data-pad="left"] { grid-area: left; }
+.pad[data-pad="right"] { grid-area: right; }
+.pad[data-pad="down"] { grid-area: down; }
+.pad[data-pad="rotl"] { grid-area: rotl; }
+.pad[data-pad="rotr"] { grid-area: rotr; }
+
+.pad[data-kind="rotate"] {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.pad[data-kind="rotate"]:active {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+/* Móvil o pantalla táctil: marcador compacto arriba, tablero, botones abajo.
+   Todo cabe en la pantalla sin scroll: el tablero se queda con la altura que
+   dejan la barra superior (~60px), el marcador (~48px) y los botones. */
+@media (max-width: 768px), (hover: none) and (pointer: coarse) {
+  .layout {
+    --pads-h: clamp(150px, 26dvh, 230px);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "lines time next"
+      "board board board"
+      "pads pads pads";
+    justify-content: stretch;
+    gap: 8px;
+    width: 100%;
+    max-width: 440px;
+    margin: 0 auto;
+    overscroll-behavior: none;
+  }
+
+  .areaLines,
+  .areaTime,
+  .areaNext {
+    --stat-pad: 6px 10px;
+    --stat-label: 10px;
+    --stat-value: 16px;
+  }
+
+  .bar {
+    margin-top: 3px;
+  }
+
+  .areaKeys {
+    display: none;
+  }
+
+  .areaBoard {
+    justify-self: center;
+  }
+
+  .boardWrap {
+    --board-h: min(calc(100dvh - var(--pads-h) - 158px), calc((100vw - 24px) * 2));
+  }
+
+  .board {
+    padding: 4px;
+    border-radius: 12px;
+  }
+
+  .areaPads {
+    display: block;
+  }
+
+  .next {
+    width: 44px;
+    gap: 2px;
+    margin-top: 3px;
+  }
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+}

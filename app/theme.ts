@@ -1,51 +1,55 @@
 import { createTheme } from '@mui/material/styles';
 
-const PRIMARY = '#689B86'
-const PRIMARY_LIGHT = '#71a569'
-const PRIMARY_DARK = '#71a569'
-const PRIMARY_TEXT = "#000"
-const PRIMARY_CONTRAST = '#444'
-const BUTTON_HEIGHT = 64
-const SECONDARY = '#fff'
-const SECONDARY_LIGHT = '#71a569'
-const SECONDARY_DARK = '#71a569'
-const SECONDARY_TEXT = "#fff"
-const SECONDARY_CONTRAST = "#fff"
-
+// Tema oscuro común a toda la app. Los colores salen de los tokens CSS de
+// globals.css (--bg, --surface, --accent…): cada juego fija su --accent en
+// su GameShell y los botones "contained" lo heredan sin tema propio.
 const theme = createTheme({
-    palette: {
-        text: {
-            primary: PRIMARY_TEXT,
-            secondary: SECONDARY_TEXT,
+  palette: {
+    mode: 'dark',
+    background: { default: '#0b0e14', paper: '#131823' },
+    text: { primary: '#edf0f7', secondary: '#8b93a7' },
+    primary: { main: '#8b93ff', contrastText: '#0b0e14' },
+    divider: 'rgba(255, 255, 255, 0.07)',
+  },
+  shape: { borderRadius: 12 },
+  typography: {
+    fontFamily: 'var(--font-sans), system-ui, sans-serif',
+    button: { textTransform: 'none', fontWeight: 600, fontSize: '0.95rem' },
+  },
+  components: {
+    MuiButton: {
+      defaultProps: { disableElevation: true },
+      styleOverrides: {
+        root: {
+          minHeight: 44,
+          paddingInline: 18,
+          borderRadius: 12,
+          gap: 4,
         },
-        primary: {
-            main: PRIMARY,
-            light: PRIMARY_LIGHT,
-            dark: PRIMARY_DARK,
-            contrastText: PRIMARY_CONTRAST,
+        contained: {
+          background: 'var(--accent)',
+          color: 'var(--on-accent)',
+          '&:hover': { background: 'var(--accent)', filter: 'brightness(1.08)' },
         },
-        secondary: {
-            main: SECONDARY,
-            light: SECONDARY_LIGHT,
-            dark: SECONDARY_DARK,
-            contrastText: SECONDARY_CONTRAST,
+        outlined: {
+          background: 'var(--surface)',
+          borderColor: 'var(--line)',
+          color: 'var(--text)',
+          '&:hover': { background: 'var(--surface-2)', borderColor: 'var(--line-strong)' },
         },
-    },
-    components: {
-      MuiButton: {
-        styleOverrides: {
-          root: {
-            
-          },
-          colorPrimary: {
-            background: "#F00"
-          },
-          colorSecondary: {
-            background: "#00F"
-          }
-        }
+        text: { color: 'var(--text-muted)', '&:hover': { color: 'var(--text)' } },
       },
     },
-  });
+    MuiPaper: { styleOverrides: { root: { backgroundImage: 'none' } } },
+    MuiSlider: {
+      styleOverrides: {
+        root: { color: 'var(--accent)' },
+        thumb: { width: 16, height: 16, borderRadius: '50%', boxShadow: 'none' },
+        rail: { opacity: 0.25 },
+        markLabel: { color: 'var(--text-muted)', fontSize: 12 },
+      },
+    },
+  },
+});
 
 export default theme;

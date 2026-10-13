@@ -40,6 +40,8 @@ services:
   games:
     environment:
       - NEXTCLOUD_URL=http://nextcloud
+      # Para mandar al navegador al login de Nextcloud (proxy.ts).
+      - NEXTCLOUD_PUBLIC_URL=http://localhost:${NEXTCLOUD_PORT}
     depends_on:
       nextcloud:
         condition: service_healthy

@@ -39,8 +39,8 @@ test.describe("Numbers", () => {
 
     await page.locator(`[data-testid="cell-${wrongIndex}"]`).click();
 
-    // Derrota reflejada en la UI real (icono de calavera del estado !isRight).
-    await expect(page.getByText("💀")).toBeVisible();
+    // Derrota reflejada en la UI real (estado "Game over" del marcador central).
+    await expect(page.getByTestId("status")).toBeVisible();
     await expect(page.locator('[data-testid="steps-value"]')).toHaveText("1");
 
     // El backend real (Docker) valida el paso y calcula/guarda el score.
@@ -51,10 +51,10 @@ test.describe("Numbers", () => {
     expect(body.score).toBeGreaterThan(0);
 
     // El score guardado aparece en el ranking real (misma sesión, se recarga solo).
-    await page.getByRole("button", { name: /SCORES/ }).click();
-    await expect(page.getByText("Highest Scores")).toBeVisible();
+    await page.getByRole("button", { name: "Ranking" }).click();
+    await expect(page.getByRole("heading", { name: "Mejor puntuación" })).toBeVisible();
 
-    // La tabla "Highest Scores" es la primera; localizamos la fila cuya
+    // La tabla "Mejor puntuación" es la primera; localizamos la fila cuya
     // celda de Score coincide EXACTO con el score que confirmó el backend,
     // y comprobamos que su columna Steps (última celda) sea 1.
     const highestScoresTable = page.locator("table").first();
@@ -91,13 +91,13 @@ test.describe("Numbers", () => {
     // calculando sus dos vecinos legales (misma fórmula que isBlocked en
     // useNumbers.ts), evitando revisitar. Si un tablero concreto topara con
     // un callejón sin salida antes, la partida ya habría terminado sola
-    // (💀) y el bucle simplemente no seguiría forzando más clics.
+    // ("Game over") y el bucle simplemente no seguiría forzando más clics.
     const visited = new Set([0]);
     let lastIndex = 0;
     const TARGET_STEPS = 3;
 
     for (let step = 2; step <= TARGET_STEPS; step++) {
-      if (await page.getByText("💀").isVisible()) break;
+      if (await page.getByTestId("status").isVisible()) break;
 
       const jump = Number(await page.locator(`[data-testid="cell-${lastIndex}"]`).innerText());
       const candidates = [(lastIndex + jump) % BOARD_SIZE, (lastIndex - jump + BOARD_SIZE) % BOARD_SIZE];
@@ -115,7 +115,7 @@ test.describe("Numbers", () => {
     // Si la partida no ha terminado sola, se fuerza la derrota con un clic
     // deliberadamente inválido: una celda ni visitada ni alcanzable desde
     // la posición actual (mismo truco que en el test anterior).
-    if (!(await page.getByText("💀").isVisible())) {
+    if (!(await page.getByTestId("status").isVisible())) {
       const jumpLast = Number(await page.locator(`[data-testid="cell-${lastIndex}"]`).innerText());
       const validFromLast = new Set([
         (lastIndex + jumpLast) % BOARD_SIZE,
@@ -126,7 +126,7 @@ test.describe("Numbers", () => {
       await page.locator(`[data-testid="cell-${wrongIndex}"]`).click();
     }
 
-    await expect(page.getByText("💀")).toBeVisible();
+    await expect(page.getByTestId("status")).toBeVisible();
 
     const response = await saveScoreResponse;
     expect(response.ok()).toBe(true);
@@ -135,24 +135,22 @@ test.describe("Numbers", () => {
 
     // Nueva posición #1 (bate el récord del test anterior) reflejada en la UI real.
     await expect(page.getByText(/Tu posición: #1 de/)).toBeVisible();
-    await expect(page.locator(".center-panel-rank-top10")).toBeVisible();
+    await expect(page.getByTestId("rank")).toHaveAttribute("data-top10", "true");
 
-    // La fila de este score en "Highest Scores" queda resaltada en dorado (récord real).
-    await page.getByRole("button", { name: /SCORES/ }).click();
+    // La fila de este score en "Mejor puntuación" queda resaltada como récord real.
+    await page.getByRole("button", { name: "Ranking" }).click();
     const highestScoresTable = page.locator("table").first();
     const targetRow = highestScoresTable.locator("tbody tr").filter({
       has: page.locator("td", { hasText: new RegExp(`^${body.score}$`) }),
     });
-    await expect(targetRow.first()).toHaveCSS("background-color", "rgb(255, 196, 0)");
+    await expect(targetRow.first()).toHaveAttribute("data-record", "true");
 
     // La portada (app/page.tsx) también debe cargar este score recién
-    // jugado en el botón de Numbers, no solo el ranking del propio juego.
+    // jugado en la tarjeta de Números, no solo el ranking del propio juego.
     await page.goto("/bookmarks");
-    const numbersBadge = page
-      .locator(".MuiCard-root", { hasText: "Numbers" })
-      .locator(".MuiTypography-caption");
+    const numbersBadge = page.getByTestId("best-numbers");
     // "not Sin registro" no basta: mientras useBestScores carga, el badge
-    // muestra "..." (tampoco es "Sin registro"), así que hay que esperar de
+    // muestra "…" (tampoco es "Sin registro"), así que hay que esperar de
     // verdad al patrón final "<score> · #<rank>", no solo a que cambie.
     const scorePattern = /[\d.,]+\s*·\s*#\d+/;
     await expect(numbersBadge).toHaveText(scorePattern, { timeout: 15_000 });

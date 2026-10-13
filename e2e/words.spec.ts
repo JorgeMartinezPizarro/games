@@ -19,7 +19,7 @@ test.describe("Words", () => {
       (res) =>
         res.url().includes("/bookmarks/api/words/new-game") && res.request().method() === "POST"
     );
-    await page.getByRole("button", { name: "JUGAR" }).click();
+    await page.getByRole("button", { name: /^Jugar$/ }).click();
     const newGameResponse = await newGamePromise;
     expect(newGameResponse.ok()).toBe(true);
 
@@ -27,22 +27,22 @@ test.describe("Words", () => {
       (res) => res.url().includes("/bookmarks/api/scores") && res.request().method() === "POST"
     );
 
-    const panelTitle = page.locator(".panel-title");
+    const resultTitle = page.getByTestId("result-title");
 
     for (let round = 0; round < ROUNDS_TOTAL; round++) {
       // Espera a que la ronda esté lista (incluye la carga real de los 10
       // audios antes de la primera): no usar isVisible() sin esperar aquí,
       // que confundiría "todavía cargando" con "partida terminada".
-      await expect(page.locator(".choice-btn").first()).toBeVisible({ timeout: 20_000 });
-      await page.locator(".choice-btn").first().click();
+      await expect(page.getByTestId("answer").first()).toBeVisible({ timeout: 20_000 });
+      await page.getByTestId("answer").first().click();
       // Pausa de feedback del componente (500ms) antes de avanzar de ronda
       // o pasar a "finished".
       await page.waitForTimeout(650);
 
-      if (await panelTitle.filter({ hasText: /Completado|Game Over/ }).isVisible()) break;
+      if (await resultTitle.isVisible()) break;
     }
 
-    await expect(panelTitle).toContainText(/Completado|Game Over/, { timeout: 20_000 });
+    await expect(resultTitle).toHaveText(/Completado|Game over/, { timeout: 20_000 });
 
     // El backend real (Docker) calcula y guarda el score final.
     const saveScoreResponse = await saveScoreResponsePromise;
@@ -55,31 +55,29 @@ test.describe("Words", () => {
     // la primera partida de words, así que es récord por definición (#1 de
     // 1) — se comprueba el aviso real, no solo que el score se guardó.
     await expect(page.getByText(/Tu posición: #1 de 1/)).toBeVisible();
-    await expect(page.locator(".finished-summary__rank--top10")).toBeVisible();
+    await expect(page.getByTestId("rank")).toHaveAttribute("data-top10", "true");
 
     // El score validado llega firmado a la app gaming de Nextcloud real como
     // actividad, con deeplink al juego.
     const [activity] = await gamingActivities(page.request);
-    expect(activity?.subject).toMatch(new RegExp(`marcó ${body.score} en Wording$`));
+    expect(activity?.subject).toMatch(new RegExp(`marcó ${body.score} en Palabras$`));
     expect(activity?.link).toMatch(/\/apps\/gaming\/pages\/games\/words$/);
 
     // El score guardado aparece en el ranking real (misma sesión, se recarga solo).
-    await page.getByRole("button", { name: /Ver puntuaciones/ }).click();
-    await expect(page.getByText("Mejores Puntuaciones")).toBeVisible();
+    await page.getByRole("button", { name: "Ver ranking" }).click();
+    await expect(page.getByRole("heading", { name: "Ranking" })).toBeVisible();
 
-    const targetRow = page.locator(".scoreboard-table tbody tr").filter({
+    const targetRow = page.getByTestId("leaderboard").locator("tbody tr").filter({
       has: page.locator("td", { hasText: new RegExp(`^${body.score}$`) }),
     });
     await expect(targetRow.first()).toBeVisible();
 
     // La portada (app/page.tsx) también debe cargar este score recién
-    // jugado en el botón de Wording, no solo el ranking del propio juego.
+    // jugado en la tarjeta de Palabras, no solo el ranking del propio juego.
     await page.goto("/bookmarks");
-    const wordingBadge = page
-      .locator(".MuiCard-root", { hasText: "Wording" })
-      .locator(".MuiTypography-caption");
+    const wordingBadge = page.getByTestId("best-words");
     // "not Sin registro" no basta: mientras useBestScores carga, el badge
-    // muestra "..." (tampoco es "Sin registro"), así que hay que esperar de
+    // muestra "…" (tampoco es "Sin registro"), así que hay que esperar de
     // verdad al patrón final "<score> · #<rank>", no solo a que cambie.
     const scorePattern = /[\d.,]+\s*·\s*#\d+/;
     await expect(wordingBadge).toHaveText(scorePattern, { timeout: 15_000 });

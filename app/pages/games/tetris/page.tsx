@@ -1,342 +1,26 @@
 "use client";
 
-import MainMenu from "@/app/components/MainMenu";
-import { Box, Button, Typography } from "@mui/material";
-import React, { useCallback, useMemo } from "react";
-import "./styles.css";
-import { Board, COLS, hardDropDistance, Piece, ROWS, useTetris } from "../../../../app/hooks/useTetris";
-import { formatTimeMs, LeaderboardEntry, useScore } from "../../../../app/hooks/useTetrisScore";
-
-// ───────────────────────── Tablero (memoizado) ─────────────────────────
-
-interface BoardViewProps {
-  board: Board;
-  piece: Piece;
-  pos: { x: number; y: number };
-  active: boolean;
-  lockVisual?: boolean;
-  lockBoard?: Board;
-}
-
-const BoardView = React.memo(function BoardView({
-  board,
-  piece,
-  pos,
-  active,
-  lockVisual,
-  lockBoard,
-}: BoardViewProps) {
-  const showingLock = Boolean(lockVisual && lockBoard);
-  const displaySource = showingLock ? (lockBoard as Board) : board;
-  const display: string[][] = displaySource.map((row) =>
-    row.map((cell) => (cell[1] === "clear" ? "black" : cell[0]))
-  );
-
-  if (!showingLock && active) {
-    piece.shape.forEach((row, py) =>
-      row.forEach((cell, px) => {
-        if (cell !== 0) {
-          const ny = pos.y + py;
-          const nx = pos.x + px;
-          if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS) {
-            display[ny][nx] = piece.color;
-          }
-        }
-      })
-    );
-    const ghostDist = hardDropDistance(board, piece, pos);
-    piece.shape.forEach((row, py) =>
-      row.forEach((cell, px) => {
-        if (cell !== 0) {
-          const ny = pos.y + ghostDist + py;
-          const nx = pos.x + px;
-          if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS && display[ny][nx] === "black") {
-            display[ny][nx] = "ghost";
-          }
-        }
-      })
-    );
-  }
-
-  return (
-    <Box className="tetris-board">
-      {display.map((row, y) =>
-        row.map((color, x) => (
-          <div
-            key={`${y}-${x}`}
-            className="tetris-cell"
-            style={{
-              backgroundColor: color === "ghost" ? "transparent" : color,
-              border:
-                color === "ghost"
-                  ? `1px solid ${piece.color}55`
-                  : color === "black"
-                  ? "1px solid #111"
-                  : "1px solid rgba(255,255,255,0.18)",
-              opacity: showingLock ? 0.8 : 1,
-            }}
-          />
-        ))
-      )}
-    </Box>
-  );
-});
-
-// ───────────────────────── Siguiente pieza (memoizado) ─────────────────────────
-
-// Rejilla fija 4×2: cabe cualquier tetrominó (máx. 4 columnas para la I,
-// máx. 2 filas para el resto) sin que el tamaño del panel cambie entre
-// piezas distintas.
-const NEXT_PIECE_GRID_COLS = 4;
-const NEXT_PIECE_GRID_ROWS = 2;
-
-const NextPiecePreview = React.memo(function NextPiecePreview({
-  piece,
-  ready,
-}: {
-  piece: Piece;
-  ready: boolean;
-}) {
-  const offsetX = Math.floor((NEXT_PIECE_GRID_COLS - piece.shape[0].length) / 2);
-  const offsetY = Math.floor((NEXT_PIECE_GRID_ROWS - piece.shape.length) / 2);
-  const cells: boolean[][] = Array.from({ length: NEXT_PIECE_GRID_ROWS }, () =>
-    Array.from({ length: NEXT_PIECE_GRID_COLS }, () => false)
-  );
-  if (ready) {
-    piece.shape.forEach((row, y) =>
-      row.forEach((cell, x) => {
-        if (cell !== 0) cells[y + offsetY][x + offsetX] = true;
-      })
-    );
-  }
-
-  return (
-    <Box className="tetris-menu-next">
-      <Typography className="tetris-next-piece-label">NEXT</Typography>
-      <Box className="tetris-next-piece-grid">
-        {cells.map((row, y) =>
-          row.map((filled, x) => (
-            <div
-              key={`${y}-${x}`}
-              className="tetris-next-piece-cell"
-              style={{ backgroundColor: filled ? piece.color : "transparent" }}
-            />
-          ))
-        )}
-      </Box>
-    </Box>
-  );
-});
-
-// ───────────────────────── Menú superior (memoizado) ─────────────────────────
-
-interface MenuBarProps {
-  showGame: boolean;
-  onToggleView: () => void;
-  onStartStop: () => void;
-  isActive: boolean;
-  nextPiece: Piece;
-}
-
-const MenuBar = React.memo(function MenuBar({
-  showGame,
-  onToggleView,
-  onStartStop,
-  isActive,
-  nextPiece,
-}: MenuBarProps) {
-  // Ver los scores solo tiene sentido con la partida detenida: si está en
-  // marcha, el botón se deja pintado igual (nunca "deshabilitado") pero el
-  // click no hace nada.
-  const scoresLocked = showGame && isActive;
-
-  return (
-    <Box className="tetris-panel-width tetris-menu-bar">
-      <Button
-        size="small"
-        variant="contained"
-        onClick={() => {
-          if (!scoresLocked) onToggleView();
-        }}
-        className={`tetris-menu-btn tetris-menu-btn--scores is-active ${
-          showGame ? "" : "tetris-menu-btn--solo"
-        } ${scoresLocked ? "is-locked" : ""}`}
-      >
-        {showGame ? "SCORES" : "BACK"}
-      </Button>
-      {showGame && (
-        <Button
-          size="small"
-          variant="contained"
-          onClick={onStartStop}
-          className="tetris-menu-btn tetris-menu-btn--startstop"
-        >
-          {isActive ? "STOP" : "START"}
-        </Button>
-      )}
-      {showGame && <NextPiecePreview piece={nextPiece} ready={isActive} />}
-    </Box>
-  );
-});
-
-// ───────────────────────── Controles móviles (memoizados) ─────────────────────────
-
-interface MobileControlsProps {
-  startRepeat: (key: string, action: () => void) => void;
-  stopRepeat: (key: string) => void;
-  moveLeft: () => void;
-  moveRight: () => void;
-  softDrop: () => void;
-  rotateLeft: () => void;
-  rotateRight: () => void;
-}
-
-const MobileControls = React.memo(function MobileControls({
-  startRepeat,
-  stopRepeat,
-  moveLeft,
-  moveRight,
-  softDrop,
-  rotateLeft,
-  rotateRight,
-}: MobileControlsProps) {
-  // Evita que el evento "click" fantasma que sigue a un touchstart dispare
-  // la acción dos veces en los botones de pulsación única (rotar).
-  const lastWasTouch = React.useRef(false);
-  const touchGuard = (action: () => void) => (e: React.TouchEvent) => {
-    e.preventDefault();
-    lastWasTouch.current = true;
-    action();
-  };
-  const mouseGuard = (action: () => void) => () => {
-    if (lastWasTouch.current) {
-      lastWasTouch.current = false;
-      return;
-    }
-    action();
-  };
-
-  return (
-    <Box className="mobile-controls">
-      <Button
-        onTouchStart={touchGuard(() => startRepeat("ml", moveLeft))}
-        onTouchEnd={() => stopRepeat("ml")}
-        onMouseDown={mouseGuard(() => startRepeat("ml", moveLeft))}
-        onMouseUp={() => stopRepeat("ml")}
-        onMouseLeave={() => stopRepeat("ml")}
-        aria-label="Izquierda (A)"
-        className="mobile-controls-btn mobile-controls-btn--left"
-      >
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <polygon points="17,6 9,14 17,22" fill="#0ff" stroke="#011" strokeWidth="2" />
-        </svg>
-      </Button>
-
-      <Button
-        onTouchStart={touchGuard(() => startRepeat("mr", moveRight))}
-        onTouchEnd={() => stopRepeat("mr")}
-        onMouseDown={mouseGuard(() => startRepeat("mr", moveRight))}
-        onMouseUp={() => stopRepeat("mr")}
-        onMouseLeave={() => stopRepeat("mr")}
-        aria-label="Derecha (D)"
-        className="mobile-controls-btn mobile-controls-btn--right"
-      >
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <polygon points="11,6 19,14 11,22" fill="#0f7" stroke="#011" strokeWidth="2" />
-        </svg>
-      </Button>
-
-      <Button
-        onTouchStart={touchGuard(() => startRepeat("md", softDrop))}
-        onTouchEnd={() => stopRepeat("md")}
-        onMouseDown={mouseGuard(() => startRepeat("md", softDrop))}
-        onMouseUp={() => stopRepeat("md")}
-        onMouseLeave={() => stopRepeat("md")}
-        aria-label="Bajar (S)"
-        className="mobile-controls-btn mobile-controls-btn--down"
-      >
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <polygon points="8,13 16,23 24,13" fill="#ffec40" stroke="#443" strokeWidth="2" />
-        </svg>
-      </Button>
-
-      <Button
-        onTouchStart={touchGuard(rotateLeft)}
-        onMouseDown={mouseGuard(rotateLeft)}
-        aria-label="Girar izquierda (O)"
-        className="mobile-controls-btn mobile-controls-btn--rotate-left"
-      >
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M20 18a7 7 0 1 1-6-10" stroke="#ffc800" strokeWidth="2.2" fill="none" />
-          <polygon points="13,8 13,14 8,11" fill="#ffc800" />
-        </svg>
-      </Button>
-
-      <Button
-        onTouchStart={touchGuard(rotateRight)}
-        onMouseDown={mouseGuard(rotateRight)}
-        aria-label="Girar derecha (P)"
-        className="mobile-controls-btn mobile-controls-btn--rotate-right"
-      >
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8 18a7 7 0 1 0 6-10" stroke="#ae7fff" strokeWidth="2.2" fill="none" />
-          <polygon points="15,8 15,14 20,11" fill="#ae7fff" />
-        </svg>
-      </Button>
-    </Box>
-  );
-});
-
-// ───────────────────────── Marcador (memoizado) ─────────────────────────
-
-const Scoreboard = React.memo(function Scoreboard({
-  topScores,
-  mineTimeMs,
-}: {
-  topScores: LeaderboardEntry[];
-  mineTimeMs?: number | null;
-}) {
-  const sorted = useMemo(() => [...topScores].sort((a, b) => a.timeMs - b.timeMs).slice(0, 10), [topScores]);
-  return (
-    <Box className="tetris-panel-width tetris-scoreboard">
-      <Typography className="tetris-stat tetris-scoreboard-title">─ BEST TIMES ─</Typography>
-      {sorted.length === 0 ? (
-        <Typography className="tetris-stat tetris-scoreboard-empty">NO SCORES YET</Typography>
-      ) : (
-        <table className="tetris-scores-table">
-          <thead>
-            <tr>
-              {["#", "USER", "TIME", "LINES"].map((h) => (
-                <th key={h}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((entry, i) => {
-              const isMine = mineTimeMs != null && entry.timeMs === mineTimeMs;
-              return (
-                <tr
-                  key={`${entry.userId}-${entry.timeMs}-${i}`}
-                  className={(i === 0 ? "is-first" : "is-rest") + (isMine ? " is-mine" : "")}
-                >
-                  <td>{i + 1}</td>
-                  <td>{entry.userId}</td>
-                  <td>{formatTimeMs(entry.timeMs)}</td>
-                  <td>{entry.linesTarget}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
-    </Box>
-  );
-});
-
-// ───────────────────────── Componente principal ─────────────────────────
+import React, { useCallback, useMemo, useState } from "react";
+import { Button } from "@mui/material";
+import EmojiEventsOutlined from "@mui/icons-material/EmojiEventsOutlined";
+import PauseRounded from "@mui/icons-material/PauseRounded";
+import PlayArrowRounded from "@mui/icons-material/PlayArrowRounded";
+import ReplayRounded from "@mui/icons-material/ReplayRounded";
+import GameShell from "@/app/components/GameShell";
+import Leaderboard from "@/app/components/Leaderboard";
+import ResultPanel from "@/app/components/ResultPanel";
+import { RankBadge, StatTile, uiStyles } from "@/app/components/ui";
+import { NextPiece, TetrisBoard } from "@/app/components/tetris/TetrisBoard";
+import { KeyHints, TouchControls } from "@/app/components/tetris/TetrisControls";
+import styles from "@/app/components/tetris/Tetris.module.css";
+import { useFlashOnIncrease } from "@/app/hooks/useFlashOnIncrease";
+import { useTetris } from "@/app/hooks/useTetris";
+import { formatTimeMs, type LeaderboardEntry, useScore } from "@/app/hooks/useTetrisScore";
+import { useUser } from "@/app/hooks/useUser";
 
 const Tetris: React.FC = () => {
-  const [showGame, setShowGame] = React.useState(true);
+  const [showScores, setShowScores] = useState(false);
+  const { user } = useUser();
   const score = useScore();
   const tetris = useTetris({ onComplete: score.saveScore });
 
@@ -366,83 +50,139 @@ const Tetris: React.FC = () => {
   } = tetris;
 
   const isActive = ready && !gameCompleted && !gameOver;
+  const flash = useFlashOnIncrease(lines);
+  const shownLines = Math.min(lines, linesTarget);
 
-  const handleStartStop = useCallback(() => {
-    if (isActive) {
-      stopGame();
-    } else {
-      score.resetSaveGuard();
-      startGame();
-    }
-  }, [isActive, score, startGame, stopGame]);
+  const play = useCallback(() => {
+    setShowScores(false);
+    score.resetSaveGuard();
+    startGame();
+  }, [score, startGame]);
 
-  const handleToggleView = useCallback(() => setShowGame((v) => !v), []);
+  const sortedScores = useMemo(
+    () => [...score.topScores].sort((a, b) => a.timeMs - b.timeMs),
+    [score.topScores]
+  );
+  const mineTimeMs =
+    score.lastResult?.rank != null && score.lastResult.rank <= 10 ? score.lastResult.timeMs : null;
+
+  // Lo que se pinta encima del tablero cuando no se está jugando.
+  let overlay: React.ReactNode = null;
+  if (loading) {
+    overlay = <p className={styles.intro}>Preparando la partida…</p>;
+  } else if (gameCompleted) {
+    overlay = (
+      <ResultPanel
+        tone="win"
+        title="¡Completado!"
+        subtitle={`${linesTarget} líneas limpias.`}
+        stats={[{ label: "Tiempo", value: formatTimeMs(elapsedMs) }]}
+        footer={
+          score.lastResult?.rank != null && (
+            <RankBadge rank={score.lastResult.rank} total={score.lastResult.total ?? null} />
+          )
+        }
+        actions={
+          <>
+            <Button variant="contained" onClick={play} startIcon={<ReplayRounded />}>
+              Jugar otra vez
+            </Button>
+            <Button variant="outlined" onClick={() => setShowScores(true)}>
+              Ver ranking
+            </Button>
+          </>
+        }
+      />
+    );
+  } else if (gameOver) {
+    overlay = (
+      <ResultPanel
+        tone="lose"
+        title="Game over"
+        subtitle={`Llevabas ${shownLines} de ${linesTarget} líneas.`}
+        actions={
+          <Button variant="contained" onClick={play} startIcon={<ReplayRounded />}>
+            Jugar otra vez
+          </Button>
+        }
+      />
+    );
+  } else if (!ready) {
+    overlay = (
+      <div className={styles.intro}>
+        <h2>Tetris</h2>
+        <p>Limpia {linesTarget} líneas lo más rápido posible. El reloj arranca con la primera pieza.</p>
+        <Button variant="contained" size="large" onClick={play} startIcon={<PlayArrowRounded />}>
+          Jugar
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <Box className="tetris-page">
-      {/* ── Cabecera ── */}
-      <Box className="tetris-header">
-        <MainMenu />
-        <MenuBar
-          showGame={showGame}
-          onToggleView={handleToggleView}
-          onStartStop={handleStartStop}
-          isActive={isActive}
-          nextPiece={nextPiece}
+    <GameShell
+      game="tetris"
+      actions={
+        isActive ? (
+          <Button variant="outlined" onClick={stopGame} startIcon={<PauseRounded />}>
+            Parar
+          </Button>
+        ) : (
+          <Button variant="outlined" onClick={() => setShowScores((v) => !v)} startIcon={<EmojiEventsOutlined />}>
+            {showScores ? "Volver" : "Ranking"}
+          </Button>
+        )
+      }
+    >
+      {showScores ? (
+        <Leaderboard<LeaderboardEntry>
+          title="Ranking"
+          subtitle={`Mejor tiempo en ${linesTarget} líneas`}
+          rows={sortedScores}
+          userOf={(entry) => entry.userId}
+          currentUserId={user.id}
+          isRecord={(entry) => mineTimeMs !== null && entry.timeMs === mineTimeMs && entry.userId === user.id}
+          columns={[
+            { label: "Tiempo", value: (entry) => formatTimeMs(entry.timeMs), align: "right", strong: true },
+            { label: "Líneas", value: (entry) => entry.linesTarget, align: "right" },
+          ]}
         />
+      ) : (
+        <div className={styles.layout}>
+          <div className={styles.areaLines}>
+            <StatTile label="Líneas" value={`${shownLines}/${linesTarget}`} testId="lines">
+              <div className={styles.bar}>
+                <i style={{ width: `${(shownLines / linesTarget) * 100}%` }} />
+              </div>
+            </StatTile>
+          </div>
+          <div className={styles.areaTime}>
+            <StatTile label="Tiempo" value={formatTimeMs(elapsedMs)} />
+          </div>
+          <div className={styles.areaNext}>
+            <StatTile label="Siguiente" value={<NextPiece piece={nextPiece} ready={isActive} />} />
+          </div>
+          <div className={`${styles.areaKeys} ${uiStyles.stat}`}>
+            <span className={uiStyles.statLabel}>Controles</span>
+            <KeyHints />
+          </div>
 
-        <Box className="tetris-panel-width tetris-stats-row">
-			<Typography className="tetris-stat tetris-stat--lines">
-				LINES: {Math.min(lines, linesTarget)}/{linesTarget}
-			</Typography>
-			<Typography
-				className="tetris-stat tetris-stat--loading"
-				style={{ visibility: loading ? "visible" : "hidden" }}
-			>
-				LOADING…
-			</Typography>
-			<Typography className="tetris-stat tetris-stat--time">TIME: {formatTimeMs(elapsedMs)}</Typography>
-			</Box>
+          <div className={styles.areaBoard}>
+            <TetrisBoard
+              board={board}
+              piece={piece}
+              pos={pos}
+              active={ready}
+              lockVisual={lockVisual}
+              lockBoard={lockBoard}
+              flash={flash}
+            >
+              {overlay}
+            </TetrisBoard>
+          </div>
 
-			{gameCompleted && (
-			<Typography className="tetris-status tetris-status--complete tetris-status--highlight">
-				★ COMPLETE: {formatTimeMs(elapsedMs)} ★
-			</Typography>
-			)}
-			{gameCompleted && score.lastResult?.rank != null && (
-			<Typography
-				className={
-					"tetris-status tetris-status--rank" +
-					(score.lastResult.rank <= 10 ? " tetris-status--rank-top10" : "")
-				}
-			>
-				Tu posición: #{score.lastResult.rank} de {score.lastResult.total}
-			</Typography>
-			)}
-			{gameOver && <Typography className="tetris-status tetris-status--over">GAME OVER</Typography>}
-	    </Box>
-
-      {/* ── Zona central: tablero o marcador ── */}
-      <Box className={`tetris-main ${!showGame ? "tetris-main--scores" : ""}`}>
-		{showGame ? (
-			<BoardView board={board} piece={piece} pos={pos} active={ready} lockVisual={lockVisual} lockBoard={lockBoard} />
-		) : (
-			<Scoreboard
-				topScores={score.topScores}
-				mineTimeMs={
-					score.lastResult?.rank != null && score.lastResult.rank <= 10
-						? score.lastResult.timeMs
-						: null
-				}
-			/>
-		)}
-	  </Box>
-
-      {/* ── Pie: controles móviles o ayuda de teclado ── */}
-      {showGame && (
-        <Box className="tetris-footer">
-          <Box className="mobile-only">
-            <MobileControls
+          <div className={styles.areaPads}>
+            <TouchControls
               startRepeat={startRepeat}
               stopRepeat={stopRepeat}
               moveLeft={moveLeft}
@@ -451,16 +191,10 @@ const Tetris: React.FC = () => {
               rotateLeft={rotateLeft}
               rotateRight={rotateRight}
             />
-          </Box>
-          <Box className="desktop-only">
-            <Typography className="tetris-keyboard-hint">
-				A/◀ MOVE LEFT &nbsp;|&nbsp; D/▶ MOVE RIGHT &nbsp;|&nbsp; S/▼ SOFT DROP
-				&nbsp;|&nbsp; O ROTATE ↺ &nbsp;|&nbsp; P ROTATE ↻
-			</Typography>
-          </Box>
-        </Box>
+          </div>
+        </div>
       )}
-    </Box>
+    </GameShell>
   );
 };
 
