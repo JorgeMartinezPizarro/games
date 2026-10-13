@@ -15,6 +15,8 @@ export default async function globalTeardown(): Promise<void> {
       "-f",
       "docker-compose.yml",
       "-f",
+      "docker-compose.nextcloud.yml",
+      "-f",
       "docker-compose.e2e.yml",
       "--env-file",
       ".env.e2e",

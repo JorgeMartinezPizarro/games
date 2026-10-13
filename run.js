@@ -2,16 +2,17 @@ const fs = require("fs");
 const dotenv = require("dotenv");
 const { execSync } = require("child_process");
 
-function loadEnvFile() {
-  const files = [".env.local", ".env"];
+// Mismo orden de prioridad que usa Next para cargar los .env de cada modo:
+// en dev manda .env.development (el entorno de `make dev`), no el .env de prod.
+function loadEnvFile(mode) {
+  const files = mode === "dev"
+    ? [".env.development.local", ".env.local", ".env.development", ".env"]
+    : [".env.production.local", ".env.local", ".env.production", ".env"];
 
-  for (const file of files) {
-    if (fs.existsSync(file)) {
-      return dotenv.parse(fs.readFileSync(file));
-    }
-  }
-
-  return {};
+  return files
+    .filter((file) => fs.existsSync(file))
+    .reverse()
+    .reduce((env, file) => ({ ...env, ...dotenv.parse(fs.readFileSync(file)) }), {});
 }
 
 function getPort(mode, envFromFile) {
@@ -41,7 +42,7 @@ if (!command || !["dev", "start"].includes(command)) {
   process.exit(1);
 }
 
-const envFromFile = loadEnvFile();
+const envFromFile = loadEnvFile(command);
 const port = getPort(command, envFromFile);
 
 console.log(`Starting Next.js (${command}) on port ${port}`);

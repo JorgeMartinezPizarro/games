@@ -15,7 +15,6 @@ function jsonResponse(body: unknown, ok = true): Response {
 }
 
 beforeEach(() => {
-  process.env.NEXT_PUBLIC_ENABLE_LOGIN = "true";
   process.env.NEXTCLOUD_URL = "https://cloud.example.com";
 });
 
@@ -26,15 +25,13 @@ afterEach(() => {
 });
 
 describe("proxy", () => {
-  it("con NEXT_PUBLIC_ENABLE_LOGIN=false deja pasar sin comprobar cookie ni llamar a fetch", async () => {
+  it("ya no hay modo sin login: un .env antiguo con NEXT_PUBLIC_ENABLE_LOGIN=false sin cookie redirige a /login", async () => {
     process.env.NEXT_PUBLIC_ENABLE_LOGIN = "false";
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
 
     const res = await proxy(makeRequest("http://localhost/pages/games/chess"));
 
-    expect(res.status).toBe(200); // NextResponse.next() no es una redirección
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe("http://localhost/login");
   });
 
   it("sin cookie, redirige a /login sin llamar a fetch", async () => {
@@ -48,7 +45,7 @@ describe("proxy", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("con NEXT_PUBLIC_ENABLE_LOGIN=true pero sin NEXTCLOUD_URL, redirige a /login", async () => {
+  it("sin NEXTCLOUD_URL, redirige a /login", async () => {
     delete process.env.NEXTCLOUD_URL;
 
     const res = await proxy(makeRequest("http://localhost/pages/games/chess", "session=abc"));

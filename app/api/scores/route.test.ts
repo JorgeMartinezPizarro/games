@@ -22,14 +22,22 @@ vi.mock("@/app/lib/scores/db", () => ({
   getScoresForGame: vi.fn(),
   getPlayerBestScoreForGame: vi.fn(),
   getPlayerBestScores: vi.fn(),
+  getPlayersBeatenByScore: vi.fn(),
 }));
+vi.mock("@/app/lib/nextcloud/gamingApp", () => ({ postToGamingApp: vi.fn() }));
 
 import { requireAuth } from "@/app/lib/auth";
 import { consumeTetrisGame } from "@/app/lib/tetris/db";
 import { consumeNumbersGame } from "@/app/lib/numbers/db";
 import { consumeWordsGame } from "@/app/lib/words/db";
 import { consumeChessGame } from "@/app/lib/chess/db";
-import { insertScore, getScoreRank } from "@/app/lib/scores/db";
+import {
+  insertScore,
+  getScoreRank,
+  getPlayerBestScoreForGame,
+  getPlayersBeatenByScore,
+} from "@/app/lib/scores/db";
+import { postToGamingApp } from "@/app/lib/nextcloud/gamingApp";
 import { LINES_TARGET } from "@/app/lib/tetris/engine";
 import { buildTwoRowClearActions, findSeedWithConsecutiveOPieces } from "@/app/lib/tetris/testFixtures";
 import { THREEFOLD_REPETITION_DRAW } from "@/app/lib/chess/testFixtures";
@@ -56,6 +64,11 @@ function makeStoredGame(overrides: Partial<{ userId: string; seed: number; creat
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
+  // Toda partida válida publica en Nextcloud: por defecto, sin récords
+  // batidos y con Nextcloud respondiendo OK.
+  vi.mocked(getPlayerBestScoreForGame).mockResolvedValue(null);
+  vi.mocked(getPlayersBeatenByScore).mockResolvedValue([]);
+  vi.mocked(postToGamingApp).mockResolvedValue(new Response("{}", { status: 200 }));
 });
 
 afterEach(() => {
@@ -537,5 +550,64 @@ describe("POST /api/scores (chess)", () => {
 
     const res = await POST(request({ gameId: 1, nonce: "n1" }));
     expect(res.status).toBe(500);
+  });
+});
+
+describe("POST /api/scores → app gaming de Nextcloud", () => {
+  it("publica la actividad y notifica a los jugadores superados con userId y deeplink al juego", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+    const seed = findSeedWithConsecutiveOPieces(5);
+    vi.mocked(consumeTetrisGame).mockResolvedValue(makeStoredGame({ seed }));
+    vi.mocked(insertScore).mockResolvedValue(77);
+    vi.mocked(getScoreRank).mockResolvedValue({ rank: 1, total: 2 });
+    vi.mocked(getPlayerBestScoreForGame).mockResolvedValue(null);
+    vi.mocked(getPlayersBeatenByScore).mockResolvedValue([
+      { userId: "ana", username: "Ana", previousBest: 40_000 },
+    ]);
+    vi.mocked(postToGamingApp).mockResolvedValue(new Response("{}", { status: 200 }));
+
+    const res = await POST(
+      new NextRequest("http://localhost/api/scores", {
+        method: "POST",
+        body: JSON.stringify({ gameId: 3, nonce: "n1", actions: buildTwoRowClearActions() }),
+        headers: { "Content-Type": "application/json", cookie: "nc_session=abc" },
+      })
+    );
+
+    expect(res.status).toBe(200);
+    const common = {
+      userId: "user-1",
+      game: "Tetris",
+      score: 37_000,
+      scoreLabel: "37.000s",
+      path: "/pages/games/tetris",
+    };
+    expect(postToGamingApp).toHaveBeenCalledWith("score", common, "nc_session=abc");
+    expect(postToGamingApp).toHaveBeenCalledWith(
+      "notify",
+      {
+        ...common,
+        targetUserId: "ana",
+        previousScore: 40_000,
+        previousScoreLabel: "40.000s",
+      },
+      "nc_session=abc"
+    );
+  });
+
+  it("si Nextcloud falla, el score se guarda igualmente", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user);
+    const seed = findSeedWithConsecutiveOPieces(5);
+    vi.mocked(consumeTetrisGame).mockResolvedValue(makeStoredGame({ seed }));
+    vi.mocked(insertScore).mockResolvedValue(77);
+    vi.mocked(getScoreRank).mockResolvedValue({ rank: 1, total: 1 });
+    vi.mocked(getPlayerBestScoreForGame).mockResolvedValue(null);
+    vi.mocked(getPlayersBeatenByScore).mockResolvedValue([]);
+    vi.mocked(postToGamingApp).mockRejectedValue(new Error("ECONNREFUSED"));
+
+    const res = await POST(request({ gameId: 3, nonce: "n1", actions: buildTwoRowClearActions() }));
+
+    expect(res.status).toBe(200);
+    expect(insertScore).toHaveBeenCalled();
   });
 });

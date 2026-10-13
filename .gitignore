@@ -38,6 +38,7 @@ volume/
 # environment variables
 .env
 .env.e2e
+.env*.local
 
 cachedata/
 

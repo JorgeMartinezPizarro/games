@@ -1,0 +1,31 @@
+# Override de docker-compose.yml (+ docker-compose.nextcloud.yml) para
+# `make dev`. Puertos y credenciales en .env.development, el mismo fichero
+# que usa `npm run dev`.
+#
+# Qué aísla del stack de prod:
+#  - build local del Dockerfile (no la imagen :latest publicada).
+#  - datos propios: cache/dev/audio y volúmenes nombrados para MariaDB y
+#    Nextcloud (ver docker-compose.e2e.yml sobre por qué MariaDB no usa bind
+#    mount en Docker Desktop). Persisten entre `make dev`; `make dev-reset`
+#    los borra.
+services:
+  games:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: games-dev:local
+    volumes:
+      - ./cache/dev/audio/:/app/cache/audio
+  mariadb:
+    volumes:
+      - mariadb-dev-data:/var/lib/mysql
+  wordlist:
+    volumes:
+      - ./cache/dev/audio/:/app/audio
+  nextcloud:
+    volumes:
+      - nextcloud-dev-data:/var/www/html
+
+volumes:
+  mariadb-dev-data:
+  nextcloud-dev-data:

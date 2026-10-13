@@ -11,22 +11,25 @@ ads — scores are the only persisted user data.
 ## Commands
 
 ```bash
-npm run dev              # node run.js dev   — reads DEV_PORT from env/.env(.local), default 3000
+make dev                 # dev stack (docker, in WSL): local games build + Nextcloud 34 with the gaming app hot-mounted, ports from .env.development
+make dev-stop / dev-reset / dev-logs / occ ARGS="..."
+make prod                # docker compose up -d with .env (prod; Nextcloud is an external stack behind the reverse proxy)
+npm run dev              # node run.js dev   — next dev on DEV_PORT, reads .env.development (same Nextcloud/services as `make dev`)
 npm run build             # next build
 npm run start             # node run.js start — reads PORT from env/.env(.local), default 3000
 npm run lint               # next lint
 npm run test               # vitest run (single run, all *.test.{ts,tsx})
 npm run test:watch     # vitest watch mode
-npm run test:e2e         # playwright test — spins up the full docker-compose stack (games + stockfish + wordlist) via .env.e2e
+npm run test:e2e         # playwright test — spins up the full docker-compose stack (games + Nextcloud 34 + stockfish + wordlist) via .env.e2e
 npm run test:e2e:down  # tear down the e2e docker stack
 ```
 
 Run a single unit test file: `npx vitest run app/hooks/useTetris.test.ts`
 Run a single e2e spec: `npx playwright test e2e/tetris.spec.ts`
 
-Local dev without a real Nextcloud instance: set `NEXT_PUBLIC_ENABLE_LOGIN=false` in `.env` (see
-`.env.sample`) and requests are treated as `NEXT_PUBLIC_DEV_USER` (default `peter`), bypassing both
-the auth middleware and `requireAuth`.
+There is no mode without login (the old `NEXT_PUBLIC_ENABLE_LOGIN=false` bypass was removed): local
+dev and e2e use the Nextcloud 34 container from `docker-compose.nextcloud.yml`. Test users and
+passwords are in `.env.development` / `.env.e2e`.
 
 The app is served under the basePath `/bookmarks` (`next.config.mjs`) — all internal links/assets
 include that prefix.
@@ -78,7 +81,13 @@ stay in sync, or legitimate wins will be silently rejected by `/api/scores`.
   on any failure.
 - `app/lib/auth.ts#requireAuth` does the equivalent check for API routes, with a 60s in-memory
   cache keyed by the raw cookie string to avoid hitting Nextcloud on every request.
-- Both short-circuit to a fixed dev user when `NEXT_PUBLIC_ENABLE_LOGIN=false`.
+- Validated scores are forwarded to the Nextcloud `gaming` app (`nextcloud/custom_apps/gaming`)
+  as activities / "record beaten" notifications via `app/lib/nextcloud/gamingApp.ts`: OCS calls
+  with the user's cookie, HMAC-signed with `NEXTCLOUD_GAMING_SECRET` (the app's `shared_secret`),
+  so users can't post scores to Nextcloud directly.
+- The Nextcloud app shows the games in an iframe; `/apps/gaming/<path>` deeplinks to
+  `<games_url>/<path>`, and `app/hooks/useNextcloudFrameSync.ts` posts each navigation back so
+  Nextcloud's URL follows the iframe.
 
 ### External services (docker-compose, not part of the Next.js app)
 
@@ -97,6 +106,7 @@ Both services are built/pushed via `Makefile` (`make build`, `make push`) as
 
 - Unit tests (Vitest) live next to the code as `*.test.ts`, concentrated in `app/hooks/*.test.ts`
   and the `app/api/*/route.test.ts` files that exercise the replay/anti-cheat logic.
-- E2E tests (Playwright, `e2e/*.spec.ts`) run against the real dockerized stack (games + stockfish +
-  wordlist), configured via `.env.e2e`, `fullyParallel: false` and `workers: 1` since all four games
-  share one infra instance.
+- E2E tests (Playwright, `e2e/*.spec.ts`) run against the real dockerized stack (games + Nextcloud
+  34 + stockfish + wordlist), configured via `.env.e2e`, `fullyParallel: false` and `workers: 1`
+  since all four games share one infra instance. `e2e/auth.setup.ts` logs in to Nextcloud once and
+  every spec reuses that session (storageState).

@@ -10,6 +10,7 @@ import {
 import {
   GAME_IDS,
   GAME_NAMES,
+  GAME_PATHS,
   GetPlayerScoresResponse,
   GetScoresResponse,
   PlayerGameBest,
@@ -32,6 +33,7 @@ import { LINES_TARGET as TETRIS_LINES_TARGET } from "@/app/lib/tetris/engine";
 import { consumeChessGame } from "@/app/lib/chess/db";
 import { replayChessMoves } from "@/app/lib/chess/replay";
 import { formatTimeMs } from "@/app/lib/scores/format";
+import { postToGamingApp } from "@/app/lib/nextcloud/gamingApp";
 import { NextRequest } from "next/server";
 import type { GameId } from "@/app/lib/scores/types";
 
@@ -42,43 +44,31 @@ function formatScoreLabel(gameId: GameId, score: number): string {
   return gameId === GAME_IDS.TETRIS ? formatTimeMs(score) : String(score);
 }
 
+async function logRejected(what: string, response: Response | null): Promise<void> {
+  if (response && !response.ok) {
+    console.error(`Nextcloud rejected ${what}:`, response.status, await response.text());
+  }
+}
+
 async function createActivity(
   request: NextRequest,
   gameId: GameId,
   score: number,
   userId: string
 ): Promise<void> {
-
-	console.log("Llamamos a crear actividad desde el backend!", process.env.NEXT_PUBLIC_ENABLE_LOGIN)
-  if (process.env.NEXT_PUBLIC_ENABLE_LOGIN !== "true") {
-    return;
-  }
-
   const cookie = request.headers.get("cookie");
-  const headers = {
-    "Content-Type": "application/json",
-    "OCS-APIRequest": "true",
-    ...(cookie ? { Cookie: cookie } : {}),
+  // userId ata la firma al usuario de la sesión (Nextcloud lo comprueba) y
+  // path es el deeplink al juego dentro de la app de Nextcloud.
+  const common = {
+    userId,
+    game: GAME_NAMES[gameId],
+    score,
+    scoreLabel: formatScoreLabel(gameId, score),
+    path: GAME_PATHS[gameId],
   };
 
   try {
-    const response = await fetch(
-      `${process.env.NEXTCLOUD_URL}/index.php/apps/gaming/api/score`,
-      {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          game: GAME_NAMES[gameId],
-          score,
-          scoreLabel: formatScoreLabel(gameId, score),
-        }),
-      }
-    );
-
-	console.log("Activity status:", response.status);
-
-	const text = await response.text();
-	console.log("Activity response:", text);
+    await logRejected("activity", await postToGamingApp("score", common, cookie));
   } catch (err) {
     console.error("Unable to publish Nextcloud activity:", err);
   }
@@ -99,23 +89,17 @@ async function createActivity(
     );
 
     for (const player of beatenPlayers) {
-      const response = await fetch(
-        `${process.env.NEXTCLOUD_URL}/index.php/apps/gaming/api/notify`,
+      const response = await postToGamingApp(
+        "notify",
         {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            targetUserId: player.userId,
-            game: GAME_NAMES[gameId],
-            score,
-            scoreLabel: formatScoreLabel(gameId, score),
-            previousScore: player.previousBest,
-            previousScoreLabel: formatScoreLabel(gameId, player.previousBest),
-          }),
-        }
+          ...common,
+          targetUserId: player.userId,
+          previousScore: player.previousBest,
+          previousScoreLabel: formatScoreLabel(gameId, player.previousBest),
+        },
+        cookie
       );
-
-      console.log("Notify status:", player.userId, response.status);
+      await logRejected(`notification for ${player.userId}`, response);
     }
   } catch (err) {
     console.error("Unable to send Nextcloud notifications:", err);

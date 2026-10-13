@@ -3,19 +3,19 @@
     <id>gaming</id>
     <name>Gaming</name>
     <description>A nextcloud app to play and learn</description>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <author>George</author>
     <namespace>Gaming</namespace>
     <category>productivity</category>
     <dependencies>
-        <nextcloud min-version="28" max-version="34"/>
+        <nextcloud min-version="30" max-version="34"/>
         <app>activity</app>
     </dependencies>
     <navigations>
         <navigation>
             <route>gaming.page.index</route>
             <name>Gaming APP</name>
-            <icon>img/icon-test.png</icon>
+            <icon>app.svg</icon>
         </navigation>
     </navigations>
     <activity>

@@ -146,6 +146,15 @@ export const GAME_NAMES: Record<GameId, string> = {
   4: "Wording",
 };
 
+// Ruta de cada juego dentro de la app (sin el basePath /bookmarks). La app
+// de Nextcloud la usa para los deeplinks de actividad y notificaciones.
+export const GAME_PATHS: Record<GameId, string> = {
+  1: "/pages/games/chess",
+  2: "/pages/games/numbers",
+  3: "/pages/games/tetris",
+  4: "/pages/games/words",
+};
+
 export type PlayerGameBest = {
   gameId: GameId;
   gameName: string;

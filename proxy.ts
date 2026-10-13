@@ -4,10 +4,6 @@ import type { NextRequest } from "next/server";
 export async function proxy(request: NextRequest) {
   console.log("Nextcloud auth middleware");
 
-  if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "false") {
-    return NextResponse.next();
-  }
-
   const cookie = request.headers.get("cookie") || "";
 
   if (!cookie) {

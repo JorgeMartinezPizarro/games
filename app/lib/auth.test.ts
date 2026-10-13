@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { requireAuth } from "./auth";
 
 // requireAuth siempre se mockea por completo en los tests de las rutas
-// (vi.mock("@/app/lib/auth", ...)), así que su propia lógica (bypass de dev,
-// caché de 60s por cookie, parseo del payload de Nextcloud, errores) nunca
+// (vi.mock("@/app/lib/auth", ...)), así que su propia lógica (caché de 60s
+// por cookie, parseo del payload de Nextcloud, errores) nunca
 // se había ejecutado en ningún test.
 
 function makeRequest(cookie?: string): Request {
@@ -23,7 +23,6 @@ const ORIGINAL_ENV = { ...process.env };
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(0);
-  process.env.NEXT_PUBLIC_ENABLE_LOGIN = "true";
   process.env.NEXTCLOUD_URL = "https://cloud.example.com";
 });
 
@@ -35,16 +34,11 @@ afterEach(() => {
 });
 
 describe("requireAuth", () => {
-  it("en modo dev (NEXT_PUBLIC_ENABLE_LOGIN=false) devuelve el usuario de dev sin llamar a fetch", async () => {
+  it("ya no hay modo sin login: un .env antiguo con NEXT_PUBLIC_ENABLE_LOGIN=false no salta la sesión", async () => {
     process.env.NEXT_PUBLIC_ENABLE_LOGIN = "false";
     process.env.NEXT_PUBLIC_DEV_USER = "peter";
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
 
-    const user = await requireAuth(makeRequest());
-
-    expect(user).toEqual({ id: "peter", name: "Dev User", email: "dev@local" });
-    expect(fetchMock).not.toHaveBeenCalled();
+    await expect(requireAuth(makeRequest())).rejects.toThrow("No session cookie");
   });
 
   it("lanza 'No session cookie' si no hay cookie", async () => {

@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import dotenv from "dotenv";
+import { STORAGE_STATE } from "./e2e/nextcloud";
 
 // Siempre las variables de .env.e2e, nunca las del shell/.env de dev: así
 // el puerto/infra de e2e queda determinista pase lo que pase fuera.
@@ -27,16 +28,23 @@ export default defineConfig({
   },
 
   projects: [
+    // Login real en el Nextcloud del stack (no hay modo sin login): guarda
+    // la sesión que usan todos los specs.
+    { name: "setup", testMatch: /auth\.setup\.ts/ },
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: { ...devices["Desktop Chrome"], storageState: STORAGE_STATE },
+      dependencies: ["setup"],
     },
   ],
 
-  // Levanta el stack real (games + stockfish + wordlist) dockerizado y
-  // aislado de dev (ver docker-compose.e2e.yml). `up --build` reconstruye
-  // la imagen de games con el código local en cada corrida; al terminar,
-  // Playwright mata este proceso y compose para los contenedores.
+  // Levanta el stack real (games + Nextcloud 34 + stockfish + wordlist)
+  // dockerizado y aislado de dev (ver docker-compose.e2e.yml y
+  // docker-compose.nextcloud.yml). `up --build` reconstruye la imagen de
+  // games con el código local en cada corrida; al terminar, Playwright mata
+  // este proceso y compose para los contenedores. games no arranca hasta que
+  // Nextcloud está instalado y configurado (healthcheck), así que cuando
+  // responde la URL de abajo ya se puede iniciar sesión.
   webServer: {
     // Todo el output de docker compose (los 4 servicios + compose en sí) se
     // redirige a cache/e2e-docker.log en vez de al stdout del proceso: con
@@ -47,7 +55,7 @@ export default defineConfig({
     // depurar un arranque colgado) — solo dejan de competir por el mismo
     // stdout mientras corren los tests, así la tabla final sale junta.
     command:
-      "docker compose -f docker-compose.yml -f docker-compose.e2e.yml --env-file .env.e2e -p games-e2e up --build > cache/e2e-docker.log 2>&1",
+      "docker compose -f docker-compose.yml -f docker-compose.nextcloud.yml -f docker-compose.e2e.yml --env-file .env.e2e -p games-e2e up --build > cache/e2e-docker.log 2>&1",
     url: `${BASE_URL}/bookmarks`,
     // Siempre false, incluso en local: cada corrida debe partir de un
     // leaderboard vacío (ver global-setup.ts), así que "reutilizar" un stack

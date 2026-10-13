@@ -29,10 +29,6 @@ function parseNextcloudUser(payload: unknown): AuthUser {
 }
 
 export async function requireAuth(request: Request): Promise<AuthUser> {
-  if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "false") {
-    return { id: process.env.NEXT_PUBLIC_DEV_USER || "anonymous", name: "Dev User", email: "dev@local" };
-  }
-
   const cookie = request.headers.get("cookie") || "";
 
   if (!cookie) {

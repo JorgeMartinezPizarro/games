@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { e2eUser } from "./nextcloud";
 
 // app/page.tsx (la portada, "/") no tenía ningún e2e: comprueba que muestra
 // las 4 tarjetas de juego reales con su mejor score personal (o "Sin
@@ -12,11 +13,10 @@ test.describe("Home", () => {
   }) => {
     await page.goto("/bookmarks");
 
-    // NEXT_PUBLIC_DEV_USER (docker-compose.yml) ya se propaga al contenedor
-    // en runtime, así que con login desactivado /api/user devuelve de verdad
-    // el usuario de .env.e2e ("e2e-tester"), no el fallback "anonymous".
+    // /api/user devuelve el usuario de la sesión de Nextcloud (auth.setup.ts),
+    // no el fallback "anonymous".
     await expect(page.getByText(/riding Earth's spin/)).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/Dear e2e-tester, you've been riding Earth's spin/)).toBeVisible();
+    await expect(page.getByText(`Dear ${e2eUser()}, you've been riding Earth's spin`)).toBeVisible();
 
     const games = [
       { alt: "Chess", path: "/pages/games/chess" },

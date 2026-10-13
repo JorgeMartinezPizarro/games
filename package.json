@@ -10,7 +10,7 @@
     "test": "node run-unit-tests.js",
     "test:watch": "vitest",
     "test:e2e": "npm run test:e2e:down && node -e \"require('fs').mkdirSync('cache',{recursive:true})\" && playwright test",
-    "test:e2e:down": "docker compose -f docker-compose.yml -f docker-compose.e2e.yml --env-file .env.e2e -p games-e2e down -v"
+    "test:e2e:down": "docker compose -f docker-compose.yml -f docker-compose.nextcloud.yml -f docker-compose.e2e.yml --env-file .env.e2e -p games-e2e down -v"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

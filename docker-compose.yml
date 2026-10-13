@@ -10,9 +10,8 @@ services:
       - 127.0.0.1:${PORT}:${PORT}
     environment:
       - PORT=${PORT}
-      - DEV_PORT=${DEV_PORT}
       - NEXTCLOUD_URL=${NEXTCLOUD_URL}
-      - NEXT_PUBLIC_ENABLE_LOGIN=${NEXT_PUBLIC_ENABLE_LOGIN}
+      - NEXTCLOUD_GAMING_SECRET=${NEXTCLOUD_GAMING_SECRET}
       - NEXT_PUBLIC_CHESS_URL=http://stockfish:8080
       - NEXT_PUBLIC_WORD_URL=http://wordlist:5000
       - MARIADB_HOST=mariadb
@@ -20,7 +19,6 @@ services:
       - MARIADB_DATABASE=${MARIADB_DATABASE}
       - MARIADB_USER=${MARIADB_USER}
       - MARIADB_PASSWORD=${MARIADB_PASSWORD}
-      - NEXT_PUBLIC_DEV_USER=${NEXT_PUBLIC_DEV_USER}
     volumes:
       - ./cache/audio/:/app/cache/audio
   mariadb:

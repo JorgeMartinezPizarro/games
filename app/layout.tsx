@@ -4,7 +4,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import theme from './theme'; 
+import theme from './theme';
+import { useNextcloudFrameSync } from './hooks/useNextcloudFrameSync';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -13,6 +14,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  useNextcloudFrameSync();
+
   return (
     <html lang="en">
       <head>

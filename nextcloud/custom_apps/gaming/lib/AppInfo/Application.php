@@ -9,14 +9,16 @@ use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 
 class Application extends App implements IBootstrap {
-    public function __construct() {
-        parent::__construct('gaming');
-    }
+	public const APP_ID = 'gaming';
 
-    public function register(IRegistrationContext $context): void {
-        $context->registerNotifierService(Notifier::class);
-    }
+	public function __construct() {
+		parent::__construct(self::APP_ID);
+	}
 
-    public function boot(IBootContext $context): void {
-    }
+	public function register(IRegistrationContext $context): void {
+		$context->registerNotifierService(Notifier::class);
+	}
+
+	public function boot(IBootContext $context): void {
+	}
 }

@@ -7,7 +7,7 @@ type AuthUser = {
 };
 
 const ANONYMOUS: AuthUser = {
-   id: process.env.NEXT_PUBLIC_DEV_USER || "anonymous",
+   id: "anonymous",
    name: "anonymous", 
    email: "" 
 };

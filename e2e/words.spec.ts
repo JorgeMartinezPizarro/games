@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { gamingActivities } from "./nextcloud";
 
 const ROUNDS_TOTAL = 10;
 
@@ -55,6 +56,12 @@ test.describe("Words", () => {
     // 1) — se comprueba el aviso real, no solo que el score se guardó.
     await expect(page.getByText(/Tu posición: #1 de 1/)).toBeVisible();
     await expect(page.locator(".finished-summary__rank--top10")).toBeVisible();
+
+    // El score validado llega firmado a la app gaming de Nextcloud real como
+    // actividad, con deeplink al juego.
+    const [activity] = await gamingActivities(page.request);
+    expect(activity?.subject).toMatch(new RegExp(`marcó ${body.score} en Wording$`));
+    expect(activity?.link).toMatch(/\/apps\/gaming\/pages\/games\/words$/);
 
     // El score guardado aparece en el ranking real (misma sesión, se recarga solo).
     await page.getByRole("button", { name: /Ver puntuaciones/ }).click();
