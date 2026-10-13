@@ -16,8 +16,11 @@ push:
 	cd ../../tools/words && \
 	docker push jorgemartinezpizarro/wordlist:latest
 # --- Prod: imágenes publicadas, .env, Nextcloud externo (otro stack, detrás
-# del reverse proxy).
+# del reverse proxy). Se descargan antes de arrancar: `up -d` solo usa las
+# imágenes que ya hay en el servidor y nunca trae una :latest nueva. Si la
+# imagen cambió, `up -d` recrea ese contenedor.
 prod:
+	docker compose pull
 	docker compose up -d
 # Alias de compatibilidad: `make start` era el arranque de prod.
 start: prod
