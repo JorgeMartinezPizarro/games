@@ -85,13 +85,24 @@
   position: absolute;
   inset: 0;
   z-index: 3;
-  display: grid;
-  place-items: center;
+  /* flex (no grid): si la tarjeta es más ancha que el tablero, se sale por
+     igual a ambos lados. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 12px;
   border-radius: 16px;
   background: rgba(11, 14, 20, 0.6);
   backdrop-filter: blur(2px);
   animation: fade 220ms var(--ease) both;
+}
+
+/* El tablero es estrecho en móviles pequeños: la tarjeta puede salirse de él
+   por los lados (centrada) en vez de apretujarse. */
+.overlay > * {
+  flex: none;
+  width: min(calc(100vw - 32px), 340px);
+  max-width: none;
 }
 
 .intro {

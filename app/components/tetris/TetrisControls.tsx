@@ -1,14 +1,20 @@
 import React, { useRef, type ReactNode } from "react";
-import ArrowDropDownRounded from "@mui/icons-material/ArrowDropDownRounded";
-import ArrowLeftRounded from "@mui/icons-material/ArrowLeftRounded";
-import ArrowRightRounded from "@mui/icons-material/ArrowRightRounded";
 import RotateLeftRounded from "@mui/icons-material/RotateLeftRounded";
 import RotateRightRounded from "@mui/icons-material/RotateRightRounded";
 import styles from "./Tetris.module.css";
 
-// Iconos grandes (el sx de MUI manda sobre el CSS del botón): triángulos
-// rellenos para la cruceta, como en una consola.
-const DPAD = { fontSize: 72 };
+// Cruceta: triángulo relleno que llena el botón, como en una consola (los
+// iconos de MUI dejan el glifo en un tercio de su caja).
+const ARROWS = { left: "M16 5 8 12l8 7z", right: "M8 5l8 7-8 7z", down: "M5 8h14l-7 8z" };
+
+function DpadArrow({ direction }: { direction: keyof typeof ARROWS }) {
+  return (
+    <svg width="44" height="44" viewBox="0 0 24 24" aria-hidden>
+      <path d={ARROWS[direction]} fill="currentColor" stroke="currentColor" strokeWidth={2.5} strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 const ROTATE = { fontSize: 46 };
 
 interface TouchControlsProps {
@@ -79,9 +85,9 @@ export const TouchControls = React.memo(function TouchControls({
 
   return (
     <div className={styles.pads}>
-      {hold("ml", moveLeft, "Izquierda (A)", <ArrowLeftRounded sx={DPAD} />)}
-      {hold("mr", moveRight, "Derecha (D)", <ArrowRightRounded sx={DPAD} />)}
-      {hold("md", softDrop, "Bajar (S)", <ArrowDropDownRounded sx={DPAD} />)}
+      {hold("ml", moveLeft, "Izquierda (A)", <DpadArrow direction="left" />)}
+      {hold("mr", moveRight, "Derecha (D)", <DpadArrow direction="right" />)}
+      {hold("md", softDrop, "Bajar (S)", <DpadArrow direction="down" />)}
       {tap("rotl", rotateLeft, "Girar izquierda (O)", <RotateLeftRounded sx={ROTATE} />)}
       {tap("rotr", rotateRight, "Girar derecha (P)", <RotateRightRounded sx={ROTATE} />)}
     </div>
