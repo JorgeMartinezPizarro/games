@@ -69,9 +69,14 @@ part of this stack: it runs in its own deployment, behind the reverse proxy,
 and `NEXTCLOUD_URL` points to it.
 
 ```bash
-make prod   # docker compose up -d (published images)
+make build prod   # build the images on this machine and (re)start the stack
+make pull prod    # or: fetch the images published on Docker Hub, then (re)start
 make stop
 ```
+
+`make prod` alone runs whatever images this machine already has. It never
+pulls, so a fresh `make build` isn't replaced by an older `:latest` from Docker
+Hub; use `make pull` when the images were built and pushed elsewhere.
 
 The Nextcloud side needs the `gaming` app in `custom_apps` with `games_url`
 and the same `shared_secret` as `NEXTCLOUD_GAMING_SECRET` (see the

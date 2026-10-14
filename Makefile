@@ -15,13 +15,17 @@ push:
 	docker push jorgemartinezpizarro/stockfish:latest && \
 	cd ../../tools/words && \
 	docker push jorgemartinezpizarro/wordlist:latest
-# --- Prod: published images, .env, external Nextcloud (another stack, behind
-# the reverse proxy). They are pulled before starting: `up -d` only uses the
-# images already on the server and never fetches a new :latest. If the
-# image changed, `up -d` recreates that container.
+# --- Prod: .env, external Nextcloud (another stack, behind the reverse proxy).
+# `up -d` runs the images already on this machine (it only downloads missing
+# ones) and recreates any container whose image changed. It must NOT pull:
+# after `make build` the fresh local :latest would be overwritten by the older
+# one on Docker Hub. Two workflows:
+#   build on the server:      make build prod   (or make build push prod)
+#   images built elsewhere:   make pull prod
 prod:
-	docker compose pull
 	docker compose up -d
+pull:
+	docker compose pull
 # Compatibility alias: `make start` used to be the prod startup.
 start: prod
 stop:
@@ -48,7 +52,7 @@ dev-logs:
 occ:
 	$(DEV_COMPOSE) exec -u www-data nextcloud php occ $(ARGS)
 
-.PHONY: build push prod start stop dev dev-stop dev-reset dev-logs occ save load
+.PHONY: build push prod pull start stop dev dev-stop dev-reset dev-logs occ save load
 save:
 	docker compose pause
 	docker build -f Dockerfile.volumes \
