@@ -1,7 +1,15 @@
-## TODO
+# Games
 
-- Adapt paths to docker volumes. Build last working version.
-- Use docker network to connect to the dockerized services for security.
+Chess, words, numbers and Tetris, played with your Nextcloud account. No
+tracking. No ads. Just games.
+
+**Play it live:** [games.ideniox.com](https://games.ideniox.com)
+
+<p>
+  <img src="docs/screenshots/menu.png" alt="Main menu with the four games and your best scores" width="520">
+  &nbsp;
+  <img src="docs/screenshots/tetris-mobile.png" alt="Tetris on a phone, with the big touch controls" width="135">
+</p>
 
 ## ABOUT
 
