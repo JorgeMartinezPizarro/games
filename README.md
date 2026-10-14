@@ -6,7 +6,7 @@ tracking. No ads. Just games.
 **Play it live:** [games.ideniox.com](https://games.ideniox.com)
 
 <p>
-  <img src="docs/screenshots/menu.png" alt="Main menu with the four games and your best scores" width="520">
+  <img src="docs/screenshots/menu.png" alt="Main menu with the four games and your best scores" width="620">
   &nbsp;
   <img src="docs/screenshots/tetris-mobile.png" alt="Tetris on a phone, with the big touch controls" width="135">
 </p>
