@@ -1,10 +1,10 @@
-# Nextcloud 34 para `make dev` y los e2e (en prod Nextcloud vive en su propio
-# stack, detrás del reverse proxy). La app gaming NO va en la imagen: se monta
-# en caliente desde el repo (ver docker-compose.nextcloud.yml).
+# Nextcloud 34 for `make dev` and the e2e tests (in prod Nextcloud lives in its
+# own stack, behind the reverse proxy). The gaming app is NOT in the image: it
+# is hot-mounted from the repo (see docker-compose.nextcloud.yml).
 #
-# El hook y el .ini se copian en vez de montarse porque los ficheros montados
-# desde /mnt/c llegan al contenedor sin permiso de ejecución para www-data, y
-# la imagen oficial se salta los hooks que no son ejecutables.
+# The hook and the .ini are copied instead of mounted because files mounted
+# from /mnt/c reach the container without execute permission for www-data, and
+# the official image skips hooks that aren't executable.
 FROM nextcloud:34-apache
 
 COPY --chmod=644 php-dev.ini /usr/local/etc/php/conf.d/zz-gaming-dev.ini

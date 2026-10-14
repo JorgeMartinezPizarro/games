@@ -3,7 +3,7 @@ import GameIcon from "./GameIcon";
 import type { GameKey } from "./gameCatalog";
 import styles from "./ui.module.css";
 
-// Piezas pequeñas compartidas por los juegos. Solo presentación.
+// Small pieces shared by the games. Presentation only.
 
 export function StatTile({
   label,
@@ -27,19 +27,19 @@ export function StatTile({
   );
 }
 
-// Posición en el ranking completo de la partida recién guardada.
+// Position of the just-saved game in the full leaderboard.
 export function RankBadge({ rank, total }: { rank: number | null; total: number | null }) {
   if (rank == null || total == null) return null;
   const top10 = rank <= 10;
   return (
     <p className={styles.rank} data-testid="rank" data-top10={top10}>
-      Tu posición: #{rank} de {total}
+      Your rank: #{rank} of {total}
       {top10 && " · Top 10"}
     </p>
   );
 }
 
-// Pantalla de presentación antes de la primera partida.
+// Intro screen before the first game.
 export function GameIntro({
   game,
   title,

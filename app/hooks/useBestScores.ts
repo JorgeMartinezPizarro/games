@@ -6,13 +6,13 @@ import type { GameId, GetPlayerScoresResponse, PlayerGameBest } from "@/app/lib/
 
 export type { GameId };
 
-// Juegos cuyo score es un tiempo en ms (menor es mejor): solo Tetris (3).
-// Wording (4) puntúa en puntos (cubo de aciertos entre tiempo, mayor es
-// mejor), igual que Chess y Numbers.
+// Games whose score is a time in ms (lower is better): only Tetris (3).
+// Wording (4) scores in points (hits cubed divided by time, higher is
+// better), same as Chess and Numbers.
 const TIME_BASED_GAMES = new Set<GameId>([3]);
 
 export function formatGameScore(gameId: GameId, score: number): string {
-  return TIME_BASED_GAMES.has(gameId) ? formatTimeMs(score) : score.toLocaleString();
+  return TIME_BASED_GAMES.has(gameId) ? formatTimeMs(score) : score.toLocaleString("en-US");
 }
 
 export function useBestScores() {
@@ -24,8 +24,8 @@ export function useBestScores() {
     try {
       const res = await fetch(`/bookmarks/api/scores?me=true`);
       if (!res.ok) {
-        // Sin sesión válida (login activo) o cualquier otro error:
-        // no rompemos la UI, simplemente no mostramos badges.
+        // No valid session (login enabled) or any other error:
+        // don't break the UI, just don't show badges.
         setGames([]);
         return;
       }

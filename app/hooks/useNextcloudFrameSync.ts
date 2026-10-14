@@ -1,15 +1,15 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
-// Mensaje que escucha la app de Nextcloud (nextcloud/custom_apps/gaming/js/main.js)
-// para reflejar en su propia URL (/apps/gaming/<ruta>) la página que se ve
-// dentro del iframe. Así recargar, copiar el enlace o volver atrás mantiene
-// el juego abierto (deeplink).
+// Message the Nextcloud app listens for (nextcloud/custom_apps/gaming/js/main.js)
+// to mirror in its own URL (/apps/gaming/<path>) the page shown inside the
+// iframe. That way reloading, copying the link or going back keeps the game
+// open (deeplink).
 export const NAVIGATE_MESSAGE = "gaming:navigate";
 
 export type NavigateMessage = {
   type: typeof NAVIGATE_MESSAGE;
-  // Ruta sin el basePath (/bookmarks), p. ej. "/pages/games/tetris".
+  // Path without the basePath (/bookmarks), e.g. "/pages/games/tetris".
   path: string;
   search: string;
 };
@@ -27,10 +27,10 @@ export function useNextcloudFrameSync(): void {
       path: pathname,
       search: window.location.search,
     };
-    // targetOrigin "*": el cliente no conoce el origen de Nextcloud (solo el
-    // servidor tiene NEXTCLOUD_URL) y el mensaje solo lleva la ruta visible,
-    // nada sensible. Quien valida es el receptor: Nextcloud solo acepta
-    // mensajes de su propio iframe con el origen de los juegos.
+    // targetOrigin "*": the client doesn't know Nextcloud's origin (only the
+    // server has NEXTCLOUD_URL) and the message only carries the visible
+    // path, nothing sensitive. The receiver does the validation: Nextcloud
+    // only accepts messages from its own iframe with the games' origin.
     window.parent.postMessage(message, "*");
   }, [pathname]);
 }

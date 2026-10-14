@@ -10,7 +10,7 @@ function makeRequest(url: string, cookie?: string): NextRequest {
   });
 }
 
-// Login de Nextcloud que, tras iniciar sesión, abre el ajedrez dentro de la app gaming.
+// Nextcloud login that, after signing in, opens chess inside the gaming app.
 const LOGIN_CHESS =
   "https://cloud.example.com/login?redirect_url=%2Findex.php%2Fapps%2Fgaming%2Fpages%2Fgames%2Fchess";
 
@@ -29,7 +29,7 @@ afterEach(() => {
 });
 
 describe("proxy", () => {
-  it("ya no hay modo sin login: un .env antiguo con NEXT_PUBLIC_ENABLE_LOGIN=false sin cookie redirige al login de Nextcloud", async () => {
+  it("there is no login-free mode anymore: an old .env with NEXT_PUBLIC_ENABLE_LOGIN=false and no cookie redirects to the Nextcloud login", async () => {
     process.env.NEXT_PUBLIC_ENABLE_LOGIN = "false";
 
     const res = await proxy(makeRequest("http://localhost/pages/games/chess"));
@@ -38,7 +38,7 @@ describe("proxy", () => {
     expect(res.headers.get("location")).toBe(LOGIN_CHESS);
   });
 
-  it("sin cookie, redirige al login de Nextcloud sin llamar a fetch", async () => {
+  it("without a cookie, redirects to the Nextcloud login without calling fetch", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
@@ -49,7 +49,7 @@ describe("proxy", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("sin NEXTCLOUD_URL no hay a dónde mandar al usuario: error de configuración", async () => {
+  it("without NEXTCLOUD_URL there is nowhere to send the user: configuration error", async () => {
     delete process.env.NEXTCLOUD_URL;
 
     const res = await proxy(makeRequest("http://localhost/pages/games/chess", "session=abc"));
@@ -57,7 +57,7 @@ describe("proxy", () => {
     expect(res.status).toBe(500);
   });
 
-  it("usa NEXTCLOUD_PUBLIC_URL (la que ve el navegador) y conserva la query en el deeplink", async () => {
+  it("uses NEXTCLOUD_PUBLIC_URL (the one the browser sees) and keeps the query in the deeplink", async () => {
     process.env.NEXTCLOUD_URL = "http://nextcloud";
     process.env.NEXTCLOUD_PUBLIC_URL = "http://localhost:4480/";
 
@@ -68,7 +68,7 @@ describe("proxy", () => {
     );
   });
 
-  it("la portada sin sesión lleva a la raíz de la app gaming", async () => {
+  it("the home page without a session leads to the gaming app root", async () => {
     const res = await proxy(makeRequest("http://localhost/"));
 
     expect(res.headers.get("location")).toBe(
@@ -76,7 +76,7 @@ describe("proxy", () => {
     );
   });
 
-  it("si fetch a Nextcloud falla (red caída), redirige al login de Nextcloud", async () => {
+  it("if fetch to Nextcloud fails (network down), redirects to the Nextcloud login", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
 
     const res = await proxy(makeRequest("http://localhost/pages/games/chess", "session=abc"));
@@ -85,7 +85,7 @@ describe("proxy", () => {
     expect(res.headers.get("location")).toBe(LOGIN_CHESS);
   });
 
-  it("si Nextcloud responde no-ok, redirige al login de Nextcloud", async () => {
+  it("if Nextcloud responds non-ok, redirects to the Nextcloud login", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({}, false)));
 
     const res = await proxy(makeRequest("http://localhost/pages/games/chess", "session=abc"));
@@ -94,7 +94,7 @@ describe("proxy", () => {
     expect(res.headers.get("location")).toBe(LOGIN_CHESS);
   });
 
-  it("si la respuesta de Nextcloud no es JSON válido, redirige al login de Nextcloud", async () => {
+  it("if the Nextcloud response is not valid JSON, redirects to the Nextcloud login", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -111,7 +111,7 @@ describe("proxy", () => {
     expect(res.headers.get("location")).toBe(LOGIN_CHESS);
   });
 
-  it("si el JSON no trae ocs.data.id, redirige al login de Nextcloud", async () => {
+  it("if the JSON has no ocs.data.id, redirects to the Nextcloud login", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ ocs: { data: {} } })));
 
     const res = await proxy(makeRequest("http://localhost/pages/games/chess", "session=abc"));
@@ -120,7 +120,7 @@ describe("proxy", () => {
     expect(res.headers.get("location")).toBe(LOGIN_CHESS);
   });
 
-  it("userId falsy pero no undefined (0) también redirige al login de Nextcloud", async () => {
+  it("a falsy but not undefined userId (0) also redirects to the Nextcloud login", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ ocs: { data: { id: 0 } } })));
 
     const res = await proxy(makeRequest("http://localhost/pages/games/chess", "session=abc"));
@@ -129,7 +129,7 @@ describe("proxy", () => {
     expect(res.headers.get("location")).toBe(LOGIN_CHESS);
   });
 
-  it("cookie válida con userId presente: deja pasar (next)", async () => {
+  it("valid cookie with a userId present: lets the request through (next)", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(jsonResponse({ ocs: { data: { id: "u1" } } }))

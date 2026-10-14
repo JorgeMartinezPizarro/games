@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-// true durante `ms` cada vez que `value` sube (p. ej. al limpiar líneas).
+// true for `ms` every time `value` goes up (e.g. when clearing lines).
 export function useFlashOnIncrease(value: number, ms = 320): boolean {
   const previous = useRef(value);
   const [flash, setFlash] = useState(false);

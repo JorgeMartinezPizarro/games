@@ -19,7 +19,7 @@ afterEach(() => {
 });
 
 describe("useNextcloudFrameSync", () => {
-  it("no hace nada si la app no está dentro de un iframe", () => {
+  it("does nothing if the app isn't inside an iframe", () => {
     const postMessage = vi.spyOn(window, "postMessage");
 
     renderHook(() => useNextcloudFrameSync());
@@ -27,7 +27,7 @@ describe("useNextcloudFrameSync", () => {
     expect(postMessage).not.toHaveBeenCalled();
   });
 
-  it("dentro de un iframe, avisa al padre de la ruta actual con su query", () => {
+  it("inside an iframe, notifies the parent of the current path with its query", () => {
     const parent = { postMessage: vi.fn() };
     embedIn(parent);
     pathname.current = "/pages/games/tetris";
@@ -41,7 +41,7 @@ describe("useNextcloudFrameSync", () => {
     );
   });
 
-  it("vuelve a avisar en cada navegación cliente", () => {
+  it("notifies again on every client-side navigation", () => {
     const parent = { postMessage: vi.fn() };
     embedIn(parent);
 

@@ -1,7 +1,7 @@
-# Imagen base con herramientas necesarias
+# Base image with the required tools
 FROM python:3.12-slim
 
-# Instalar dependencias
+# Install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     build-essential \
@@ -12,21 +12,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Clonar y compilar Stockfish
+# Clone and build Stockfish
 RUN git clone https://github.com/official-stockfish/Stockfish.git /tmp/stockfish \
     && cd /tmp/stockfish/src \
     && make build ARCH=x86-64-modern \
     && mv /tmp/stockfish/src/stockfish /usr/local/bin/stockfish \
     && rm -rf /tmp/stockfish
 
-# Instalar Flask
+# Install Flask
 RUN pip3 install flask
 
-# Copiar la aplicación
+# Copy the application
 COPY app.py /app.py
 
-# Exponer el puerto
+# Expose the port
 EXPOSE 8080
 
-# Ejecutar la aplicación
+# Run the application
 CMD ["python3", "/app.py"]

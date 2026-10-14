@@ -1,85 +1,85 @@
 import { devices, expect, test } from "@playwright/test";
 
-// Tetris solo guarda score si el replay llega a LINES_TARGET (25 líneas) —
-// completar eso de verdad requiere una estrategia real de apilado, fuera
-// de alcance para un smoke test. En su lugar: movimientos reales por
-// teclado (prueban la integración real con el seed del servidor) y luego
-// se mantiene S pulsada (soft drop real, mismo listener que useTetris probó
-// en los tests unitarios) sin mover más la columna de salida, hasta que
-// apila piezas y llega a un game over real, sin ningún atajo de test.
+// Tetris only saves a score if the replay reaches LINES_TARGET (25 lines) —
+// actually completing that requires a real stacking strategy, out of scope
+// for a smoke test. Instead: real keyboard moves (they exercise the real
+// integration with the server seed) and then S is held down (real soft drop,
+// the same listener useTetris tested in the unit tests) without moving the
+// spawn column any further, until pieces stack up and reach a real game
+// over, with no test shortcut at all.
 test.describe("Tetris", () => {
-  test("se puede jugar con teclado real y la partida termina en game over real", async ({
+  test("can be played with a real keyboard and the game ends in a real game over", async ({
     page,
   }) => {
     test.setTimeout(90_000);
 
     await page.goto("/bookmarks/pages/games/tetris");
 
-    await page.getByRole("button", { name: /^Jugar/ }).click();
-    await expect(page.getByRole("button", { name: "Parar" })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: /^Play/ }).click();
+    await expect(page.getByRole("button", { name: "Stop" })).toBeVisible({ timeout: 15_000 });
 
     const linesBefore = await page.getByTestId("lines").innerText();
     expect(linesBefore).toContain("0/25");
 
-    // Controles reales por teclado (mismos listeners que useTetris probó en
-    // los tests unitarios): mover, rotar y forzar una caída rápida.
+    // Real keyboard controls (the same listeners useTetris tested in the
+    // unit tests): move, rotate and force a fast drop.
     await page.keyboard.press("ArrowLeft");
     await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("o"); // rotar izquierda
-    await page.keyboard.press("p"); // rotar derecha
+    await page.keyboard.press("o"); // rotate left
+    await page.keyboard.press("p"); // rotate right
 
-    // Mantener S pulsada acelera la caída (soft drop repetido cada 100ms,
-    // HOLD_REPEAT_RATE en useTetris.ts) frente a la gravedad natural
-    // (184ms/fila, DROP_SPEED_MS): sin mover más la columna de salida, esto
-    // apila piezas y llega a un game over real bastante antes que soltar la
-    // tecla y esperar solo a la gravedad.
+    // Holding S down speeds up the fall (soft drop repeated every 100ms,
+    // HOLD_REPEAT_RATE in useTetris.ts) compared to natural gravity
+    // (184ms/row, DROP_SPEED_MS): without moving the spawn column any further,
+    // this stacks pieces and reaches a real game over well before releasing
+    // the key and waiting for gravity alone would.
     await page.keyboard.down("s");
     await expect(page.getByTestId("result-title")).toHaveText("Game over", { timeout: 60_000 });
     await page.keyboard.up("s");
-    await expect(page.getByRole("button", { name: /^Jugar/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Play/ })).toBeVisible();
   });
 });
 
-// Los controles táctiles (TouchControls) solo se muestran en
-// el layout móvil (ver Tetris.module.css: max-width 768px o
-// hover:none+pointer:coarse), así que hace falta emular un viewport móvil
-// real (Pixel 7, hasTouch) para que se rendericen y comprobar que el juego
-// también se puede jugar por touch, no solo con teclado.
-test.describe("Tetris (móvil)", () => {
-  // defaultBrowserType se excluye a propósito: fijarlo dentro de un
-  // describe (en vez de a nivel de proyecto) fuerza un worker nuevo y
-  // Playwright lo rechaza; el proyecto ya usa chromium, así que no hace falta.
+// The touch controls (TouchControls) are only shown in the mobile layout
+// (see Tetris.module.css: max-width 768px or hover:none+pointer:coarse), so
+// we need to emulate a real mobile viewport (Pixel 7, hasTouch) for them to
+// render and to check that the game can also be played by touch, not only
+// with the keyboard.
+test.describe("Tetris (mobile)", () => {
+  // defaultBrowserType is excluded on purpose: setting it inside a describe
+  // (instead of at project level) forces a new worker and Playwright rejects
+  // it; the project already uses chromium, so it isn't needed.
   const { defaultBrowserType: _defaultBrowserType, ...pixel7 } = devices["Pixel 7"];
   test.use({ ...pixel7 });
 
-  test("se puede jugar con los controles táctiles y la partida termina en game over real", async ({
+  test("can be played with the touch controls and the game ends in a real game over", async ({
     page,
   }) => {
     test.setTimeout(90_000);
 
     await page.goto("/bookmarks/pages/games/tetris");
 
-    await page.getByRole("button", { name: /^Jugar/ }).click();
-    await expect(page.getByRole("button", { name: "Parar" })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: /^Play/ }).click();
+    await expect(page.getByRole("button", { name: "Stop" })).toBeVisible({ timeout: 15_000 });
 
     const linesBefore = await page.getByTestId("lines").innerText();
     expect(linesBefore).toContain("0/25");
 
-    // Mismos controles reales que el test de teclado, pero disparados por
-    // touch (mismos startRepeat/moveLeft/moveRight/rotateLeft/rotateRight
-    // que useTetris expone también al teclado): mover y rotar.
-    await page.getByRole("button", { name: "Izquierda (A)" }).tap();
-    await page.getByRole("button", { name: "Derecha (D)" }).tap();
-    await page.getByRole("button", { name: "Girar izquierda (O)" }).tap();
-    await page.getByRole("button", { name: "Girar derecha (P)" }).tap();
+    // Same real controls as the keyboard test, but fired by touch (the same
+    // startRepeat/moveLeft/moveRight/rotateLeft/rotateRight that useTetris
+    // also exposes to the keyboard): move and rotate.
+    await page.getByRole("button", { name: "Left (A)" }).tap();
+    await page.getByRole("button", { name: "Right (D)" }).tap();
+    await page.getByRole("button", { name: "Rotate left (O)" }).tap();
+    await page.getByRole("button", { name: "Rotate right (P)" }).tap();
 
-    // Mantener el botón de bajar (touchstart real, sin touchend todavía)
-    // acelera la caída igual que mantener S en el teclado: sin mover más la
-    // columna de salida, esto apila piezas hasta un game over real.
-    const downButton = page.getByRole("button", { name: "Bajar (S)" });
+    // Holding the down button (real touchstart, no touchend yet) speeds up
+    // the fall just like holding S on the keyboard: without moving the spawn
+    // column any further, this stacks pieces until a real game over.
+    const downButton = page.getByRole("button", { name: "Down (S)" });
     await downButton.dispatchEvent("touchstart");
     await expect(page.getByTestId("result-title")).toHaveText("Game over", { timeout: 60_000 });
     await downButton.dispatchEvent("touchend");
-    await expect(page.getByRole("button", { name: /^Jugar/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Play/ })).toBeVisible();
   });
 });

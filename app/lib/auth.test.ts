@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { requireAuth } from "./auth";
 
-// requireAuth siempre se mockea por completo en los tests de las rutas
-// (vi.mock("@/app/lib/auth", ...)), así que su propia lógica (caché de 60s
-// por cookie, parseo del payload de Nextcloud, errores) nunca
-// se había ejecutado en ningún test.
+// requireAuth is always fully mocked in the route tests
+// (vi.mock("@/app/lib/auth", ...)), so its own logic (60s per-cookie
+// cache, parsing the Nextcloud payload, errors) had never
+// run in any test.
 
 function makeRequest(cookie?: string): Request {
   return {
@@ -34,25 +34,25 @@ afterEach(() => {
 });
 
 describe("requireAuth", () => {
-  it("ya no hay modo sin login: un .env antiguo con NEXT_PUBLIC_ENABLE_LOGIN=false no salta la sesión", async () => {
+  it("there is no login-free mode anymore: an old .env with NEXT_PUBLIC_ENABLE_LOGIN=false does not bypass the session", async () => {
     process.env.NEXT_PUBLIC_ENABLE_LOGIN = "false";
     process.env.NEXT_PUBLIC_DEV_USER = "peter";
 
     await expect(requireAuth(makeRequest())).rejects.toThrow("No session cookie");
   });
 
-  it("lanza 'No session cookie' si no hay cookie", async () => {
+  it("throws 'No session cookie' if there is no cookie", async () => {
     await expect(requireAuth(makeRequest())).rejects.toThrow("No session cookie");
   });
 
-  it("lanza si falta NEXTCLOUD_URL", async () => {
+  it("throws if NEXTCLOUD_URL is missing", async () => {
     delete process.env.NEXTCLOUD_URL;
     await expect(requireAuth(makeRequest("session=abc-missing-url"))).rejects.toThrow(
       "Server misconfigured: missing NEXTCLOUD_URL"
     );
   });
 
-  it("lanza 'Nextcloud unreachable' si fetch falla", async () => {
+  it("throws 'Nextcloud unreachable' if fetch fails", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockRejectedValue(new Error("network down"))
@@ -62,21 +62,21 @@ describe("requireAuth", () => {
     );
   });
 
-  it("lanza 'Invalid Nextcloud session' si la respuesta no es ok", async () => {
+  it("throws 'Invalid Nextcloud session' if the response is not ok", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({}, false)));
     await expect(requireAuth(makeRequest("session=abc-invalid"))).rejects.toThrow(
       "Invalid Nextcloud session"
     );
   });
 
-  it("lanza 'Invalid user profile' si el payload no trae id", async () => {
+  it("throws 'Invalid user profile' if the payload has no id", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ ocs: { data: {} } })));
     await expect(requireAuth(makeRequest("session=abc-no-id"))).rejects.toThrow(
       "Invalid user profile"
     );
   });
 
-  it("parsea displayname/email/id con las prioridades correctas", async () => {
+  it("parses displayname/email/id with the correct priorities", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -87,7 +87,7 @@ describe("requireAuth", () => {
     expect(user).toEqual({ id: "7", name: "Ada", email: "ada@x.com" });
   });
 
-  it("cae a email y luego a id cuando falta displayname", async () => {
+  it("falls back to email and then to id when displayname is missing", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(jsonResponse({ ocs: { data: { id: "u1", email: "u1@x.com" } } }))
@@ -104,7 +104,7 @@ describe("requireAuth", () => {
     expect(withIdOnly.email).toBe("u2");
   });
 
-  it("cachea el usuario 60s por cookie: una segunda llamada dentro de ese margen no vuelve a llamar a fetch", async () => {
+  it("caches the user for 60s per cookie: a second call within that window does not call fetch again", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(jsonResponse({ ocs: { data: { id: "cached-user" } } }));
@@ -118,10 +118,10 @@ describe("requireAuth", () => {
     const second = await requireAuth(makeRequest(cookie));
 
     expect(second).toEqual(first);
-    expect(fetchMock).toHaveBeenCalledTimes(1); // sigue en caché, no hay segunda llamada
+    expect(fetchMock).toHaveBeenCalledTimes(1); // still cached, no second call
   });
 
-  it("expira la caché a los 60s: pasado ese margen, vuelve a llamar a fetch", async () => {
+  it("expires the cache after 60s: past that window, it calls fetch again", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(jsonResponse({ ocs: { data: { id: "expiring-user" } } }));

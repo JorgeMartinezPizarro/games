@@ -2,14 +2,14 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 
-// npm run test pasaba por vitest directamente: la salida en vivo mezclaba
-// una línea por test con los console.log/error del código bajo prueba. El
-// reporter "default" + silent: "passed-only" (vitest.config.ts) ya resuelven
-// eso: por fichero se ve solo un resumen (nombre + nº de tests), y los logs
-// de un test solo se imprimen si ese test falla. Aquí se hace streaming en
-// vivo de esa salida (línea a línea, según van terminando los ficheros) en
-// vez de esperar a que vitest acabe, y a la vez se va archivando en
-// cache/unit-tests.log para poder revisarla luego.
+// npm run test used to go straight through vitest: the live output mixed
+// one line per test with the console.log/error of the code under test. The
+// "default" reporter + silent: "passed-only" (vitest.config.ts) already fix
+// that: per file you only see a summary (name + number of tests), and a
+// test's logs are only printed if that test fails. Here that output is
+// streamed live (line by line, as files finish) instead of waiting for
+// vitest to end, and at the same time it's archived to
+// cache/unit-tests.log so it can be reviewed later.
 fs.mkdirSync("cache", { recursive: true });
 const logPath = path.join("cache", "unit-tests.log");
 const logStream = fs.createWriteStream(logPath);

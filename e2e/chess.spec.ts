@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-// Chess solo guarda score si el jugador da jaque mate a Stockfish (ver
-// app/api/scores/route.ts#saveChessScore) — no hay forma determinista de
-// forzar eso contra un motor real. Este test es un smoke test: confirma que
-// la UI real (react-chessboard) y el contenedor real de Stockfish
-// interoperan de punta a punta con una jugada legal.
+// Chess only saves a score if the player checkmates Stockfish (see
+// app/api/scores/route.ts#saveChessScore) — there is no deterministic way to
+// force that against a real engine. This test is a smoke test: it confirms
+// that the real UI (react-chessboard) and the real Stockfish container
+// interoperate end to end with a legal move.
 test.describe("Chess", () => {
-  test("una jugada real del jugador obtiene una respuesta real de Stockfish", async ({ page }) => {
+  test("a real player move gets a real reply from Stockfish", async ({ page }) => {
     await page.goto("/bookmarks/pages/games/chess");
 
     await expect(page.locator('[data-square="e2"] [data-piece="wP"]')).toBeVisible({
@@ -20,12 +20,12 @@ test.describe("Chess", () => {
         res.request().method() === "POST"
     );
 
-    // Sistema de dos clics (mismo que usa useChessGame.onSquareClick).
+    // Two-click system (the same one useChessGame.onSquareClick uses).
     await page.locator('[data-square="e2"]').click();
     await page.locator('[data-square="e4"]').click();
 
-    // Movimiento local aplicado de inmediato (feedback instantáneo, antes
-    // de que responda el servidor).
+    // Local move applied immediately (instant feedback, before the server
+    // responds).
     await expect(page.locator('[data-square="e4"] [data-piece="wP"]')).toBeVisible();
     await expect(page.locator('[data-square="e2"] [data-piece]')).toHaveCount(0);
 
@@ -34,7 +34,7 @@ test.describe("Chess", () => {
     const body = await response.json();
     expect(body.bestmove === null || typeof body.bestmove === "string").toBe(true);
 
-    // Si Stockfish (real, vía docker) devolvió jugada, se refleja en el tablero.
+    // If Stockfish (real, via docker) returned a move, it shows up on the board.
     if (body.bestmove) {
       const targetSquare = String(body.bestmove).slice(2, 4);
       await expect(
@@ -42,11 +42,11 @@ test.describe("Chess", () => {
       ).toBeVisible({ timeout: 10_000 });
     }
 
-    // La lista de jugadas recoge la del jugador.
+    // The move list includes the player's move.
     await expect(page.getByText("e4", { exact: true })).toBeVisible();
   });
 
-  test("Nueva partida reinicia el tablero a la posición de salida", async ({ page }) => {
+  test("New game resets the board to the starting position", async ({ page }) => {
     await page.goto("/bookmarks/pages/games/chess");
     await expect(page.locator('[data-square="e2"] [data-piece="wP"]')).toBeVisible({
       timeout: 15_000,
@@ -56,7 +56,7 @@ test.describe("Chess", () => {
     await page.locator('[data-square="e4"]').click();
     await expect(page.locator('[data-square="e4"] [data-piece="wP"]')).toBeVisible();
 
-    await page.getByRole("button", { name: "Nueva partida" }).click();
+    await page.getByRole("button", { name: "New game" }).click();
 
     await expect(page.locator('[data-square="e2"] [data-piece="wP"]')).toBeVisible();
     await expect(page.locator('[data-square="e4"] [data-piece]')).toHaveCount(0);

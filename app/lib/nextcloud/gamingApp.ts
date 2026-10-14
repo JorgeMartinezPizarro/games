@@ -1,12 +1,12 @@
 import { createHmac } from "node:crypto";
 
-// Cliente de la API de la app "gaming" de Nextcloud
-// (nextcloud/custom_apps/gaming). Cada llamada va firmada con HMAC-SHA256
-// sobre "<timestamp>.<body>" con un secreto compartido
-// (NEXTCLOUD_GAMING_SECRET aquí, shared_secret en la config de la app de
-// Nextcloud). Nextcloud solo publica actividad o notificaciones si la firma
-// cuadra: así nadie puede llamar a esos endpoints con su propia sesión e
-// inventarse puntuaciones saltándose el replay de /api/scores.
+// API client for the Nextcloud "gaming" app
+// (nextcloud/custom_apps/gaming). Every call is signed with HMAC-SHA256
+// over "<timestamp>.<body>" using a shared secret
+// (NEXTCLOUD_GAMING_SECRET here, shared_secret in the Nextcloud app's
+// config). Nextcloud only publishes activity or notifications if the
+// signature matches: that way nobody can call those endpoints with their own
+// session and make up scores, bypassing the /api/scores replay.
 export const TIMESTAMP_HEADER = "X-Gaming-Timestamp";
 export const SIGNATURE_HEADER = "X-Gaming-Signature";
 
@@ -16,8 +16,8 @@ export function signGamingRequest(secret: string, timestamp: number, body: strin
   return createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex");
 }
 
-// Devuelve null (sin llamar a Nextcloud) si falta configuración: la
-// actividad es secundaria y nunca debe tumbar el guardado del score.
+// Returns null (without calling Nextcloud) if configuration is missing: the
+// activity is secondary and must never break saving the score.
 export async function postToGamingApp(
   endpoint: GamingEndpoint,
   payload: Record<string, unknown>,

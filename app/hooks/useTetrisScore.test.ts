@@ -25,17 +25,17 @@ afterEach(() => {
 });
 
 describe("formatTimeMs", () => {
-  it("formatea por debajo del minuto como segundos", () => {
+  it("formats times under a minute as seconds", () => {
     expect(formatTimeMs(45_230)).toBe("45.230s");
   });
 
-  it("formatea por encima del minuto como minutos:segundos", () => {
+  it("formats times over a minute as minutes:seconds", () => {
     expect(formatTimeMs(125_678)).toBe("2:05.678");
   });
 });
 
 describe("useScore (tetris)", () => {
-  it("loadScores mapea el formato nuevo (gameConfig.linesTarget presente)", async () => {
+  it("loadScores maps the new format (gameConfig.linesTarget present)", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -54,7 +54,7 @@ describe("useScore (tetris)", () => {
     expect(result.current.topScores[0]).toEqual({ userId: "u1", timeMs: 45230, linesTarget: 25 });
   });
 
-  it("loadScores mapea el formato nuevo por heurística (score >= 1000, sin gameConfig)", async () => {
+  it("loadScores maps the new format by heuristic (score >= 1000, no gameConfig)", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -75,7 +75,7 @@ describe("useScore (tetris)", () => {
     });
   });
 
-  it("loadScores mapea el formato legacy (score = linesTarget, gameConfig.timer en segundos)", async () => {
+  it("loadScores maps the legacy format (score = linesTarget, gameConfig.timer in seconds)", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -92,7 +92,7 @@ describe("useScore (tetris)", () => {
     expect(result.current.topScores[0]).toEqual({ userId: "u3", timeMs: 37_000, linesTarget: 20 });
   });
 
-  it("saveScore manda el nonce y el log de acciones, y solo guarda una vez hasta resetSaveGuard", async () => {
+  it("saveScore sends the nonce and the action log, and only saves once until resetSaveGuard", async () => {
     const fetchMock = routeFetch({
       "GET /bookmarks/api/scores": () => jsonResponse({ scores: [] }),
       "POST /bookmarks/api/scores": () =>
@@ -129,7 +129,7 @@ describe("useScore (tetris)", () => {
     expect(third).toBe(45230);
   });
 
-  it("saveScore adopta el rank/total del resultado de ESTA partida (no el mejor histórico) tal cual los devuelve el POST", async () => {
+  it("saveScore adopts the rank/total of THIS game's result (not the all-time best) exactly as returned by the POST", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -146,12 +146,12 @@ describe("useScore (tetris)", () => {
       await result.current.saveScore("nonce-1", [{ type: "resume", t: 0 } as const] as any);
     });
 
-    // Aunque el jugador ya tuviera un mejor puesto guardado de antes, lo que
-    // se muestra es el resultado de ESTA ronda (posición 25 de 40).
+    // Even if the player already had a better saved position from before,
+    // what's shown is THIS round's result (position 25 of 40).
     expect(result.current.lastResult).toEqual({ timeMs: 20_000, rank: 25, total: 40 });
   });
 
-  it("resetSaveGuard limpia lastResult", async () => {
+  it("resetSaveGuard clears lastResult", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -173,7 +173,7 @@ describe("useScore (tetris)", () => {
     expect(result.current.lastResult).toBeNull();
   });
 
-  it("saveScore devuelve null y libera el guard si el servidor responde con error", async () => {
+  it("saveScore returns null and releases the guard if the server responds with an error", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -193,7 +193,7 @@ describe("useScore (tetris)", () => {
     await act(async () => {
       saved = await result.current.saveScore("nonce-1", []);
     });
-    // Al no haber tenido éxito, el guard se liberó y se reintenta (segunda llamada también resuelve, no null por el guard)
+    // Since it didn't succeed, the guard was released and it retries (the second call also resolves, not null because of the guard)
     expect(saved).toBeNull();
   });
 });

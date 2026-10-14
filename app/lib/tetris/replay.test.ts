@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-// LINES_TARGET a 2 solo en este fichero: permite reproducir una partida
-// completa (2 líneas limpiadas con 5 piezas O) sin resolver Tetris de
-// verdad, igual que en app/api/scores/route.test.ts.
+// LINES_TARGET set to 2 in this file only: lets us replay a complete game
+// (2 lines cleared with 5 O pieces) without actually solving Tetris, same
+// as in app/api/scores/route.test.ts.
 vi.mock("@/app/lib/tetris/engine", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/app/lib/tetris/engine")>();
   return { ...actual, LINES_TARGET: 2 };
@@ -17,8 +17,8 @@ import {
   WALL_KICK_SEQUENCE,
 } from "./testFixtures";
 
-describe("replayTetris — cotas de cordura", () => {
-  it("MAX_ACTIONS + 1 acciones se rechaza directamente por longitud", () => {
+describe("replayTetris — sanity bounds", () => {
+  it("MAX_ACTIONS + 1 actions is rejected outright for length", () => {
     const actions = Array.from({ length: MAX_ACTIONS + 1 }, (_, i) => ({ type: "tick", t: i }));
     expect(replayTetris(1, actions)).toEqual({
       valid: false,
@@ -26,7 +26,7 @@ describe("replayTetris — cotas de cordura", () => {
     });
   });
 
-  it("exactamente MAX_ACTIONS acciones no se rechaza por longitud (falla más adelante, por reglas del juego)", () => {
+  it("exactly MAX_ACTIONS actions is not rejected for length (fails later, by the game rules)", () => {
     const actions = Array.from({ length: MAX_ACTIONS }, (_, i) => ({ type: "tick", t: i }));
     const replay = replayTetris(1, actions);
 
@@ -35,26 +35,26 @@ describe("replayTetris — cotas de cordura", () => {
     expect(replay.reason).not.toMatch(/Malformed or empty action log/);
   });
 
-  it("un timestamp mayor que MAX_DURATION_MS se rechaza como log malformado", () => {
+  it("a timestamp greater than MAX_DURATION_MS is rejected as a malformed log", () => {
     const replay = replayTetris(1, [{ type: "resume", t: MAX_DURATION_MS + 1 }]);
     expect(replay).toEqual({ valid: false, reason: "Malformed or empty action log." });
   });
 
-  it("un timestamp igual a MAX_DURATION_MS no se rechaza por duración", () => {
+  it("a timestamp equal to MAX_DURATION_MS is not rejected for duration", () => {
     const replay = replayTetris(1, [{ type: "resume", t: MAX_DURATION_MS }]);
     expect(replay.valid).toBe(false);
     if (replay.valid) return;
     expect(replay.reason).not.toMatch(/Malformed or empty action log/);
   });
 
-  it("rechaza un array vacío", () => {
+  it("rejects an empty array", () => {
     expect(replayTetris(1, [])).toEqual({
       valid: false,
       reason: "Malformed or empty action log.",
     });
   });
 
-  it("rechaza timestamps fuera de orden (decrecientes)", () => {
+  it("rejects out-of-order (decreasing) timestamps", () => {
     const replay = replayTetris(1, [
       { type: "resume", t: 10 },
       { type: "tick", t: 5 },
@@ -63,8 +63,8 @@ describe("replayTetris — cotas de cordura", () => {
   });
 });
 
-describe("replayTetris — manipulación del log tras el final de la partida", () => {
-  it("acciones añadidas después de completar el objetivo se ignoran (no alteran el resultado)", () => {
+describe("replayTetris — tampering with the log after the game ends", () => {
+  it("actions appended after completing the target are ignored (they don't change the result)", () => {
     const seed = findSeedWithConsecutiveOPieces(5);
     const cleanActions = buildTwoRowClearActions();
 
@@ -83,17 +83,16 @@ describe("replayTetris — manipulación del log tras el final de la partida", (
   });
 });
 
-describe("replayTetris — agotamiento de wall-kick", () => {
-  // Una pieza I vertical pegada a la pared derecha (columna 9) no puede
-  // rotar a horizontal: ninguno de los 5 desplazamientos de wall-kick
-  // ([0,-1,1,-2,2]) cabe en un tablero de 10 columnas (una I horizontal
-  // solo cabe hasta x=6). La rotación debe ser un no-op silencioso, sin
-  // lanzar y sin mover la pieza. Se verifica de forma indirecta pero
-  // inequívoca: el resto de la partida (4 O + otra I) solo completa las 2
-  // filas inferiores si la columna 9 quedó bloqueada donde debía — si el
-  // wall-kick se hubiera "colado" fuera de los límites, esas filas nunca se
-  // habrían completado.
-  it("una I vertical pegada a la pared no rota (todos los kicks colisionan) y la partida sigue con normalidad", () => {
+describe("replayTetris — wall-kick exhaustion", () => {
+  // A vertical I piece against the right wall (column 9) can't rotate to
+  // horizontal: none of the 5 wall-kick offsets ([0,-1,1,-2,2]) fits on a
+  // 10-column board (a horizontal I only fits up to x=6). The rotation must
+  // be a silent no-op, without throwing and without moving the piece. This
+  // is verified indirectly but unambiguously: the rest of the game (4 O +
+  // another I) only completes the 2 bottom rows if column 9 locked where it
+  // should — if the wall-kick had "slipped" outside the bounds, those rows
+  // would never have been completed.
+  it("a vertical I against the wall does not rotate (all kicks collide) and the game continues normally", () => {
     const seed = findSeedWithPieceSequence(WALL_KICK_SEQUENCE);
     const actions = buildWallKickExhaustionActions();
 

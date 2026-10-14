@@ -18,13 +18,13 @@ export function useNumbers(config: UseNumbersConfig = {}) {
   const [moves, setMoves] = useState<NumbersMove[]>([])
   const [nonce, setNonce] = useState<string | null>(null)
   const [initialBoard, setInitialBoard] = useState<CellValues[]>([])
-  // Score calculado localmente en vivo, hasta que el backend confirme el
-  // suyo (fuente de verdad) al terminar la partida.
+  // Score computed locally, live, until the backend confirms its own
+  // (source of truth) when the game ends.
   const [confirmedScore, setConfirmedScore] = useState<number | null>(null)
 
-  // Misma fórmula que valida/recalcula el servidor (app/lib/numbers/board.ts)
-  // para que el score en vivo no diverja del que confirma el backend al
-  // terminar.
+  // Same formula the server validates/recomputes with (app/lib/numbers/board.ts)
+  // so the live score doesn't diverge from the one the backend confirms at
+  // the end.
   const liveScore = computeNumbersScore(steps, time - start)
   const currentScore = confirmedScore ?? liveScore
 
@@ -93,14 +93,14 @@ export function useNumbers(config: UseNumbersConfig = {}) {
       setMoves(newMoves)
       setLast({ ...cell })
 
-      // Completó todas las casillas
+      // Completed all the cells
       if (newSteps === 20) {
         const finalScore = computeNumbersScore(newSteps, newTime - start)
         finish(finalScore, newSteps, newMoves)
         return false
       }
 
-      // Detectar bloqueo
+      // Detect being blocked
       const updatedCell: CellValues = {
         values: { ...cell.values, b: true },
       }
@@ -135,11 +135,11 @@ export function useNumbers(config: UseNumbersConfig = {}) {
       if (!response.ok) throw new Error("Failed to start a new game")
 
       const data = await response.json()
-      // El cronómetro arranca en cuanto llega el tablero, igual que el
-      // servidor arranca el suyo al crear el nonce (stored.createdAt en
-      // app/lib/numbers/db.ts). Si esperáramos al primer click, el score
-      // mostrado en pantalla no coincidiría con el que valida y guarda el
-      // backend.
+      // The timer starts as soon as the board arrives, just as the server
+      // starts its own when creating the nonce (stored.createdAt in
+      // app/lib/numbers/db.ts). If we waited for the first click, the score
+      // shown on screen wouldn't match the one the backend validates and
+      // saves.
       const now = Date.now()
       setNumbers(data.board)
       setInitialBoard(data.board)
@@ -156,7 +156,7 @@ export function useNumbers(config: UseNumbersConfig = {}) {
   return {
     numbers,
     steps,
-    // Casillas pisadas en orden (para pintar el rastro).
+    // Cells visited, in order (for rendering the trail).
     moves,
     isRight,
     loading,

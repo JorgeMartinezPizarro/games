@@ -2,8 +2,8 @@ const fs = require("fs");
 const dotenv = require("dotenv");
 const { execSync } = require("child_process");
 
-// Mismo orden de prioridad que usa Next para cargar los .env de cada modo:
-// en dev manda .env.development (el entorno de `make dev`), no el .env de prod.
+// Same priority order Next uses to load each mode's .env files:
+// in dev, .env.development (the `make dev` environment) wins, not the prod .env.
 function loadEnvFile(mode) {
   const files = mode === "dev"
     ? [".env.development.local", ".env.local", ".env.development", ".env"]

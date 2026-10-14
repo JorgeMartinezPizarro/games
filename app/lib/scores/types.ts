@@ -29,8 +29,8 @@ export type SaveScoreResponse = {
   message: string;
   id: number;
   score: number;
-  // Posición del score recién guardado (esta partida concreta, no
-  // necesariamente el mejor histórico del jugador) en el ranking completo.
+  // Position of the just-saved score (this specific game, not
+  // necessarily the player's all-time best) in the full ranking.
   rank: number;
   total: number;
 };
@@ -139,16 +139,16 @@ export function getErrorResponseMessage(error: unknown): string {
   return errorMessage(error);
 }
 
-// Nombres que se ven fuera de la app (actividad de Nextcloud).
+// Names shown outside the app (Nextcloud activity and notifications).
 export const GAME_NAMES: Record<GameId, string> = {
-  1: "Ajedrez",
-  2: "Números",
+  1: "Chess",
+  2: "Numbers",
   3: "Tetris",
-  4: "Palabras",
+  4: "Words",
 };
 
-// Ruta de cada juego dentro de la app (sin el basePath /bookmarks). La app
-// de Nextcloud la usa para los deeplinks de actividad y notificaciones.
+// Path of each game inside the app (without the /bookmarks basePath). The
+// Nextcloud app uses it for the activity and notification deeplinks.
 export const GAME_PATHS: Record<GameId, string> = {
   1: "/pages/games/chess",
   2: "/pages/games/numbers",

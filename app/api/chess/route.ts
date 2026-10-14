@@ -4,7 +4,7 @@ import { appendChessMove, deleteChessGame, getChessGame } from "@/app/lib/chess/
 import { MAX_PLIES, moveToUci, replayChessMoves } from "@/app/lib/chess/replay";
 import { NextRequest } from "next/server";
 
-// La URL correcta para Stockfish, basada en la configuración de Nginx
+// The correct URL for Stockfish, based on the Nginx configuration
 const STOCKFISH_API_URL = process.env.NEXT_PUBLIC_CHESS_URL
   ? process.env.NEXT_PUBLIC_CHESS_URL + "/chess"
   : `${process.env.NEXTCLOUD_URL}/chess`;
@@ -34,26 +34,26 @@ go movetime 1500
   const { response: stockfishResponse } = await response.json();
   const bestMoveLine = stockfishResponse.find((line: string) => line.startsWith("bestmove"));
   if (!bestMoveLine) {
-    throw new Error(`No se encontró 'bestmove' en la respuesta de Stockfish: ${stockfishResponse}`);
+    throw new Error(`No 'bestmove' in the Stockfish response: ${stockfishResponse}`);
   }
 
   const match = bestMoveLine.match(/bestmove\s(\S+)/);
   const bestmove = match?.[1];
   if (!bestmove || bestmove === "(none)") {
-    throw new Error(`Stockfish no devolvió una jugada válida: ${bestMoveLine}`);
+    throw new Error(`Stockfish did not return a valid move: ${bestMoveLine}`);
   }
 
   return bestmove;
 }
 
-// El servidor es la única autoridad: reconstruye la posición actual a
-// partir del log de jugadas guardado bajo el nonce (nunca de un FEN mandado
-// por el cliente), valida la jugada del jugador con chess.js, y solo si la
-// partida sigue en curso invoca a Stockfish él mismo con el elo fijado al
-// crear la partida (nunca el que mande el cliente). Tanto la jugada del
-// jugador como la de la IA quedan grabadas en game_chess antes de
-// responder, para poder reproducir y validar la partida entera al guardar
-// el score en /api/scores.
+// The server is the sole authority: it rebuilds the current position from
+// the move log stored under the nonce (never from a client-sent FEN),
+// validates the player's move with chess.js, and only if the game is still
+// in progress does it call Stockfish itself, with the elo fixed when the
+// game was created (never the one the client sends). Both the player's move
+// and the AI's are recorded in game_chess before responding, so the whole
+// game can be replayed and validated when the score is saved in
+// /api/scores.
 export async function POST(req: NextRequest): Promise<Response> {
   try {
     const user = await requireAuth(req);
@@ -85,8 +85,8 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     const replay = replayChessMoves(stored.moves);
     if (!replay.valid) {
-      // El propio servidor escribió este log: si está corrupto no hay forma
-      // de recuperar la partida.
+      // The server itself wrote this log: if it's corrupted there is no way
+      // to recover the game.
       await deleteChessGame(nonce);
       return Response.json({ error: `Corrupted game state: ${replay.reason}` }, { status: 500 });
     }
@@ -124,9 +124,9 @@ export async function POST(req: NextRequest): Promise<Response> {
         promotion: bestmove.length === 5 ? bestmove.slice(4) : undefined,
       });
     } catch (moveError) {
-      // La jugada del jugador ya quedó grabada; no grabamos nada más para
-      // esta jugada de la IA y dejamos el estado consistente para que el
-      // cliente trate esto como un error fatal (igual que un fallo de red).
+      // The player's move is already recorded; we record nothing else for
+      // this AI move and leave the state consistent so the client treats
+      // this as a fatal error (same as a network failure).
       return Response.json(
         { error: `Stockfish proposed an illegal move: ${errorMessage(moveError)}` },
         { status: 500 }
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error en /bookmarks/api/chess:", error);
+    console.error("Error in /bookmarks/api/chess:", error);
     return Response.json({ error: errorMessage(error) }, { status: 500 });
   }
 }

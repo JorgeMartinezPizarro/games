@@ -8,8 +8,8 @@ import {
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import crypto from "node:crypto";
 
-// Nonces caducan a los 15 minutos, igual que en numbers: tiempo de sobra
-// para jugar una partida, evita filas huérfanas si nunca se termina.
+// Nonces expire after 15 minutes, same as in numbers: plenty of time to
+// play a game, and it avoids orphan rows if the game is never finished.
 const NONCE_MAX_AGE_MS = 15 * 60 * 1000;
 
 let _tableReady: Promise<void> | null = null;
@@ -77,10 +77,10 @@ export async function deleteWordsGame(nonce: string): Promise<void> {
   await db.execute(`DELETE FROM words_games WHERE nonce = ?`, [nonce]);
 }
 
-// Se llama al fallar una ronda: a diferencia de un salto de ronda inválido,
-// aquí NO se borra la partida, para que /api/scores pueda puntuar los
-// aciertos logrados hasta este punto. El nonce queda inutilizable para
-// más respuestas (ver /api/words/answer).
+// Called when a round is failed: unlike an invalid round skip, here the
+// game is NOT deleted, so /api/scores can score the correct answers
+// achieved up to this point. The nonce becomes unusable for further
+// answers (see /api/words/answer).
 export async function markWordsGameEnded(nonce: string): Promise<void> {
   await ensureTable();
   const db = await getDb();
@@ -115,8 +115,8 @@ export async function getWordsGame(nonce: string): Promise<WordsGameState | null
   };
 }
 
-// Se llama tras validar una respuesta correcta: avanza la ronda esperada.
-// Devuelve el nuevo total de rondas acertadas.
+// Called after validating a correct answer: advances the expected round.
+// Returns the new total of correctly answered rounds.
 export async function advanceWordsGame(nonce: string): Promise<number> {
   await ensureTable();
 
@@ -134,12 +134,12 @@ export async function advanceWordsGame(nonce: string): Promise<number> {
   return row?.answeredCount ?? 0;
 }
 
-// Lectura + borrado en un paso: solo puede usarse una vez para guardar el
-// score final, tanto si la partida estaba completa como si no. El DELETE
-// comprueba affectedRows en vez de asumir éxito: si dos peticiones
-// concurrentes leen el mismo nonce antes de que ninguna borre, ambas verían
-// la partida como válida y puntuarían dos veces la misma partida sin esto —
-// solo la que de verdad borra la fila (affectedRows === 1) sigue adelante.
+// Read + delete in one step: can only be used once to save the final
+// score, whether or not the game was complete. The DELETE checks
+// affectedRows instead of assuming success: if two concurrent requests read
+// the same nonce before either one deletes it, without this both would see
+// the game as valid and score the same game twice — only the one that
+// actually deletes the row (affectedRows === 1) goes ahead.
 export async function consumeWordsGame(nonce: string): Promise<WordsGameState | null> {
   const game = await getWordsGame(nonce);
   if (!game) return null;

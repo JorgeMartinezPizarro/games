@@ -12,7 +12,7 @@ function randomArrayCellValues(length: number): CellValues[] {
   }));
 }
 
-// Verifica si existe al menos un camino que visite todas las casillas
+// Checks whether at least one path exists that visits every cell
 export function hasSolution(cells: CellValues[]): boolean {
   const n = cells.length;
 
@@ -68,10 +68,10 @@ export type MoveValidationResult =
   | { valid: true; steps: number }
   | { valid: false; reason: string };
 
-// Cuánto se tolera que el timestamp de un clic (reloj del cliente) se
-// adelante al tiempo real transcurrido desde la creación del nonce (reloj
-// del servidor) — cubre latencia de red / pequeño desfase de reloj, no un
-// intento de simular una partida más larga de la que realmente ocurrió.
+// How far a click's timestamp (client clock) is allowed to run ahead of the
+// real time elapsed since the nonce was created (server clock) — covers
+// network latency / small clock skew, not an attempt to fake a longer game
+// than the one that actually happened.
 const CLOCK_TOLERANCE_MS = 2000;
 
 function parseMove(raw: unknown): NumbersMove | null {
@@ -82,22 +82,21 @@ function parseMove(raw: unknown): NumbersMove | null {
   return { i, t };
 }
 
-// Reproduce la partida con los movimientos recibidos, aplicando las mismas
-// reglas que app/hooks/useNumbers.ts (handleClick/isBlocked), para que un
-// score no pueda enviarse sin haber jugado una partida legal. `elapsedMs` es
-// el tiempo real transcurrido desde la creación del nonce (reloj del
-// servidor, ver saveNumbersScore): ancla los timestamps de los clics (no
-// pueden ser posteriores a ese tiempo real) al mismo reloj de confianza que
-// usa el score final.
+// Replays the game with the received moves, applying the same rules as
+// app/hooks/useNumbers.ts (handleClick/isBlocked), so a score can't be
+// submitted without having played a legal game. `elapsedMs` is the real
+// time elapsed since the nonce was created (server clock, see
+// saveNumbersScore): it anchors the click timestamps (they can't be later
+// than that real time) to the same trusted clock the final score uses.
 //
-// No se rechaza por "clics demasiado rápidos": en la práctica, clics reales
-// en un tablero pequeño (botones adyacentes, sin desplazamiento de ratón)
-// caen habitualmente entre 50-80ms de diferencia — indistinguible de un
-// script a esta resolución, así que un suelo de ritmo ahí solo generaba
-// falsos positivos (partidas legítimas rechazadas en silencio). La defensa
-// real contra resolver el tablero al instante está en la propia fórmula de
-// score (computeNumbersScore ya tiene un suelo de ms/paso): ir más rápido
-// del suelo no aumenta el score, así que no hay incentivo a hacer trampa.
+// There is no rejection for "clicks too fast": in practice, real clicks on
+// a small board (adjacent buttons, no mouse travel) commonly land 50-80ms
+// apart — indistinguishable from a script at this resolution, so a pace
+// floor there only produced false positives (legitimate games silently
+// rejected). The real defense against solving the board instantly lives in
+// the score formula itself (computeNumbersScore already has a ms/step
+// floor): going faster than the floor doesn't raise the score, so there is
+// no incentive to cheat.
 export function validateMoves(
   board: CellValues[],
   rawMoves: unknown,
@@ -150,10 +149,10 @@ export function validateMoves(
   return { valid: true, steps: rawMoves.length };
 }
 
-// Cuadrática en steps (completar más tablero pesa, pero sin el disparo de
-// la cúbica anterior) con un suelo en el ritmo medio (ms/paso): evita que un
-// elapsedMs artificialmente bajo (p.ej. una partida resuelta al instante)
-// dispare el score — a partir de ese suelo, ir "más rápido" ya no suma más.
+// Quadratic in steps (completing more of the board counts, but without the
+// blow-up of the previous cubic) with a floor on the average pace (ms/step):
+// keeps an artificially low elapsedMs (e.g. a game solved instantly) from
+// blowing up the score — past that floor, going "faster" adds nothing.
 const MIN_MS_PER_STEP = 150;
 const SCORE_K = 1000;
 

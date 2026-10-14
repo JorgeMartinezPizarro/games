@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Sin sesión válida se manda al login de Nextcloud, que es quien autentica.
-// Tras iniciar sesión, Nextcloud abre esa misma página dentro de su app
-// gaming (deeplink /apps/gaming/<ruta>). NEXTCLOUD_PUBLIC_URL es la URL que
-// ve el navegador, por si el servidor habla con Nextcloud por otra (p. ej.
-// http://nextcloud dentro de docker compose); si no, se usa NEXTCLOUD_URL.
+// Without a valid session the user is sent to the Nextcloud login, since
+// Nextcloud is the one that authenticates. After signing in, Nextcloud opens
+// that same page inside its gaming app (deeplink /apps/gaming/<path>).
+// NEXTCLOUD_PUBLIC_URL is the URL the browser sees, in case the server talks
+// to Nextcloud via a different one (e.g. http://nextcloud inside docker
+// compose); otherwise NEXTCLOUD_URL is used.
 function redirectToLogin(request: NextRequest): NextResponse {
   const nextcloud = (process.env.NEXTCLOUD_PUBLIC_URL || process.env.NEXTCLOUD_URL || "").replace(/\/+$/, "");
   if (!nextcloud) {
     console.error("Missing NEXTCLOUD_URL");
-    return new NextResponse("Servidor mal configurado: falta NEXTCLOUD_URL.", { status: 500 });
+    return new NextResponse("Server misconfigured: NEXTCLOUD_URL is missing.", { status: 500 });
   }
 
   const { pathname, search } = request.nextUrl;
@@ -72,7 +73,7 @@ export async function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
-// La portada también: sin sesión no hay nombre ni marcas que enseñar.
+// The home page too: without a session there's no name or best scores to show.
 export const config = {
   matcher: ["/", "/pages/:path*"],
 };

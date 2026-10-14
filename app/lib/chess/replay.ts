@@ -1,8 +1,8 @@
 import { Chess } from "chess.js";
 
-// Cota de cordura: nada que ver con partidas reales, solo evita que un log
-// absurdamente largo (bug de cliente o abuso) haga trabajar de más al
-// servidor. 150 jugadas por bando es generoso para una partida humano-IA.
+// Sanity bound: nothing to do with real games, it just keeps an absurdly
+// long log (client bug or abuse) from making the server do extra work.
+// 150 moves per side is generous for a human-vs-AI game.
 export const MAX_PLIES = 300;
 
 export function uciMoveToParts(
@@ -24,12 +24,11 @@ export type ChessReplayResult =
   | { valid: true; chess: Chess; gameOver: boolean }
   | { valid: false; reason: string };
 
-// Reproduce la partida entera desde el tablero inicial aplicando cada jugada
-// registrada (propia o de la IA, ambas en UCI) con chess.js. Es la única
-// fuente de verdad tanto para reconstruir la posición actual antes de
-// aceptar la siguiente jugada (/api/chess) como para validar la partida
-// completa al guardar el score — nunca se confía en un FEN o resultado
-// mandado por el cliente.
+// Replays the whole game from the initial board, applying each recorded
+// move (the player's or the AI's, both in UCI) with chess.js. It is the only
+// source of truth both for rebuilding the current position before accepting
+// the next move (/api/chess) and for validating the complete game when
+// saving the score — a FEN or result sent by the client is never trusted.
 export function replayChessMoves(moves: unknown): ChessReplayResult {
   if (!Array.isArray(moves) || moves.length > MAX_PLIES) {
     return { valid: false, reason: "Malformed or too-long move log." };

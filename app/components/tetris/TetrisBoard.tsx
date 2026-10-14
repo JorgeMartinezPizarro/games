@@ -2,8 +2,8 @@ import React, { type CSSProperties, type ReactNode } from "react";
 import { COLS, ROWS, hardDropDistance, type Board, type Piece } from "@/app/hooks/useTetris";
 import styles from "./Tetris.module.css";
 
-// Colores estándar de Tetris. El motor (compartido con el replay del
-// servidor) tiene los suyos; se traducen aquí, solo para pintar.
+// Standard Tetris colors. The engine (shared with the server-side replay)
+// has its own; they are mapped here, for rendering only.
 const PIECE_COLORS: Record<string, string> = {
   "#e03030": "#a78bfa", // T
   "#e0c030": "#facc15", // O
@@ -83,7 +83,7 @@ export const TetrisBoard = React.memo(function TetrisBoard({
   );
 });
 
-// Siguiente pieza en una rejilla fija de 4×2 (cabe cualquier tetrominó).
+// Next piece on a fixed 4×2 grid (any tetromino fits).
 export const NextPiece = React.memo(function NextPiece({ piece, ready }: { piece: Piece; ready: boolean }) {
   const offsetX = Math.floor((4 - piece.shape[0].length) / 2);
   const offsetY = Math.floor((2 - piece.shape.length) / 2);

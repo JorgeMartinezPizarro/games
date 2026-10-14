@@ -1,6 +1,6 @@
 FROM python:3.9
 
-# dependencias del sistema
+# system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     make \
@@ -8,23 +8,23 @@ RUN apt-get update && apt-get install -y \
     bash \
     && rm -rf /var/lib/apt/lists/*
 
-# dependencias python
+# python dependencies
 RUN pip install flask gtts
 
 WORKDIR /app
 
-# clonar repo
+# clone repo
 RUN git clone https://github.com/en-wl/wordlist.git libscowl
 
 WORKDIR /app/libscowl
 
-# 🔥 build oficial del repo
+# 🔥 the repo's official build
 RUN make
 
-# validar output
+# validate output
 RUN test -f scowl.db
 
-# mover DB
+# move DB
 RUN cp scowl.db /app/scowl.db
 
 WORKDIR /app

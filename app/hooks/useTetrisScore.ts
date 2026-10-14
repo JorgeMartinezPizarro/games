@@ -33,10 +33,10 @@ function parseLeaderboardEntry(entry: ScoreEntry): LeaderboardEntry {
   };
 }
 
-// Resultado de la partida recién confirmada por el backend: el tiempo
-// conseguido en ESA ronda y su posición (1-based) dentro del ranking
-// completo del juego (no solo el top 10) — no el mejor histórico del
-// jugador, aunque ya tuviera un puesto mejor guardado de antes.
+// Result of the game just confirmed by the backend: the time achieved in
+// THAT round and its (1-based) position within the game's full ranking
+// (not just the top 10) — not the player's all-time best, even if they
+// already had a better saved position from before.
 export type LastResult = {
   timeMs: number;
   rank: number;
@@ -44,8 +44,8 @@ export type LastResult = {
 };
 
 /**
- * Hook con toda la lógica de marcador (carga y guardado de puntuaciones).
- * No contiene nada de UI.
+ * Hook with all the scoreboard logic (loading and saving scores).
+ * Contains nothing UI-related.
  */
 export function useScore() {
   const [topScores, setTopScores] = useState<LeaderboardEntry[]>([]);
@@ -58,18 +58,18 @@ export function useScore() {
       setTopScores(scores);
       return scores;
     } catch {
-      // silencioso: el marcador simplemente no se actualiza
+      // silent: the scoreboard simply doesn't update
       return [];
     }
   }, []);
 
-  // El tiempo final lo decide siempre el backend: reproduce la partida a
-  // partir del seed y el log de acciones (app/lib/tetris/replay.ts) y solo
-  // si llega de forma legal a LINES_TARGET calcula el tiempo con su propio
-  // reloj. Devolvemos ese valor para que useTetris lo adopte como elapsedMs
-  // final. La misma respuesta ya trae la posición de ESTA partida concreta
-  // en el ranking completo (rank/total), calculada por el backend sobre la
-  // fila recién insertada — no el mejor histórico del jugador.
+  // The final time is always decided by the backend: it replays the game
+  // from the seed and the action log (app/lib/tetris/replay.ts) and only if
+  // it legally reaches LINES_TARGET does it compute the time with its own
+  // clock. We return that value so useTetris adopts it as the final
+  // elapsedMs. The same response already includes THIS specific game's
+  // position in the full ranking (rank/total), computed by the backend on
+  // the freshly inserted row — not the player's all-time best.
   const saveScore = useCallback(
     async (nonce: string, actions: TetrisAction[]): Promise<number | null> => {
       if (scoreSavedRef.current) return null;
@@ -103,7 +103,7 @@ export function useScore() {
     [loadScores]
   );
 
-  // Se debe llamar al reiniciar partida para permitir guardar de nuevo
+  // Must be called when restarting the game to allow saving again
   const resetSaveGuard = useCallback(() => {
     scoreSavedRef.current = false;
     setLastResult(null);

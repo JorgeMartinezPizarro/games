@@ -29,14 +29,14 @@ export async function POST(request: NextRequest): Promise<Response> {
       return Response.json({ error: "Invalid or expired nonce." }, { status: 400 });
     }
 
-    // Una partida ya terminada (falló una ronda) no admite más respuestas:
-    // el nonce solo sirve ya para consultarse desde /api/scores.
+    // An already-ended game (a round was missed) accepts no more answers:
+    // the nonce is now only good for being looked up from /api/scores.
     if (game.ended) {
       return Response.json({ error: "Game already ended." }, { status: 400 });
     }
 
-    // Solo se puede responder la siguiente ronda esperada: evita saltarse
-    // rondas o reintentar una ya resuelta.
+    // Only the next expected round can be answered: prevents skipping
+    // rounds or retrying one already solved.
     const round = game.rounds[parsedIndex];
     if (parsedIndex !== game.answeredCount || !round) {
       await deleteWordsGame(nonce);
@@ -44,11 +44,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     if (answer !== round.target) {
-      // Una respuesta incorrecta termina la partida ahí mismo: un único
-      // intento por ronda, así probar las opciones a fuerza bruta no sale
-      // gratis. Ya no se borra el nonce: queda marcado como terminado para
-      // que /api/scores pueda puntuar los aciertos logrados hasta aquí
-      // (cualquier partida que termine, ganada o perdida, puntúa).
+      // A wrong answer ends the game right there: a single attempt per
+      // round, so brute-forcing the choices doesn't come for free. The
+      // nonce is no longer deleted: it's marked as ended so /api/scores can
+      // score the correct answers achieved so far (any game that ends, won
+      // or lost, scores).
       await markWordsGameEnded(nonce);
       return Response.json({ correct: false, target: round.target }, { status: 200 });
     }

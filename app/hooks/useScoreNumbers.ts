@@ -6,8 +6,8 @@ import { GAME_IDS, ScoreEntry } from "@/app/lib/scores/types";
 import { fetchTopScores } from "@/app/lib/scores/client";
 import { NumbersMove } from "@/app/lib/numbers/board";
 
-// Posición de ESTA partida concreta (no el mejor histórico del jugador) en
-// el ranking completo del juego (no solo el top 10).
+// Position of THIS specific game (not the player's all-time best) in the
+// game's full ranking (not just the top 10).
 export type MyRank = { rank: number; total: number };
 
 export type NumbersScoreEntry = {
@@ -30,15 +30,15 @@ export function useScoreNumbers() {
   const [topScores, setTopScores] = useState<NumbersScoreEntry[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
 
-  // Evita duplicar envíos mientras no se reinicie la partida
+  // Prevents duplicate submissions until the game is restarted
   const [scoreSaved, setScoreSaved] = useState(false);
 
-  // Marca la fila a resaltar en la lista cuando el score confirmado por el
-  // backend supera el mejor score que había en el leaderboard hasta ahora.
+  // Marks the row to highlight in the list when the score confirmed by the
+  // backend beats the best score the leaderboard had so far.
   const [recordEntry, setRecordEntry] = useState<RecordEntry | null>(null);
 
-  // Posición del jugador en el ranking completo (no solo el top 10),
-  // consultada aparte tras guardar el score.
+  // Player's position in the full ranking (not just the top 10),
+  // queried separately after saving the score.
   const [myRank, setMyRank] = useState<MyRank | null>(null);
 
   const loadScores = useCallback(async () => {
@@ -50,9 +50,9 @@ export function useScoreNumbers() {
     }
   }, []);
 
-  // El score final lo decide siempre el backend (recalculado a partir del
-  // nonce/tablero/movimientos validados): esto devuelve ese valor para que
-  // useNumbers actualice lo que muestra en pantalla y ambos coincidan.
+  // The final score is always decided by the backend (recomputed from the
+  // validated nonce/board/moves): this returns that value so useNumbers
+  // updates what it shows on screen and both match.
   const saveScore = useCallback(
     async (
       _finalScore: number,
@@ -77,7 +77,7 @@ export function useScoreNumbers() {
 
         if (!response.ok) {
           const errorBody = await response.json().catch(() => null);
-          setError(errorBody?.error || "No se pudo guardar el score.");
+          setError(errorBody?.error || "Couldn't save your score.");
           return null;
         }
 
@@ -92,16 +92,16 @@ export function useScoreNumbers() {
         }
 
         await loadScores();
-        // El propio POST ya trae la posición de ESTA partida en el ranking
-        // completo (calculada sobre la fila recién insertada), no el mejor
-        // histórico del jugador.
+        // The POST itself already returns THIS game's position in the full
+        // ranking (computed on the freshly inserted row), not the player's
+        // all-time best.
         if (confirmedScore !== null && typeof data.rank === "number" && typeof data.total === "number") {
           setMyRank({ rank: data.rank, total: data.total });
         }
         return confirmedScore;
       } catch (error) {
         console.error("Error saving score:", error);
-        setError("No se pudo guardar el score.");
+        setError("Couldn't save your score.");
         return null;
       }
     },

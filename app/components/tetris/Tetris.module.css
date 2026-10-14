@@ -1,5 +1,5 @@
-/* Cada pieza existe una sola vez; la rejilla las recoloca según el tamaño.
-   Escritorio: marcador | tablero | siguiente y controles. */
+/* Each piece exists only once; the grid rearranges them depending on size.
+   Desktop: scoreboard | board | next piece and controls. */
 .layout {
   flex: 1;
   display: grid;
@@ -36,7 +36,7 @@
   transition: width 240ms var(--ease);
 }
 
-/* --- Tablero --- */
+/* --- Board --- */
 .boardWrap {
   position: relative;
   --board-h: min(calc(100dvh - 120px), 720px);
@@ -85,8 +85,8 @@
   position: absolute;
   inset: 0;
   z-index: 3;
-  /* flex (no grid): si la tarjeta es más ancha que el tablero, se sale por
-     igual a ambos lados. */
+  /* flex (not grid): if the card is wider than the board, it overflows
+     equally on both sides. */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -97,8 +97,8 @@
   animation: fade 220ms var(--ease) both;
 }
 
-/* El tablero es estrecho en móviles pequeños: la tarjeta puede salirse de él
-   por los lados (centrada) en vez de apretujarse. */
+/* The board is narrow on small phones: the card may overflow it on both
+   sides (centered) instead of getting squeezed. */
 .overlay > * {
   flex: none;
   width: min(calc(100vw - 32px), 340px);
@@ -123,7 +123,7 @@
   line-height: 1.5;
 }
 
-/* --- Siguiente pieza --- */
+/* --- Next piece --- */
 .next {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -138,7 +138,7 @@
   border-radius: 4px;
 }
 
-/* --- Teclas (escritorio) --- */
+/* --- Keys (desktop) --- */
 .keys {
   display: grid;
   gap: 8px;
@@ -166,10 +166,10 @@
   font: 600 12px var(--font-sans), sans-serif;
 }
 
-/* --- Controles táctiles, como una Game Boy en vertical ---
-   Cruceta para el pulgar izquierdo (← → arriba, ↓ ancho debajo) y dos botones
-   altos de giro para el derecho. Sin botones físicos, tienen que ser grandes:
-   ocupan ~una cuarta parte de la pantalla. */
+/* --- Touch controls, like a Game Boy held upright ---
+   D-pad for the left thumb (← → on top, a wide ↓ below) and two tall rotate
+   buttons for the right one. Without physical buttons they have to be big:
+   they take up ~a quarter of the screen. */
 .pads {
   display: grid;
   grid-template-columns: 1fr 1fr 0.85fr 0.85fr;
@@ -199,7 +199,7 @@
   transition: transform 70ms var(--ease), background 70ms var(--ease), border-bottom-width 70ms var(--ease);
 }
 
-/* Al pulsar, el botón "se hunde" (pierde el borde inferior grueso). */
+/* When pressed, the button "sinks" (loses its thick bottom border). */
 .pad:active {
   transform: translateY(3px);
   border-bottom-width: 1px;
@@ -222,9 +222,9 @@
   background: color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
-/* Móvil o pantalla táctil: marcador compacto arriba, tablero, botones abajo.
-   Todo cabe en la pantalla sin scroll: el tablero se queda con la altura que
-   dejan la barra superior (~60px), el marcador (~48px) y los botones. */
+/* Mobile or touch screen: compact scoreboard on top, board, buttons below.
+   Everything fits on screen without scrolling: the board gets the height left
+   over by the top bar (~60px), the scoreboard (~48px) and the buttons. */
 @media (max-width: 768px), (hover: none) and (pointer: coarse) {
   .layout {
     --pads-h: clamp(150px, 26dvh, 230px);

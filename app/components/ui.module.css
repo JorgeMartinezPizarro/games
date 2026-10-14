@@ -6,8 +6,8 @@
 }
 
 /* --- StatTile --- */
-/* Tamaños ajustables desde fuera con --stat-pad / --stat-label / --stat-value
-   (p. ej. el marcador compacto de Tetris en móvil). */
+/* Sizes can be overridden from outside with --stat-pad / --stat-label / --stat-value
+   (e.g. Tetris's compact scoreboard on mobile). */
 .stat {
   display: flex;
   flex-direction: column;
@@ -51,7 +51,7 @@
   font-weight: 600;
 }
 
-/* --- GameIntro (pantalla antes de empezar) --- */
+/* --- GameIntro (screen before starting) --- */
 .intro {
   display: flex;
   flex-direction: column;
@@ -94,7 +94,7 @@
   margin-top: 8px;
 }
 
-/* --- Notice (errores y avisos discretos) --- */
+/* --- Notice (errors and low-key warnings) --- */
 .notice {
   padding: 10px 14px;
   border-radius: var(--radius);

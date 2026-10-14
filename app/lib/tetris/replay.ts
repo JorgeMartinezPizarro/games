@@ -37,9 +37,9 @@ export type TetrisAction = {
   t: number;
 };
 
-// Cotas de cordura: nada que ver con partidas reales, solo evitan que un
-// payload absurdo (array gigante o duración disparatada) haga trabajar de
-// más al servidor.
+// Sanity bounds: nothing to do with real games, they just keep an absurd
+// payload (huge array or ridiculous duration) from making the server do
+// extra work.
 export const MAX_ACTIONS = 40000;
 export const MAX_DURATION_MS = 60 * 60 * 1000; // 1h
 
@@ -76,20 +76,20 @@ function parseActions(raw: unknown): TetrisAction[] | null {
   return actions;
 }
 
-// Reproduce la partida entera (piezas derivadas del seed + acciones
-// registradas por el cliente) con el mismo motor que usa el cliente en
-// tiempo real (app/lib/tetris/engine.ts). Solo se considera válida si el
-// replay llega de forma legal a LINES_TARGET.
+// Replays the whole game (pieces derived from the seed + actions recorded
+// by the client) with the same engine the client uses in real time
+// (app/lib/tetris/engine.ts). It only counts as valid if the replay reaches
+// LINES_TARGET legally.
 //
-// Importante: la gravedad NO se infiere a partir de los timestamps. El
-// setInterval real del navegador no es perfectamente preciso (el hilo
-// principal se ocupa renderizando, atendiendo el teclado, etc.), así que
-// asumir una cadencia exacta de DROP_SPEED_MS aquí divergía del cliente en
-// partidas largas (cientos de ticks acumulando unos pocos ms de retraso
-// cada uno). En su lugar, el cliente registra cada caída por gravedad como
-// una acción "tick" más, en el mismo log que left/right/softDrop — el
-// replay simplemente procesa la secuencia tal cual se registró, sin
-// suponer nada sobre cuánto tiempo real debería haber pasado entre acciones.
+// Important: gravity is NOT inferred from the timestamps. The browser's
+// real setInterval isn't perfectly precise (the main thread is busy
+// rendering, handling the keyboard, etc.), so assuming an exact
+// DROP_SPEED_MS cadence here diverged from the client in long games
+// (hundreds of ticks, each accumulating a few ms of delay). Instead, the
+// client records every gravity drop as just another "tick" action, in the
+// same log as left/right/softDrop — the replay simply processes the
+// sequence exactly as it was recorded, without assuming anything about how
+// much real time should have passed between actions.
 export function replayTetris(seed: number, rawActions: unknown): ReplayResult {
   const actions = parseActions(rawActions);
   if (!actions) {
@@ -102,7 +102,7 @@ export function replayTetris(seed: number, rawActions: unknown): ReplayResult {
   let piece: Piece = getPiece();
   let pos = { x: Math.floor(COLS / 2) - 1, y: 0 };
   let lines = 0;
-  let paused = true; // la partida real también arranca en pausa
+  let paused = true; // the real game also starts paused
   let gameOver = false;
   let completed = false;
 
@@ -178,7 +178,7 @@ export function replayTetris(seed: number, rawActions: unknown): ReplayResult {
         if (!paused) descendOrLock();
         break;
       case "end":
-        // marcador sin efecto propio: solo cierra el log.
+        // marker with no effect of its own: it only closes the log.
         break;
     }
   }

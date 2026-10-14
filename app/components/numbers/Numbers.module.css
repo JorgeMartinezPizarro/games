@@ -4,7 +4,7 @@
   place-items: center;
 }
 
-/* Anillo de 20 casillas en una rejilla 6×6; el centro (4×4) es el marcador. */
+/* Ring of 20 squares on a 6×6 grid; the center (4×4) is the scoreboard. */
 .board {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -50,7 +50,7 @@
   cursor: default;
 }
 
-/* Orden en que se pisó la casilla. Va en ::after para no formar parte del texto. */
+/* Order in which the square was stepped on. Lives in ::after so it isn't part of the text. */
 .tile[data-order]::after {
   content: attr(data-order);
   position: absolute;
@@ -85,7 +85,7 @@
   animation: shake 360ms var(--ease);
 }
 
-/* --- Marcador central --- */
+/* --- Center scoreboard --- */
 .center {
   grid-row: 2 / 6;
   grid-column: 2 / 6;

@@ -1,7 +1,7 @@
 'use client';
 
 import EarthChip from "./components/EarthChip";
-import GameCard from "./components/GameCard";
+import GameCard, { NO_SCORE } from "./components/GameCard";
 import { GAMES } from "./components/gameCatalog";
 import styles from "./components/Home.module.css";
 import { formatGameScore, useBestScores } from "./hooks/useBestScores";
@@ -20,19 +20,19 @@ const HomePage = () => {
     const best = bestScores.find((g) => g.gameId === gameId);
     return best?.found
       ? `${formatGameScore(best.gameId, best.score!)} · #${best.rank}`
-      : "Sin registro";
+      : NO_SCORE;
   };
 
   return (
     <div className={styles.page}>
       <div className={styles.inner}>
-        <h1 className={styles.hello}>{name ? `Hola, ${name}` : "Hola"}</h1>
+        <h1 className={styles.hello}>{name ? `Hi, ${name}` : "Hi"}</h1>
         <div className={styles.sub}>
-          <span>Sin rastreo. Sin anuncios. Solo juegos.</span>
+          <span>No tracking. No ads. Just games.</span>
           <EarthChip birthDate={earth.birthDate} rotations={earth.rotations} onChange={earth.setBirthDate} />
         </div>
 
-        <nav className={styles.grid} aria-label="Juegos">
+        <nav className={styles.grid} aria-label="Games">
           {GAMES.map((game) => (
             <GameCard key={game.key} game={game} best={bestLabel(game.id)} />
           ))}

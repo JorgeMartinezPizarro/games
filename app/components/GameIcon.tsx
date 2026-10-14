@@ -1,7 +1,7 @@
 import type { GameKey } from "./gameCatalog";
 
-// Iconos propios de cada juego (relleno con currentColor), pensados para ir
-// sobre la baldosa de color del juego.
+// Custom icon for each game (filled with currentColor), meant to sit on the
+// game's colored tile.
 export default function GameIcon({ game, size = 24 }: { game: GameKey; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 24 24", "aria-hidden": true } as const;
 
@@ -19,7 +19,7 @@ export default function GameIcon({ game, size = 24 }: { game: GameKey; size?: nu
         </svg>
       );
     case "numbers":
-      // Anillo de casillas, como el tablero del juego.
+      // Ring of cells, like the game's board.
       return (
         <svg {...common} fill="currentColor">
           {[

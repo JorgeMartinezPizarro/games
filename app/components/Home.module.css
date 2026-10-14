@@ -76,7 +76,7 @@
   color-scheme: dark;
 }
 
-/* --- Tarjetas --- */
+/* --- Cards --- */
 .grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -205,7 +205,7 @@
   }
 }
 
-/* Móvil: tarjetas en fila (icono, texto, marca). */
+/* Mobile: cards laid out as rows (icon, text, best score). */
 @media (max-width: 560px) {
   .grid {
     grid-template-columns: 1fr;

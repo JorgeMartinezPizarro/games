@@ -3,8 +3,8 @@ import RotateLeftRounded from "@mui/icons-material/RotateLeftRounded";
 import RotateRightRounded from "@mui/icons-material/RotateRightRounded";
 import styles from "./Tetris.module.css";
 
-// Cruceta: triángulo relleno que llena el botón, como en una consola (los
-// iconos de MUI dejan el glifo en un tercio de su caja).
+// D-pad: a filled triangle that fills the button, like on a console (MUI
+// icons leave the glyph at a third of their box).
 const ARROWS = { left: "M16 5 8 12l8 7z", right: "M8 5l8 7-8 7z", down: "M5 8h14l-7 8z" };
 
 function DpadArrow({ direction }: { direction: keyof typeof ARROWS }) {
@@ -27,8 +27,8 @@ interface TouchControlsProps {
   rotateRight: () => void;
 }
 
-// Botones táctiles: mover y bajar se repiten mientras se mantienen pulsados;
-// girar es una pulsación única.
+// Touch buttons: move and drop repeat while held down; rotate is a single
+// press.
 export const TouchControls = React.memo(function TouchControls({
   startRepeat,
   stopRepeat,
@@ -38,7 +38,7 @@ export const TouchControls = React.memo(function TouchControls({
   rotateLeft,
   rotateRight,
 }: TouchControlsProps) {
-  // Evita que el "click" fantasma que sigue a un touchstart repita la acción.
+  // Prevents the ghost "click" that follows a touchstart from repeating the action.
   const lastWasTouch = useRef(false);
   const touchGuard = (action: () => void) => (e: React.TouchEvent) => {
     e.preventDefault();
@@ -85,11 +85,11 @@ export const TouchControls = React.memo(function TouchControls({
 
   return (
     <div className={styles.pads}>
-      {hold("ml", moveLeft, "Izquierda (A)", <DpadArrow direction="left" />)}
-      {hold("mr", moveRight, "Derecha (D)", <DpadArrow direction="right" />)}
-      {hold("md", softDrop, "Bajar (S)", <DpadArrow direction="down" />)}
-      {tap("rotl", rotateLeft, "Girar izquierda (O)", <RotateLeftRounded sx={ROTATE} />)}
-      {tap("rotr", rotateRight, "Girar derecha (P)", <RotateRightRounded sx={ROTATE} />)}
+      {hold("ml", moveLeft, "Left (A)", <DpadArrow direction="left" />)}
+      {hold("mr", moveRight, "Right (D)", <DpadArrow direction="right" />)}
+      {hold("md", softDrop, "Down (S)", <DpadArrow direction="down" />)}
+      {tap("rotl", rotateLeft, "Rotate left (O)", <RotateLeftRounded sx={ROTATE} />)}
+      {tap("rotr", rotateRight, "Rotate right (P)", <RotateRightRounded sx={ROTATE} />)}
     </div>
   );
 });
@@ -97,11 +97,11 @@ export const TouchControls = React.memo(function TouchControls({
 export function KeyHints() {
   return (
     <div className={styles.keys}>
-      <div><kbd>←</kbd><kbd>A</kbd> Izquierda</div>
-      <div><kbd>→</kbd><kbd>D</kbd> Derecha</div>
-      <div><kbd>↓</kbd><kbd>S</kbd> Bajar</div>
-      <div><kbd>O</kbd> Girar ↺</div>
-      <div><kbd>P</kbd> Girar ↻</div>
+      <div><kbd>←</kbd><kbd>A</kbd> Left</div>
+      <div><kbd>→</kbd><kbd>D</kbd> Right</div>
+      <div><kbd>↓</kbd><kbd>S</kbd> Down</div>
+      <div><kbd>O</kbd> Rotate ↺</div>
+      <div><kbd>P</kbd> Rotate ↻</div>
     </div>
   );
 }

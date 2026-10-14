@@ -7,8 +7,8 @@ import CssBaseline from '@mui/material/CssBaseline';
 import theme from './theme';
 import { useNextcloudFrameSync } from './hooks/useNextcloudFrameSync';
 
-// next/font descarga las fuentes al compilar y las sirve desde la propia app:
-// ninguna petición a Google desde el navegador (sin rastreo).
+// next/font downloads the fonts at build time and serves them from the app itself:
+// no requests to Google from the browser (no tracking).
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-display" });
 
@@ -20,7 +20,7 @@ export default function RootLayout({
   useNextcloudFrameSync();
 
   return (
-    <html lang="es" className={`${inter.variable} ${spaceGrotesk.variable}`}>
+    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable}`}>
       <head>
         <title>
           Gaming

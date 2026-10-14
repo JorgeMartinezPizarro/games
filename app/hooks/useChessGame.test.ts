@@ -9,9 +9,9 @@ function jsonResponse(body: unknown, ok = true): Response {
   return { ok, status: ok ? 200 : 500, json: async () => body } as unknown as Response;
 }
 
-// Cada key mapea a una cola de respuestas: si tiene más de una, se consumen
-// en orden (una por llamada); si solo queda una, se reutiliza para llamadas
-// adicionales imprevistas.
+// Each key maps to a queue of responses: if it has more than one, they are
+// consumed in order (one per call); if only one is left, it is reused for any
+// unexpected extra calls.
 function routeFetch(handlers: Record<string, Array<() => Response | Promise<Response>>>) {
   const queues = new Map(Object.entries(handlers).map(([k, v]) => [k, [...v]]));
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -49,21 +49,21 @@ afterEach(() => {
 });
 
 describe("useChessGame", () => {
-  it("inicializa el tablero con la posición de salida", () => {
+  it("initializes the board with the starting position", () => {
     const { result } = renderHook(() => useChessGame());
     expect(result.current.fen).toBe(new Chess().fen());
     expect(result.current.gameStarted).toBe(false);
     expect(result.current.isGameOver).toBe(false);
   });
 
-  it("handleEloChange solo cambia el elo si la partida no ha empezado", () => {
+  it("handleEloChange only changes the elo if the game hasn't started", () => {
     const { result } = renderHook(() => useChessGame());
 
     act(() => result.current.handleEloChange({} as Event, 1200));
     expect(result.current.elo).toBe(1200);
   });
 
-  it("handleEloChange ignora cambios una vez empezada la partida", () => {
+  it("handleEloChange ignores changes once the game has started", () => {
     vi.stubGlobal("fetch", routeFetch({}));
     const { result } = renderHook(() => useChessGame());
 
@@ -76,7 +76,7 @@ describe("useChessGame", () => {
     expect(result.current.elo).toBe(400);
   });
 
-  it("onSquareClick selecciona una pieza propia y resalta sus destinos legales", () => {
+  it("onSquareClick selects an own piece and highlights its legal destinations", () => {
     const { result } = renderHook(() => useChessGame());
 
     act(() => {
@@ -87,7 +87,7 @@ describe("useChessGame", () => {
     expect(result.current.optionSquares).toHaveProperty("e4");
   });
 
-  it("onSquareClick sobre la misma casilla deselecciona", () => {
+  it("onSquareClick on the same square deselects", () => {
     const { result } = renderHook(() => useChessGame());
 
     act(() => result.current.onSquareClick("e2" as Square));
@@ -97,14 +97,14 @@ describe("useChessGame", () => {
     expect(result.current.optionSquares).toEqual({});
   });
 
-  it("onDrop rechaza un movimiento ilegal sin llamar al servidor", () => {
+  it("onDrop rejects an illegal move without calling the server", () => {
     const fetchMock = routeFetch({});
     vi.stubGlobal("fetch", fetchMock);
     const { result } = renderHook(() => useChessGame());
 
     let moved = true;
     act(() => {
-      moved = result.current.onDrop("e2", "e5"); // 3 casillas: ilegal
+      moved = result.current.onDrop("e2", "e5"); // 3 squares: illegal
     });
 
     expect(moved).toBe(false);
@@ -112,7 +112,7 @@ describe("useChessGame", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("onDrop aplica la jugada local y, tras la pausa, la del servidor", async () => {
+  it("onDrop applies the local move and, after the pause, the server's", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -141,7 +141,7 @@ describe("useChessGame", () => {
     expect(result.current.fen).toBe(expected.fen());
   });
 
-  it("si el servidor no valida la jugada, resetea la partida y expone el error", async () => {
+  it("if the server doesn't validate the move, resets the game and exposes the error", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -155,10 +155,10 @@ describe("useChessGame", () => {
 
     expect(result.current.fen).toBe("start");
     expect(result.current.gameStarted).toBe(false);
-    expect(result.current.gameError).toMatch(/desincronizó/);
+    expect(result.current.gameError).toMatch(/out of sync/);
   });
 
-  it("resetGame limpia el estado y llama a onReset", async () => {
+  it("resetGame clears the state and calls onReset", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -179,8 +179,8 @@ describe("useChessGame", () => {
     expect(onReset).toHaveBeenCalledTimes(1);
   });
 
-  it("cuando el jugador da jaque mate, llama a onPlayerWin con el nonce de la partida", async () => {
-    // Mate pastor (Scholar's Mate): 1.e4 e5 2.Qh5 Nc6 3.Bc4 Nf6?? 4.Qxf7#
+  it("when the player delivers checkmate, calls onPlayerWin with the game's nonce", async () => {
+    // Scholar's Mate: 1.e4 e5 2.Qh5 Nc6 3.Bc4 Nf6?? 4.Qxf7#
     const onPlayerWin = vi.fn();
     vi.stubGlobal(
       "fetch",
@@ -205,10 +205,10 @@ describe("useChessGame", () => {
     expect(onPlayerWin).toHaveBeenCalledTimes(1);
     expect(onPlayerWin).toHaveBeenCalledWith("n1");
     expect(result.current.isGameOver).toBe(true);
-    expect(result.current.gameResult).toBe("Jugador gana (mate)");
+    expect(result.current.gameResult).toBe("Player wins (checkmate)");
   });
 
-  it("expone el historial en SAN, la última jugada y el rey en jaque para pintarlos", async () => {
+  it("exposes the SAN history, the last move and the king in check for rendering", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -228,7 +228,7 @@ describe("useChessGame", () => {
     expect(result.current.checkSquare).toBeNull();
 
     await playAndSettle(result.current.onDrop, "e2", "e4");
-    // La respuesta de la IA también cuenta como última jugada.
+    // The AI's reply also counts as the last move.
     expect(result.current.history).toEqual(["e4", "e5"]);
     expect(result.current.lastMove).toEqual({ from: "e7", to: "e5" });
 

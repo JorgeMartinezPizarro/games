@@ -5,14 +5,17 @@ import GameIcon from "./GameIcon";
 import type { GameInfo } from "./gameCatalog";
 import styles from "./Home.module.css";
 
-// Tarjeta de un juego en el menú principal, con tu mejor marca.
+// Shown instead of a best score when the player has none yet.
+export const NO_SCORE = "No score yet";
+
+// A game's card on the main menu, with the player's best score.
 export default function GameCard({ game, best }: { game: GameInfo; best: string | null }) {
   return (
     <Link
       href={game.path}
       className={`${styles.card} accent-scope`}
       style={{ "--accent": game.accent } as CSSProperties}
-      aria-label={`Jugar a ${game.name}`}
+      aria-label={`Play ${game.name}`}
       data-testid={`game-${game.key}`}
     >
       <span className={styles.tile}>
@@ -24,8 +27,8 @@ export default function GameCard({ game, best }: { game: GameInfo; best: string 
       </span>
       <span className={styles.cardFoot}>
         <span className={styles.best}>
-          <small>Tu mejor</small>
-          <b className="num" data-testid={`best-${game.key}`} data-empty={best === "Sin registro"}>
+          <small>Your best</small>
+          <b className="num" data-testid={`best-${game.key}`} data-empty={best === NO_SCORE}>
             {best ?? "…"}
           </b>
         </span>

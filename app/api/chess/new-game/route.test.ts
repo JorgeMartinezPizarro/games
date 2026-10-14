@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 describe("POST /api/chess/new-game", () => {
-  it("responde 400 si elo no es un entero", async () => {
+  it("responds 400 if elo is not an integer", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
 
     const res = await POST(request({ elo: "muchísimo" }));
@@ -32,14 +32,14 @@ describe("POST /api/chess/new-game", () => {
     expect(createChessGame).not.toHaveBeenCalled();
   });
 
-  it.each([399, 3001])("responde 400 si elo está fuera de rango (%d)", async (elo) => {
+  it.each([399, 3001])("responds 400 if elo is out of range (%d)", async (elo) => {
     vi.mocked(requireAuth).mockResolvedValue(user);
 
     const res = await POST(request({ elo }));
     expect(res.status).toBe(400);
   });
 
-  it("crea la partida con el elo y userId dados y responde 200", async () => {
+  it("creates the game with the given elo and userId and responds 200", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(createChessGame).mockResolvedValue({ nonce: "n1", timestamp: 42 });
 
@@ -51,7 +51,7 @@ describe("POST /api/chess/new-game", () => {
     expect(body).toEqual({ nonce: "n1", timestamp: 42 });
   });
 
-  it("responde 500 si requireAuth lanza", async () => {
+  it("responds 500 if requireAuth throws", async () => {
     vi.mocked(requireAuth).mockRejectedValue(new Error("No session cookie"));
 
     const res = await POST(request({ elo: 1500 }));
@@ -59,7 +59,7 @@ describe("POST /api/chess/new-game", () => {
     expect(createChessGame).not.toHaveBeenCalled();
   });
 
-  it("responde 500 si createChessGame lanza", async () => {
+  it("responds 500 if createChessGame throws", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(createChessGame).mockImplementation(() => {
       throw new Error("db error");

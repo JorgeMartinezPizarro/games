@@ -8,10 +8,10 @@ function cell(i: number, n: number, b = false): CellValues {
   return { values: { n, b, i } };
 }
 
-// Tablero "anillo" de 20 casillas con salto 1: cada casilla i solo se puede
-// alcanzar desde i-1 o i+1 (mod 20). Simple y determinista para completar
-// un tour entero. El hook usa 20 como módulo fijo (BOARD_SIZE real), así
-// que cualquier tablero de prueba debe tener exactamente 20 celdas.
+// 20-cell "ring" board with jump 1: each cell i can only be reached from
+// i-1 or i+1 (mod 20). Simple and deterministic for completing a whole
+// tour. The hook uses 20 as a fixed modulus (the real BOARD_SIZE), so any
+// test board must have exactly 20 cells.
 function ringBoard(): CellValues[] {
   return Array.from({ length: 20 }, (_, i) => cell(i, 1));
 }
@@ -61,7 +61,7 @@ afterEach(() => {
 });
 
 describe("useNumbers", () => {
-  it("empieza sin tablero y sin cargar", () => {
+  it("starts with no board and not loading", () => {
     const { result } = renderHook(() => useNumbers());
     expect(result.current.numbers).toEqual([]);
     expect(result.current.steps).toBe(0);
@@ -69,7 +69,7 @@ describe("useNumbers", () => {
     expect(result.current.loading).toBe(false);
   });
 
-  it("newGame carga el tablero del servidor y llama a onReset", async () => {
+  it("newGame loads the board from the server and calls onReset", async () => {
     const board = ringBoard();
     const onReset = vi.fn();
     const { result } = renderHook(() => useNumbers({ onReset }));
@@ -83,7 +83,7 @@ describe("useNumbers", () => {
     expect(onReset).toHaveBeenCalledTimes(1);
   });
 
-  it("un clic válido marca la casilla, suma un paso y actualiza el score en vivo", async () => {
+  it("a valid click marks the cell, adds a step and updates the live score", async () => {
     const board = ringBoard();
     const { result } = renderHook(() => useNumbers());
     await startNewGame(result, board);
@@ -96,35 +96,35 @@ describe("useNumbers", () => {
     });
 
     expect(result.current.steps).toBe(1);
-    // elapsedMs = 150 (startNewGame) + 1000 (avance del test) = 1150.
+    // elapsedMs = 150 (startNewGame) + 1000 (test's advance) = 1150.
     // pace = max(1150/1, 150) = 1150; score = round(1^2 * 1000 / 1150) = 1
     expect(result.current.currentScore).toBe(1);
   });
 
-  it("un clic sin relación de salto válida termina la partida sin sumar el paso", async () => {
+  it("a click without a valid jump relation ends the game without counting the step", async () => {
     const board = ringBoard();
-    board[0] = cell(0, 4); // desde 0 con salto 4, los únicos destinos válidos son 4 y 16
+    board[0] = cell(0, 4); // from 0 with jump 4, the only valid destinations are 4 and 16
     const onFinish = vi.fn();
     const { result } = renderHook(() => useNumbers({ onFinish }));
     await startNewGame(result, board);
 
-    act(() => result.current.handleClick(board[0])); // primer clic: siempre válido
+    act(() => result.current.handleClick(board[0])); // first click: always valid
     expect(result.current.steps).toBe(1);
 
-    act(() => result.current.handleClick(board[10])); // 10 no es 4 ni 16: ilegal
+    act(() => result.current.handleClick(board[10])); // 10 is neither 4 nor 16: illegal
 
     expect(result.current.isRight).toBe(false);
-    expect(result.current.steps).toBe(1); // el clic ilegal no cuenta
+    expect(result.current.steps).toBe(1); // the illegal click doesn't count
     expect(onFinish).toHaveBeenCalledTimes(1);
     const [, finalSteps, moves] = onFinish.mock.calls[0];
     expect(finalSteps).toBe(1);
-    // t=150: ningún avance de reloj entre startNewGame y el clic.
+    // t=150: no clock advance between startNewGame and the click.
     expect(moves).toEqual([{ i: 0, t: 150 }]);
   });
 
-  it("quedarse sin movimientos posibles (bloqueo) termina la partida", async () => {
-    // A(0,n=4) -> B(4,n=2) -> C(2,n=2): al marcar C, sus dos vecinos según
-    // su propio salto (2±2 mod 20 = {0,4}) ya están visitados (A y B).
+  it("running out of possible moves (blocked) ends the game", async () => {
+    // A(0,n=4) -> B(4,n=2) -> C(2,n=2): when C is marked, both of its
+    // neighbours by its own jump (2±2 mod 20 = {0,4}) are already visited (A and B).
     const board = ringBoard();
     board[0] = cell(0, 4);
     board[4] = cell(4, 2);
@@ -142,17 +142,17 @@ describe("useNumbers", () => {
     expect(onFinish).toHaveBeenCalledTimes(1);
     const [, finalSteps, moves] = onFinish.mock.calls[0];
     expect(finalSteps).toBe(3);
-    // Sin avances de reloj entre clics: los 3 caen en el mismo t=150.
+    // No clock advances between clicks: all 3 land on the same t=150.
     expect(moves).toEqual([
       { i: 0, t: 150 },
       { i: 4, t: 150 },
       { i: 2, t: 150 },
     ]);
-    // El mismo rastro queda expuesto para pintar el orden de las casillas.
+    // The same trail is exposed for rendering the order of the cells.
     expect(result.current.moves.map((m) => m.i)).toEqual([0, 4, 2]);
   });
 
-  it("completar las 20 casillas termina la partida (ganada) y llama a onFinish", async () => {
+  it("completing all 20 cells ends the game (won) and calls onFinish", async () => {
     const board = ringBoard();
     const onFinish = vi.fn();
     const { result } = renderHook(() => useNumbers({ onFinish }));
@@ -163,7 +163,7 @@ describe("useNumbers", () => {
     }
 
     expect(result.current.steps).toBe(20);
-    expect(result.current.isRight).toBe(true); // completar no es "perder"
+    expect(result.current.isRight).toBe(true); // completing isn't "losing"
     expect(onFinish).toHaveBeenCalledTimes(1);
     const [, finalSteps, moves, nonce] = onFinish.mock.calls[0];
     expect(finalSteps).toBe(20);
@@ -171,7 +171,7 @@ describe("useNumbers", () => {
     expect(nonce).toBe("nonce-1");
   });
 
-  it("adopta el score confirmado que devuelve onFinish", async () => {
+  it("adopts the confirmed score returned by onFinish", async () => {
     const board = ringBoard();
     const onFinish = vi.fn().mockResolvedValue(999);
     const { result } = renderHook(() => useNumbers({ onFinish }));
@@ -180,12 +180,12 @@ describe("useNumbers", () => {
     act(() => vi.advanceTimersByTime(1000));
     await act(async () => {
       result.current.handleClick(board[0]);
-      result.current.handleClick(board[19]); // vecino válido (salto 1) -> se bloquea o sigue
+      result.current.handleClick(board[19]); // valid neighbour (jump 1) -> blocks or continues
     });
-    // Forzamos el fin de partida con un clic inválido para dejar currentScore
-    // en manos de onFinish.
+    // Force the game to end with an invalid click to leave currentScore
+    // up to onFinish.
     await act(async () => {
-      result.current.handleClick(cell(15, 1)); // salto no coincide desde el último válido
+      result.current.handleClick(cell(15, 1)); // jump doesn't match from the last valid one
       await vi.advanceTimersByTimeAsync(0);
     });
 

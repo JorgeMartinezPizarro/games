@@ -1,9 +1,9 @@
-// Partida real (jugable de verdad con chess.js, sin Stockfish ni docker):
-// los caballos van y vuelven a su casilla de salida tres veces, repitiendo
-// la posición inicial una tercera vez → tablas por triple repetición.
-// replayChessMoves solo necesita un log de jugadas UCI legales, le da igual
-// quién las jugó — así se puede probar la rama "tablas no puntúan" de
-// saveChessScore sin depender del servicio de Stockfish.
+// A real game (actually playable with chess.js, no Stockfish or docker):
+// the knights go out and back to their starting squares three times,
+// repeating the initial position a third time → draw by threefold repetition.
+// replayChessMoves only needs a log of legal UCI moves, it doesn't care who
+// played them — so the "draws don't score" branch of saveChessScore can be
+// tested without depending on the Stockfish service.
 export const THREEFOLD_REPETITION_DRAW = [
   "g1f3", "g8f6",
   "f3g1", "f6g8",

@@ -1,6 +1,6 @@
-// Formato de tiempo compartido entre cliente (leaderboard/hooks) y servidor
-// (activity/notificaciones de Nextcloud), para que Tetris siempre se muestre
-// como MM:SS.mmm en vez del número crudo de ms.
+// Time format shared between client (leaderboard/hooks) and server
+// (Nextcloud activity/notifications), so Tetris is always shown as
+// MM:SS.mmm instead of the raw number of ms.
 export function formatTimeMs(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);

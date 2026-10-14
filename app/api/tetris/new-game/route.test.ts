@@ -20,7 +20,7 @@ afterEach(() => {
 });
 
 describe("POST /api/tetris/new-game", () => {
-  it("responde 500 con el mensaje de error si requireAuth falla", async () => {
+  it("responds 500 with the error message if requireAuth fails", async () => {
     vi.mocked(requireAuth).mockRejectedValue(new Error("No session cookie"));
 
     const res = await POST(request());
@@ -31,7 +31,7 @@ describe("POST /api/tetris/new-game", () => {
     expect(createTetrisGame).not.toHaveBeenCalled();
   });
 
-  it("crea la partida para el usuario autenticado y responde 200 con linesTarget", async () => {
+  it("creates the game for the authenticated user and responds 200 with linesTarget", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(createTetrisGame).mockResolvedValue({ nonce: "n1", timestamp: 123, seed: 999 });
 
@@ -43,7 +43,7 @@ describe("POST /api/tetris/new-game", () => {
     expect(body).toEqual({ nonce: "n1", timestamp: 123, seed: 999, linesTarget: LINES_TARGET });
   });
 
-  it("responde 500 si createTetrisGame lanza", async () => {
+  it("responds 500 if createTetrisGame throws", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(createTetrisGame).mockImplementation(() => {
       throw new Error("db error");

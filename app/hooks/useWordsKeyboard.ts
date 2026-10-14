@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-// Atajos de Palabras: 1-4 eligen respuesta, espacio vuelve a escuchar.
+// Words shortcuts: 1-4 pick an answer, space replays the audio.
 export function useWordsKeyboard({
   enabled,
   choices,
@@ -17,7 +17,7 @@ export function useWordsKeyboard({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
-      // El destino puede no ser un elemento (window, document).
+      // The target may not be an element (window, document).
       const target = event.target;
       if (target instanceof Element && target.closest("input, textarea, select")) return;
 

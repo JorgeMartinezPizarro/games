@@ -1,9 +1,9 @@
-// Misma forma que numbers (computeNumbersScore en app/lib/numbers/board.ts):
-// cubo de los aciertos entre el tiempo empleado, para que cualquier partida
-// puntúe (aunque sea con pocos aciertos), premiando más la rapidez cuantos
-// más aciertos hay. La constante del numerador es mayor que en numbers:
-// cada ronda de Wording tarda bastante más que un paso de Numbers, así que
-// necesita más peso para dar scores en un rango comparable.
+// Same shape as numbers (computeNumbersScore in app/lib/numbers/board.ts):
+// cube of the correct answers divided by the time taken, so that any game
+// scores (even with few correct answers), rewarding speed more the more
+// correct answers there are. The numerator constant is larger than in
+// numbers: each Wording round takes quite a bit longer than a Numbers step,
+// so it needs more weight to produce scores in a comparable range.
 export function computeWordsScore(correctAnswers: number, elapsedMs: number): number {
   if (elapsedMs <= 0) return 0;
   return Math.round((correctAnswers ** 3 * 11000) / elapsedMs);

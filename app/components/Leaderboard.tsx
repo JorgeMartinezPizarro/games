@@ -8,8 +8,8 @@ export type LeaderboardColumn<T> = {
   strong?: boolean;
 };
 
-// Ranking común a todos los juegos. Las filas llegan ya ordenadas; aquí solo
-// se recortan al top y se pintan medallas, "tú" y la partida recién guardada.
+// Leaderboard shared by all games. Rows arrive already sorted; here they are only
+// trimmed to the top and rendered with medals, "you" and the just-saved game.
 export default function Leaderboard<T>({
   title,
   subtitle,
@@ -41,13 +41,13 @@ export default function Leaderboard<T>({
       </header>
 
       {top.length === 0 ? (
-        <p className={styles.empty}>Todavía no hay puntuaciones. Estrena el ranking.</p>
+        <p className={styles.empty}>No scores yet. Be the first on the board.</p>
       ) : (
         <table className={styles.table}>
           <thead>
             <tr>
               <th>#</th>
-              <th>Jugador</th>
+              <th>Player</th>
               {columns.map((column) => (
                 <th key={column.label} className={column.align === "right" ? styles.right : undefined}>
                   {column.label}
@@ -70,7 +70,7 @@ export default function Leaderboard<T>({
                   </td>
                   <td>
                     {user}
-                    {mine && <span className={styles.me}>Tú</span>}
+                    {mine && <span className={styles.me}>You</span>}
                   </td>
                   {columns.map((column) => (
                     <td

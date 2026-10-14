@@ -12,7 +12,7 @@ const TONE_ICON: Record<ResultTone, ReactNode> = {
   neutral: <FlagOutlined />,
 };
 
-// Tarjeta de fin de partida común a los juegos.
+// Game-over card shared by all games.
 export default function ResultPanel({
   tone,
   title,

@@ -17,7 +17,7 @@ const WORD_BASE_URL = (): string =>
     ? process.env.NEXT_PUBLIC_WORD_URL
     : (process.env.NEXTCLOUD_URL ?? "");
 
-// Descarga un mp3 desde app.py y lo cachea en disco si no estaba ya.
+// Downloads an mp3 from app.py and caches it on disk if it wasn't already.
 async function cacheAudio(wordAudioPath: string): Promise<string> {
   const filename = path.basename(wordAudioPath);
   const localPath = path.join(process.cwd(), "cache", "audio", filename);
@@ -48,7 +48,7 @@ export async function fetchChallenge(
 
   const challengeData: { rounds: WordsRound[] } = await challengeRes.json();
 
-  // Cachea los audios en paralelo, mientras el jugador ve la pantalla de carga.
+  // Caches the audio files in parallel, while the player sees the loading screen.
   return Promise.all(
     challengeData.rounds.map(async (round) => ({
       ...round,

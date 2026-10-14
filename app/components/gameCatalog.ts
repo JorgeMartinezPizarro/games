@@ -7,35 +7,35 @@ export type GameInfo = {
   id: GameId;
   name: string;
   description: string;
-  // Color de acento del juego (token CSS de globals.css).
+  // Game accent color (CSS token from globals.css).
   accent: string;
-  // Ruta sin basePath: next/link y el router añaden /bookmarks solos.
+  // Path without basePath: next/link and the router add /bookmarks themselves.
   path: string;
 };
 
-// Orden del menú principal.
+// Order of the main menu.
 export const GAMES: GameInfo[] = [
   {
     key: "chess",
     id: GAME_IDS.CHESS,
-    name: "Ajedrez",
-    description: "Gana a Stockfish. Tu puntuación es el ELO al que le das mate.",
+    name: "Chess",
+    description: "Beat Stockfish. Your score is the ELO you checkmate.",
     accent: "var(--chess)",
     path: GAME_PATHS[GAME_IDS.CHESS],
   },
   {
     key: "words",
     id: GAME_IDS.WORDS,
-    name: "Palabras",
-    description: "Escucha la palabra y elige la correcta. Diez rondas, sin fallar.",
+    name: "Words",
+    description: "Listen to the word and pick the right one. Ten rounds, no mistakes.",
     accent: "var(--words)",
     path: GAME_PATHS[GAME_IDS.WORDS],
   },
   {
     key: "numbers",
     id: GAME_IDS.NUMBERS,
-    name: "Números",
-    description: "Salta la distancia exacta por el anillo sin repetir casilla.",
+    name: "Numbers",
+    description: "Jump the exact distance around the ring without stepping on a square twice.",
     accent: "var(--numbers)",
     path: GAME_PATHS[GAME_IDS.NUMBERS],
   },
@@ -43,7 +43,7 @@ export const GAMES: GameInfo[] = [
     key: "tetris",
     id: GAME_IDS.TETRIS,
     name: "Tetris",
-    description: "Limpia 25 líneas lo más rápido posible.",
+    description: "Clear 25 lines as fast as you can.",
     accent: "var(--tetris)",
     path: GAME_PATHS[GAME_IDS.TETRIS],
   },

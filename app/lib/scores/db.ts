@@ -17,9 +17,9 @@ function getPool(): Pool {
     database: process.env.MARIADB_DATABASE,
     waitForConnections: true,
     connectionLimit: 10,
-    // Devuelve DATETIME como string "YYYY-MM-DD HH:MM:SS" en vez de Date,
-    // igual que hacía better-sqlite3 (createdAt se tipa como string en
-    // app/lib/scores/types.ts y así viaja igual por la API/frontend).
+    // Returns DATETIME as a "YYYY-MM-DD HH:MM:SS" string instead of a Date,
+    // just like better-sqlite3 did (createdAt is typed as string in
+    // app/lib/scores/types.ts and travels unchanged through the API/frontend).
     dateStrings: true,
   });
 
@@ -28,8 +28,8 @@ function getPool(): Pool {
 
 let _ready: Promise<void> | null = null;
 
-// Sin migración: el esquema completo se crea de una vez (no hace falta el
-// parche histórico de SQLite que añadía userId con un ALTER TABLE aparte).
+// No migration: the full schema is created in one go (the old SQLite patch
+// that added userId with a separate ALTER TABLE isn't needed).
 async function ensureSchema(): Promise<void> {
   const pool = getPool();
 
@@ -58,11 +58,11 @@ async function ensureSchema(): Promise<void> {
   `);
 }
 
-// mariadb pasa a "healthy" (depends_on/healthcheck) en cuanto acepta TCP;
-// margen de sobra en la práctica, pero un pequeño reintento con espera cubre
-// cualquier hipo transitorio justo tras un arranque/reinicio (p.ej. un
-// despliegue) sin que la primerísima petición real se quede colgada de un
-// error que se habría resuelto solo un segundo después.
+// mariadb turns "healthy" (depends_on/healthcheck) as soon as it accepts TCP;
+// plenty of margin in practice, but a small retry with a delay covers any
+// transient hiccup right after a start/restart (e.g. a deployment) without
+// the very first real request getting stuck on an error that would have
+// resolved itself just a second later.
 async function ensureSchemaWithRetry(retries = 6, delayMs = 500): Promise<void> {
   for (let attempt = 1; ; attempt++) {
     try {
@@ -75,9 +75,9 @@ async function ensureSchemaWithRetry(retries = 6, delayMs = 500): Promise<void> 
   }
 }
 
-// Memoiza la promesa de inicialización; si falla (p.ej. MariaDB no estaba
-// aún lista), se limpia para que la siguiente llamada pueda reintentar en
-// vez de quedar bloqueada para siempre con una promesa rechazada.
+// Memoizes the initialization promise; if it fails (e.g. MariaDB wasn't
+// ready yet), it's cleared so the next call can retry instead of being
+// stuck forever with a rejected promise.
 export async function getDb(): Promise<Pool> {
   if (!_ready) {
     _ready = ensureSchemaWithRetry().catch((error) => {
@@ -99,9 +99,9 @@ type ScoreRow = {
 
 type RankedScoreRow = ScoreRow & { userId: string | null; rank: number; total: number };
 
-// Dirección "ganadora" por juego: 'desc' = mayor score es mejor (Chess,
-// Numbers y Wording: cubo de aciertos entre tiempo), 'asc' = menor score es
-// mejor (Tetris guarda tiempo en ms).
+// "Winning" direction per game: 'desc' = higher score is better (Chess,
+// Numbers and Wording: correct answers cubed over time), 'asc' = lower score
+// is better (Tetris stores time in ms).
 const GAME_DIRECTIONS: Record<GameId, "asc" | "desc"> = {
   1: "desc",
   2: "desc",
@@ -111,9 +111,9 @@ const GAME_DIRECTIONS: Record<GameId, "asc" | "desc"> = {
 
 const ALL_GAME_IDS: GameId[] = [1, 2, 3, 4];
 
-// `total` (COUNT(*) OVER (), sin filtrar) viaja en la misma fila que el
-// mejor puesto del jugador: así "tu posición: #Z de N" sale de una sola
-// consulta, sin depender del LIMIT 100 de getScoresForGame.
+// `total` (COUNT(*) OVER (), unfiltered) travels in the same row as the
+// player's best position: that way "your position: #Z of N" comes from a
+// single query, without depending on getScoresForGame's LIMIT 100.
 function rankQuery(direction: "ASC" | "DESC"): string {
   return `
     SELECT userId, username, score, gameConfig, createdAt, rank, total FROM (
@@ -153,13 +153,13 @@ export type BeatenPlayer = {
   previousBest: number;
 };
 
-// Récords batidos: mejor score histórico (por usuario) de cada juego,
-// comparado contra el score que se acaba de conseguir. La dirección
-// "ganadora" (asc/desc) determina si "batido" significa "menor que" (tetris)
-// o "mayor que" (el resto). Solo cuenta como adelantamiento REAL si el
-// jugador no tenía ya, antes de esta partida, un score que batiera al del
-// otro jugador — si ya le había ganado antes, no se vuelve a notificar cada
-// vez que mejora su propio récord.
+// Beaten records: all-time best score (per user) for each game, compared
+// against the score just achieved. The "winning" direction (asc/desc)
+// determines whether "beaten" means "less than" (tetris) or "greater than"
+// (the rest). It only counts as a REAL overtake if the player didn't
+// already have, before this game, a score that beat the other player's —
+// if they had already beaten them before, there's no new notification
+// every time they improve their own record.
 export async function getPlayersBeatenByScore(
   gameId: GameId,
   excludeUserId: string,
@@ -238,9 +238,9 @@ function scoreRankByIdQuery(direction: "ASC" | "DESC"): string {
   `;
 }
 
-// Posición de UNA partida concreta (por id, no "tu mejor histórico") dentro
-// del ranking completo de ese juego: el resultado conseguido en ESA ronda,
-// aunque el jugador ya tuviera un puesto mejor guardado de antes.
+// Position of ONE specific game (by id, not "your all-time best") within
+// that game's full ranking: the result achieved in THAT round, even if the
+// player already had a better position stored from before.
 export async function getScoreRank(gameId: GameId, scoreId: number): Promise<ScoreRank> {
   const direction = GAME_DIRECTIONS[gameId] === "asc" ? "ASC" : "DESC";
   const db = await getDb();
@@ -256,12 +256,12 @@ export async function getScoreRank(gameId: GameId, scoreId: number): Promise<Sco
 }
 
 export async function getScoresForGame(gameId: GameId): Promise<ScoreEntry[]> {
-  // La dirección "ganadora" depende del juego (ver GAME_DIRECTIONS): en la
-  // mayoría mayor score es mejor, pero tetris guarda tiempo en ms (menor es
-  // mejor). Antes esto siempre ordenaba DESC, así que en tetris el LIMIT 100
-  // se quedaba con las 100 partidas MÁS LENTAS y podía dejar fuera del
-  // ranking (y de cualquier cálculo de posición) los mejores tiempos en
-  // cuanto hubiera más de 100 partidas guardadas.
+  // The "winning" direction depends on the game (see GAME_DIRECTIONS): in
+  // most, a higher score is better, but tetris stores time in ms (lower is
+  // better). This used to always sort DESC, so in tetris the LIMIT 100 kept
+  // the 100 SLOWEST games and could leave the best times out of the ranking
+  // (and out of any position calculation) as soon as more than 100 games
+  // were stored.
   const direction = GAME_DIRECTIONS[gameId] === "asc" ? "ASC" : "DESC";
   const db = await getDb();
   const [rows] = await db.execute<RowDataPacket[]>(

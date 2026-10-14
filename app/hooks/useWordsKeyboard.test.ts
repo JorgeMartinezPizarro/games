@@ -12,7 +12,7 @@ function press(key: string, init: KeyboardEventInit = {}) {
 afterEach(cleanup);
 
 describe("useWordsKeyboard", () => {
-  it("1-4 eligen la respuesta correspondiente y espacio vuelve a escuchar", () => {
+  it("1-4 pick the corresponding answer and space replays the audio", () => {
     const onChoice = vi.fn();
     const onReplay = vi.fn();
     renderHook(() => useWordsKeyboard({ enabled: true, choices, onChoice, onReplay }));
@@ -25,7 +25,7 @@ describe("useWordsKeyboard", () => {
     expect(onReplay).toHaveBeenCalledTimes(1);
   });
 
-  it("ignora otras teclas, combinaciones y pulsaciones mantenidas", () => {
+  it("ignores other keys, key combinations and held-down presses", () => {
     const onChoice = vi.fn();
     renderHook(() => useWordsKeyboard({ enabled: true, choices, onChoice, onReplay: vi.fn() }));
 
@@ -37,7 +37,7 @@ describe("useWordsKeyboard", () => {
     expect(onChoice).not.toHaveBeenCalled();
   });
 
-  it("desactivado no escucha el teclado", () => {
+  it("doesn't listen to the keyboard when disabled", () => {
     const onChoice = vi.fn();
     renderHook(() => useWordsKeyboard({ enabled: false, choices, onChoice, onReplay: vi.fn() }));
 

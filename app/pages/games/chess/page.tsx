@@ -24,12 +24,13 @@ const IN_CHECK = {
   background: "radial-gradient(circle, rgba(248, 113, 113, 0.95) 0%, rgba(248, 113, 113, 0.55) 45%, transparent 75%)",
 };
 
-// Resultado del hook ("Jugador gana (mate)", "IA gana (mate)", "Empate (…)")
-// → tono y título de la tarjeta final.
+// Hook result ("Player wins (checkmate)", "AI wins (checkmate)", "Draw (…)")
+// → tone and title of the result card.
 function describeResult(result: string): { tone: ResultTone; title: string; subtitle: string } {
-  if (result.startsWith("Jugador")) return { tone: "win", title: "¡Jaque mate!", subtitle: "Has ganado a Stockfish." };
-  if (result.startsWith("IA")) return { tone: "lose", title: "Stockfish gana", subtitle: "Jaque mate a tu rey." };
-  return { tone: "neutral", title: "Tablas", subtitle: result.replace(/^Empate\s*/, "").replace(/[()]/g, "") };
+  if (result.startsWith("Player")) return { tone: "win", title: "Checkmate!", subtitle: "You beat Stockfish." };
+  if (result.startsWith("AI")) return { tone: "lose", title: "Stockfish wins", subtitle: "Your king is checkmated." };
+  const reason = result.replace(/^Draw\s*/, "").replace(/[()]/g, "");
+  return { tone: "neutral", title: "Draw", subtitle: reason ? reason.charAt(0).toUpperCase() + reason.slice(1) + "." : "" };
 }
 
 const ChessGame: React.FC = () => {
@@ -82,7 +83,7 @@ const ChessGame: React.FC = () => {
 
   const displayError = gameError || score.scoreError;
   const result = gameResult ? describeResult(gameResult) : null;
-  const playerName = user.id === "anonymous" ? "Tú" : user.name;
+  const playerName = user.id === "anonymous" ? "You" : user.name;
   const yourTurn = !isGameOver && !isAIThinking;
 
   return (
@@ -90,20 +91,20 @@ const ChessGame: React.FC = () => {
       game="chess"
       actions={
         <Button variant="outlined" onClick={() => setShowScores((v) => !v)} startIcon={<EmojiEventsOutlined />}>
-          {showScores ? "Volver a la partida" : "Ranking"}
+          {showScores ? "Back to game" : "Leaderboard"}
         </Button>
       }
     >
       {showScores ? (
         <Leaderboard<ChessScoreEntry>
-          title="Ranking"
-          subtitle="ELO más alto al que has dado mate"
+          title="Leaderboard"
+          subtitle="Highest ELO checkmated"
           rows={sortedScores}
           userOf={(entry) => entry.userId}
           currentUserId={user.id}
           columns={[
             { label: "ELO", value: (entry) => entry.elo, align: "right", strong: true },
-            { label: "Fecha", value: (entry) => new Date(entry.time).toLocaleDateString("es-ES"), align: "right" },
+            { label: "Date", value: (entry) => new Date(entry.time).toLocaleDateString("en-US"), align: "right" },
           ]}
         />
       ) : (
@@ -131,17 +132,17 @@ const ChessGame: React.FC = () => {
                     title={result.title}
                     subtitle={result.subtitle}
                     stats={[
-                      { label: "ELO rival", value: elo },
-                      { label: "Jugadas", value: Math.ceil(history.length / 2) },
+                      { label: "Opponent ELO", value: elo },
+                      { label: "Moves", value: Math.ceil(history.length / 2) },
                     ]}
                     footer={score.myRank && <RankBadge rank={score.myRank.rank} total={score.myRank.total} />}
                     actions={
                       <>
                         <Button variant="contained" onClick={newGame} startIcon={<ReplayRounded />}>
-                          Nueva partida
+                          New game
                         </Button>
                         <Button variant="text" onClick={() => setHideResult(true)}>
-                          Ver tablero
+                          View board
                         </Button>
                       </>
                     }
@@ -154,10 +155,10 @@ const ChessGame: React.FC = () => {
                 {isGameOver
                   ? gameResult
                   : isAIThinking
-                  ? "Stockfish está pensando…"
+                  ? "Stockfish is thinking…"
                   : gameStarted
-                  ? "Te toca mover"
-                  : "Juegas con blancas: mueve para empezar"}
+                  ? "Your move"
+                  : "You play white: move to start"}
               </span>
             </div>
             {displayError && <Notice>{displayError}</Notice>}
@@ -166,7 +167,7 @@ const ChessGame: React.FC = () => {
           <aside className={styles.side}>
             <PlayerCard
               name="Stockfish"
-              meta={`ELO ${elo} · negras`}
+              meta={`ELO ${elo} · black`}
               active={isAIThinking}
               thinking={isAIThinking}
             />
@@ -183,11 +184,11 @@ const ChessGame: React.FC = () => {
             <PlayerCard
               you
               name={playerName}
-              meta={yourTurn ? "Blancas · te toca" : "Blancas"}
+              meta={yourTurn ? "White · your move" : "White"}
               active={yourTurn && gameStarted}
             />
             <Button data-slot="new" variant="outlined" onClick={newGame} startIcon={<ReplayRounded />}>
-              Nueva partida
+              New game
             </Button>
           </aside>
         </div>

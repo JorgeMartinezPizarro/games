@@ -4,8 +4,8 @@ import type { CellValues } from "@/app/types";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import crypto from "node:crypto";
 
-// Nonces caducan a los 15 minutos: tiempo de sobra para jugar una partida,
-// evita que se acumulen filas huérfanas si nunca se envía el score.
+// Nonces expire after 15 minutes: plenty of time to play a game, and it
+// keeps orphan rows from piling up if the score is never submitted.
 const NONCE_MAX_AGE_MS = 15 * 60 * 1000;
 
 let _tableReady: Promise<void> | null = null;
@@ -59,12 +59,12 @@ export type StoredNumbersGame = {
   createdAt: number;
 };
 
-// Lee y borra el nonce en el mismo paso: solo puede consumirse una vez,
-// tanto si la partida resulta válida como si no. El DELETE comprueba
-// affectedRows en vez de asumir éxito: si dos peticiones concurrentes leen
-// el mismo nonce antes de que ninguna borre, ambas verían la fila y
-// puntuarían la misma partida dos veces sin esto — solo la que de verdad
-// borra la fila (affectedRows === 1) sigue adelante.
+// Reads and deletes the nonce in the same step: it can only be consumed
+// once, whether or not the game turns out to be valid. The DELETE checks
+// affectedRows instead of assuming success: if two concurrent requests read
+// the same nonce before either one deletes it, without this both would see
+// the row and score the same game twice — only the one that actually
+// deletes the row (affectedRows === 1) goes ahead.
 export async function consumeNumbersGame(nonce: string): Promise<StoredNumbersGame | null> {
   await ensureTable();
 

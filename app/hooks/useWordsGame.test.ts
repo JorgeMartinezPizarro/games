@@ -3,9 +3,9 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ROUNDS_TOTAL, useWordsGame } from "./useWordsGame";
 
-// preloadAudio() usa `new Audio()`, que jsdom no implementa de verdad. La
-// sustituimos por un stub que dispara "canplaythrough" de forma síncrona en
-// load(), así las rondas se precargan al instante en los tests.
+// preloadAudio() uses `new Audio()`, which jsdom doesn't really implement. We
+// replace it with a stub that fires "canplaythrough" synchronously in
+// load(), so rounds are preloaded instantly in the tests.
 class ImmediateAudio {
   preload = "";
   src = "";
@@ -58,13 +58,13 @@ afterEach(() => {
 });
 
 describe("useWordsGame", () => {
-  it("empieza en idle", () => {
+  it("starts in idle", () => {
     const { result } = renderHook(() => useWordsGame());
     expect(result.current.gameState).toBe("idle");
     expect(result.current.round).toBeUndefined();
   });
 
-  it("startGame carga las rondas y pasa a 'playing'", async () => {
+  it("startGame loads the rounds and switches to 'playing'", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -85,7 +85,7 @@ describe("useWordsGame", () => {
     expect(result.current.score).toBe(0);
   });
 
-  it("startGame llama a onReset al arrancar", async () => {
+  it("startGame calls onReset when starting", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -103,7 +103,7 @@ describe("useWordsGame", () => {
     expect(onReset).toHaveBeenCalledTimes(1);
   });
 
-  it("startGame vuelve a 'idle' si el servidor falla", async () => {
+  it("startGame goes back to 'idle' if the server fails", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -120,7 +120,7 @@ describe("useWordsGame", () => {
     expect(result.current.gameState).toBe("idle");
   });
 
-  it("handleChoice correcta avanza de ronda tras la pausa de feedback", async () => {
+  it("a correct handleChoice advances to the next round after the feedback pause", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -139,7 +139,7 @@ describe("useWordsGame", () => {
       await result.current.handleChoice("a");
     });
     expect(result.current.feedback).toBe("correct");
-    expect(result.current.currentRound).toBe(0); // aún no avanzó, espera el timeout
+    expect(result.current.currentRound).toBe(0); // hasn't advanced yet, waits for the timeout
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
@@ -151,7 +151,7 @@ describe("useWordsGame", () => {
     expect(result.current.gameState).toBe("playing");
   });
 
-  it("handleChoice incorrecta termina la partida como perdida y también guarda score", async () => {
+  it("a wrong handleChoice ends the game as lost and still saves the score", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -185,7 +185,7 @@ describe("useWordsGame", () => {
     expect(result.current.finishedTotal).toBe(20);
   });
 
-  it("la última ronda correcta llama a onComplete y adopta su resultado", async () => {
+  it("the last correct round calls onComplete and adopts its result", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -217,7 +217,7 @@ describe("useWordsGame", () => {
     expect(result.current.finishedTotal).toBe(50);
   });
 
-  it("handleQuit termina la partida en curso sin marcarla como ganada", async () => {
+  it("handleQuit ends the game in progress without marking it as won", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -243,7 +243,7 @@ describe("useWordsGame", () => {
     expect(onComplete).not.toHaveBeenCalled();
   });
 
-  it("handleQuit no hace nada si no hay partida en curso", () => {
+  it("handleQuit does nothing if there's no game in progress", () => {
     const { result } = renderHook(() => useWordsGame());
 
     act(() => {

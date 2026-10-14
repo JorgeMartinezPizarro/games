@@ -27,7 +27,7 @@ afterEach(() => {
 });
 
 describe("useChessScore", () => {
-  it("carga las puntuaciones al montar", async () => {
+  it("loads the scores on mount", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -45,7 +45,7 @@ describe("useChessScore", () => {
     expect(result.current.scoreError).toBeNull();
   });
 
-  it("loadScores expone un error si la petición falla", async () => {
+  it("loadScores exposes an error if the request fails", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -61,7 +61,7 @@ describe("useChessScore", () => {
     expect(result.current.topScores).toEqual([]);
   });
 
-  it("saveScore guarda una única vez por partida (guard) hasta resetSaveGuard", async () => {
+  it("saveScore saves only once per game (guard) until resetSaveGuard", async () => {
     const fetchMock = routeFetch({
       [GET_SCORES]: () => jsonResponse({ scores: [] }),
       [POST_SCORES]: () => jsonResponse({ message: "ok", id: 1, score: 1900, rank: 1, total: 1 }),
@@ -92,7 +92,7 @@ describe("useChessScore", () => {
     expect(third).toBe(true);
   });
 
-  it("saveScore adopta el rank/total de ESTA partida (no el mejor histórico) tal cual los devuelve el POST", async () => {
+  it("saveScore adopts THIS game's rank/total (not the all-time best) exactly as returned by the POST", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -108,12 +108,12 @@ describe("useChessScore", () => {
       await result.current.saveScore("nonce-1");
     });
 
-    // Aunque el jugador ya tuviera un mejor puesto guardado de antes, lo que
-    // se muestra es el resultado de ESTA partida (posición 8 de 14).
+    // Even if the player already had a better saved position from before,
+    // what's shown is THIS game's result (position 8 of 14).
     expect(result.current.myRank).toEqual({ rank: 8, total: 14 });
   });
 
-  it("resetSaveGuard limpia myRank", async () => {
+  it("resetSaveGuard clears myRank", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -132,7 +132,7 @@ describe("useChessScore", () => {
     expect(result.current.myRank).toBeNull();
   });
 
-  it("saveScore expone el error y libera el guard si el servidor responde con fallo", async () => {
+  it("saveScore exposes the error and releases the guard if the server responds with a failure", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -149,9 +149,9 @@ describe("useChessScore", () => {
     });
 
     expect(saved).toBe(false);
-    expect(result.current.scoreError).toMatch(/no se pudo guardar/i);
+    expect(result.current.scoreError).toMatch(/couldn't save/i);
 
-    // El guard se liberó: un segundo intento vuelve a llamar al servidor
+    // The guard was released: a second attempt calls the server again
     await act(async () => {
       saved = await result.current.saveScore("bad-nonce");
     });

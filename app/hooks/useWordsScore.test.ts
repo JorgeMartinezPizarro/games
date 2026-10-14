@@ -27,17 +27,17 @@ afterEach(() => {
 });
 
 describe("formatMs", () => {
-  it("formatea milisegundos por debajo del minuto", () => {
+  it("formats milliseconds under a minute", () => {
     expect(formatMs(1234)).toBe("1.234s");
   });
 
-  it("formatea minutos y segundos por encima del minuto", () => {
+  it("formats minutes and seconds over a minute", () => {
     expect(formatMs(65_500)).toBe("1m 5.500s");
   });
 });
 
 describe("useWordsScore", () => {
-  it("carga las puntuaciones al montar", async () => {
+  it("loads the scores on mount", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -71,7 +71,7 @@ describe("useWordsScore", () => {
     });
   });
 
-  it("saveScore adopta el rank/total de ESTA partida (no el mejor histórico) tal cual los devuelve el POST", async () => {
+  it("saveScore adopts THIS game's rank/total (not the all-time best) exactly as returned by the POST", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -87,12 +87,12 @@ describe("useWordsScore", () => {
       saveResult = await result.current.saveScore("nonce-1");
     });
 
-    // Aunque el jugador ya tuviera un mejor puesto guardado de antes, lo que
-    // se muestra es el resultado de ESTA ronda (posición 25 de 40).
+    // Even if the player already had a better saved position from before,
+    // what's shown is THIS round's result (position 25 of 40).
     expect(saveResult).toEqual({ score: 3000, rank: 25, total: 40 });
   });
 
-  it("saveScore deja rank/total en null cuando el backend no los manda", async () => {
+  it("saveScore leaves rank/total as null when the backend doesn't send them", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -111,7 +111,7 @@ describe("useWordsScore", () => {
     expect(saveResult).toEqual({ score: 500, rank: null, total: null });
   });
 
-  it("saveScore no vuelve a guardar hasta que se llama a resetSaveGuard", async () => {
+  it("saveScore doesn't save again until resetSaveGuard is called", async () => {
     const fetchMock = routeFetch({
       [GET_SCORES]: () => jsonResponse({ scores: [] }),
       [POST_SCORES]: () => jsonResponse({ score: 1000, rank: 1, total: 1 }),
@@ -142,7 +142,7 @@ describe("useWordsScore", () => {
     expect(third).not.toBeNull();
   });
 
-  it("saveScore devuelve null y permite reintentar si la respuesta no es ok", async () => {
+  it("saveScore returns null and allows retrying if the response isn't ok", async () => {
     let postCalls = 0;
     vi.stubGlobal(
       "fetch",
@@ -165,7 +165,7 @@ describe("useWordsScore", () => {
     expect(saveResult).toBeNull();
     expect(postCalls).toBe(1);
 
-    // Al fallar, el guard se libera solo (sin necesidad de resetSaveGuard)
+    // On failure, the guard releases itself (no need for resetSaveGuard)
     await act(async () => {
       saveResult = await result.current.saveScore("nonce-1");
     });

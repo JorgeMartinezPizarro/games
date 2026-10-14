@@ -2,8 +2,8 @@ import { useState } from "react";
 import PublicOutlined from "@mui/icons-material/PublicOutlined";
 import styles from "./Home.module.css";
 
-// Chip del menú con las vueltas a la Tierra desde la fecha de nacimiento.
-// Al pulsarlo se edita la fecha en el sitio.
+// Menu chip showing the Earth rotations since the date of birth.
+// Clicking it edits the date in place.
 export default function EarthChip({
   birthDate,
   rotations,
@@ -21,7 +21,7 @@ export default function EarthChip({
         <PublicOutlined sx={{ fontSize: 16 }} />
         <input
           type="date"
-          aria-label="Tu fecha de nacimiento"
+          aria-label="Your date of birth"
           className={styles.dateInput}
           defaultValue={birthDate}
           max={new Date().toISOString().slice(0, 10)}
@@ -42,10 +42,10 @@ export default function EarthChip({
     <button type="button" className={styles.chip} onClick={() => setEditing(true)}>
       <PublicOutlined sx={{ fontSize: 16 }} />
       {rotations === null ? (
-        "¿Cuántas vueltas a la Tierra llevas?"
+        "How many Earth rotations have you ridden?"
       ) : (
         <span>
-          <b className="num">{rotations.toLocaleString("es-ES")}</b> vueltas a la Tierra
+          <b className="num">{rotations.toLocaleString("en-US")}</b> Earth rotations
         </span>
       )}
     </button>

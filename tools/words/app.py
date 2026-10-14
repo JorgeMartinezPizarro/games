@@ -75,7 +75,7 @@ def get_audio_path(word: str) -> str:
     return os.path.join(AUDIO_FOLDER, f"{word}.mp3")
 
 def ensure_audio(word: str) -> str:
-    """Genera el MP3 si no existe. Devuelve la ruta."""
+    """Generates the MP3 if it doesn't exist. Returns the path."""
     audio_path = get_audio_path(word)
     if not os.path.exists(audio_path):
         tts = gTTS(word, lang='en')
@@ -90,7 +90,7 @@ def ensure_audio(word: str) -> str:
 @app.route('/word', methods=['GET'])
 @app.route('/word/<string:word>', methods=['GET'])
 def get_word(word=None):
-    """Endpoint legacy: devuelve una sola palabra + audio."""
+    """Legacy endpoint: returns a single word + audio."""
     try:
         conn = sqlite3.connect(DATABASE)
         cursor = conn.cursor()
@@ -126,20 +126,20 @@ def get_word(word=None):
 @app.route('/challenge', methods=['GET'])
 def get_challenge():
     """
-    Devuelve todas las palabras y audios para una partida completa.
+    Returns all the words and audio files for a full game.
 
     Query params:
-      - rounds:     número de rondas (default 10)
-      - choices:    palabras por ronda (default 4)
-      - size:       dificultad SCOWL, menor = más común (default 60)
+      - rounds:     number of rounds (default 10)
+      - choices:    words per round (default 4)
+      - size:       SCOWL difficulty, lower = more common (default 60)
 
-    Respuesta:
+    Response:
       {
         "rounds": [
           {
             "target": "forgiver",
             "audio":  "/audio/forgiver.mp3",
-            "choices": ["forgiver", "cottager", "sparely", "dagger"]  <- barajadas
+            "choices": ["forgiver", "cottager", "sparely", "dagger"]  <- shuffled
           },
           ...
         ]
@@ -165,18 +165,18 @@ def get_challenge():
         if len(words) < total_needed:
             return jsonify({"error": "Not enough words in database"}), 500
 
-        # Las primeras `rounds` palabras son las reales (con audio)
+        # The first `rounds` words are the real ones (with audio)
         targets     = words[:rounds]
-        distractors = words[rounds:]  # rounds * (choices-1) palabras
+        distractors = words[rounds:]  # rounds * (choices-1) words
 
-        # Generar audios solo para las palabras reales
+        # Generate audio only for the real words
         for word in targets:
             ensure_audio(word)
 
-        # Construir las rondas
+        # Build the rounds
         result_rounds = []
         for i, target in enumerate(targets):
-            # 3 distractoras para esta ronda
+            # 3 distractors for this round
             round_distractors = distractors[i * (choices - 1) : (i + 1) * (choices - 1)]
             round_choices = [target] + round_distractors
             random.shuffle(round_choices)

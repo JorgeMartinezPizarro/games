@@ -10,8 +10,8 @@ export type ChessScoreEntry = {
   userId: string;
 };
 
-// Posición de ESTA partida concreta (no el mejor histórico del jugador) en
-// el ranking completo del juego (no solo el top 10).
+// Position of THIS specific game (not the player's all-time best) in the
+// game's full ranking (not just the top 10).
 export type MyRank = { rank: number; total: number };
 
 function parseScoreEntry(entry: ScoreEntry): ChessScoreEntry {
@@ -23,8 +23,8 @@ function parseScoreEntry(entry: ScoreEntry): ChessScoreEntry {
 }
 
 /**
- * Hook con toda la lógica de marcador de ajedrez (carga y guardado de
- * puntuaciones). No contiene nada de UI ni de las reglas del juego.
+ * Hook with all the chess scoreboard logic (loading and saving scores).
+ * Contains nothing about the UI or the game rules.
  */
 export function useChessScore() {
   const [topScores, setTopScores] = useState<ChessScoreEntry[]>([]);
@@ -38,14 +38,14 @@ export function useChessScore() {
       setTopScores(await fetchTopScores(GAME_IDS.CHESS, parseScoreEntry));
     } catch (error) {
       console.error("Error loading scores:", error);
-      setScoreError("No se pudieron cargar las puntuaciones.");
+      setScoreError("Couldn't load the scores.");
     }
   }, []);
 
-  // El score ya no lo manda el cliente, solo el nonce de la partida: el
-  // servidor reproduce el log de jugadas guardado bajo ese nonce (grabado
-  // jugada a jugada por /api/chess) y calcula el score él mismo a partir
-  // del elo con el que realmente se jugó.
+  // The client no longer sends the score, only the game's nonce: the server
+  // replays the move log stored under that nonce (recorded move by move by
+  // /api/chess) and computes the score itself from the elo the game was
+  // actually played at.
   const saveScore = useCallback(
     async (nonce: string): Promise<boolean> => {
       if (scoreSavedRef.current) return false;
@@ -59,19 +59,19 @@ export function useChessScore() {
         });
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || "Error al guardar la puntuación");
+          throw new Error(errorData.error || "Couldn't save the score.");
         }
         const data = await response.json();
         await loadScores();
-        // El propio POST ya trae la posición de ESTA partida en el ranking
-        // completo (no el mejor histórico del jugador).
+        // The POST itself already returns THIS game's position in the full
+        // ranking (not the player's all-time best).
         if (typeof data.rank === "number" && typeof data.total === "number") {
           setMyRank({ rank: data.rank, total: data.total });
         }
         return true;
       } catch (error) {
         console.error("Error saving score:", error);
-        setScoreError("No se pudo guardar la puntuación. Inténtalo de nuevo.");
+        setScoreError("Couldn't save your score. Try again.");
         scoreSavedRef.current = false;
         return false;
       }
@@ -79,7 +79,7 @@ export function useChessScore() {
     [loadScores]
   );
 
-  // Se debe llamar al reiniciar partida para permitir guardar de nuevo
+  // Must be called when restarting the game to allow saving again
   const resetSaveGuard = useCallback(() => {
     scoreSavedRef.current = false;
     setMyRank(null);

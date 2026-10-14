@@ -37,9 +37,9 @@ import { postToGamingApp } from "@/app/lib/nextcloud/gamingApp";
 import { NextRequest } from "next/server";
 import type { GameId } from "@/app/lib/scores/types";
 
-// Tetris puntúa en ms de partida total (menor es mejor); el resto en puntos.
-// Para activity/notificaciones de Nextcloud queremos que Tetris se muestre
-// como MM:SS.mmm en vez del número crudo de milisegundos.
+// Tetris scores in total game ms (lower is better); the rest in points.
+// For Nextcloud activity/notifications we want Tetris shown as MM:SS.mmm
+// instead of the raw number of milliseconds.
 function formatScoreLabel(gameId: GameId, score: number): string {
   return gameId === GAME_IDS.TETRIS ? formatTimeMs(score) : String(score);
 }
@@ -57,8 +57,8 @@ async function createActivity(
   userId: string
 ): Promise<void> {
   const cookie = request.headers.get("cookie");
-  // userId ata la firma al usuario de la sesión (Nextcloud lo comprueba) y
-  // path es el deeplink al juego dentro de la app de Nextcloud.
+  // userId binds the signature to the session's user (Nextcloud checks it)
+  // and path is the deeplink to the game inside the Nextcloud app.
   const common = {
     userId,
     game: GAME_NAMES[gameId],
@@ -73,12 +73,11 @@ async function createActivity(
     console.error("Unable to publish Nextcloud activity:", err);
   }
 
-  // Récords batidos: cualquier jugador cuyo mejor score histórico en este
-  // juego quede por debajo (o por encima, en tetris) del score recién
-  // conseguido recibe una notificación individual en Nextcloud — pero solo
-  // si es un adelantamiento REAL, es decir, si el propio jugador no tenía ya
-  // un score anterior que batiera al de ese jugador (si no, ya se le habría
-  // notificado en su momento).
+  // Beaten records: any player whose all-time best score in this game falls
+  // below (or above, in tetris) the newly achieved score gets an individual
+  // notification in Nextcloud — but only if it's a REAL overtake, i.e. if
+  // the player didn't already have a previous score that beat that player's
+  // (otherwise they would already have been notified back then).
   try {
     const previousBest = await getPlayerBestScoreForGame(userId, gameId);
     const beatenPlayers = await getPlayersBeatenByScore(
@@ -111,21 +110,21 @@ function errorResponse(error: unknown): Response {
   return Response.json(body, { status: getErrorStatus(error) });
 }
 
-// Chess tampoco manda un score de confianza: cada jugada ya se validó una a
-// una contra /api/chess (legalidad vía chess.js, IA invocada server-side
-// contra Stockfish con el elo guardado bajo el nonce, nunca el del
-// cliente). Aquí solo hace falta reproducir el log de jugadas desde cero y
-// comprobar que la partida realmente terminó en victoria del jugador.
+// Chess doesn't send a trusted score either: every move was already
+// validated one by one against /api/chess (legality via chess.js, AI called
+// server-side against Stockfish with the elo stored under the nonce, never
+// the client's). Here we only need to replay the move log from scratch and
+// check that the game really ended in a win for the player.
 //
-// El jugador siempre juega con blancas (las negras las mueve el propio
-// servidor vía Stockfish, nunca el cliente). isGameOver() por sí solo NO
-// basta: también es true en tablas, ahogado o cuando es el JUGADOR quien
-// recibe jaque mate — sin comprobar isCheckmate() + de qué color, cualquier
-// final de partida (incluida una derrota autoinfligida en un par de
-// jugadas) puntuaba igual que una victoria real. Solo se puntúa si, al
-// terminar la partida, es a las negras a quien le toca mover y están en
-// jaque mate (turn() === "b" && isCheckmate()): eso es lo único que
-// significa que las blancas (el jugador) dieron mate. Las tablas no puntúan.
+// The player always plays White (Black is moved by the server itself via
+// Stockfish, never by the client). isGameOver() alone is NOT enough: it's
+// also true on a draw, stalemate, or when it's the PLAYER who gets
+// checkmated — without checking isCheckmate() + which color, any game
+// ending (including a self-inflicted loss in a couple of moves) used to
+// score just like a real win. A game only scores if, when it ends, it's
+// Black's turn to move and Black is checkmated (turn() === "b" &&
+// isCheckmate()): that is the only thing that means White (the player)
+// delivered mate. Draws don't score.
 async function saveChessScore(request: NextRequest, user: AuthUser, params: any): Promise<Response> {
   const { nonce } = params;
 
@@ -177,9 +176,9 @@ async function saveChessScore(request: NextRequest, user: AuthUser, params: any)
   return Response.json(body, { status: 200 });
 }
 
-// Numbers no manda un score de confianza: manda el nonce de la partida
-// (emitido por /api/numbers/new-game), el tablero inicial y los movimientos
-// realizados. El servidor reproduce la partida y calcula el score él mismo.
+// Numbers doesn't send a trusted score: it sends the game's nonce (issued
+// by /api/numbers/new-game), the initial board and the moves made. The
+// server replays the game and computes the score itself.
 async function saveNumbersScore(request: NextRequest, user: AuthUser, params: any): Promise<Response> {
   const { nonce, board, moves } = params;
 
@@ -234,12 +233,12 @@ async function saveNumbersScore(request: NextRequest, user: AuthUser, params: an
   return Response.json(body, { status: 200 });
 }
 
-// Words tampoco manda un score de confianza: cada ronda ya se validó una a
-// una contra /api/words/answer (single-use). Puntúa cualquier partida que
-// haya terminado, tanto si acertó las 10 rondas como si falló antes
-// (stored.ended, marcado por /api/words/answer) — nunca una partida a
-// medio jugar. El score es la misma fórmula que numbers: cubo de aciertos
-// entre el tiempo, calculado con el reloj del servidor.
+// Words doesn't send a trusted score either: every round was already
+// validated one by one against /api/words/answer (single-use). Any game
+// that has ended scores, whether all 10 rounds were answered correctly or
+// the player missed earlier (stored.ended, set by /api/words/answer) —
+// never a half-played game. The score uses the same formula as numbers:
+// correct answers cubed over time, computed with the server clock.
 async function saveWordsScore(request: NextRequest, user: AuthUser, params: any): Promise<Response> {
   const { nonce } = params;
 
@@ -284,12 +283,12 @@ async function saveWordsScore(request: NextRequest, user: AuthUser, params: any)
   return Response.json(body, { status: 200 });
 }
 
-// Tetris tampoco manda un score de confianza: manda el nonce (que ata la
-// partida a un seed de piezas fijo, emitido por /api/tetris/new-game) y el
-// log de acciones con marca de tiempo relativa al inicio. El servidor
-// reproduce la partida entera con el mismo motor que el cliente
-// (app/lib/tetris/replay.ts) y solo si el replay llega de forma legal a
-// LINES_TARGET calcula el tiempo final con su propio reloj.
+// Tetris doesn't send a trusted score either: it sends the nonce (which
+// binds the game to a fixed piece seed, issued by /api/tetris/new-game) and
+// the action log with timestamps relative to the start. The server replays
+// the whole game with the same engine as the client
+// (app/lib/tetris/replay.ts) and only if the replay legally reaches
+// LINES_TARGET does it compute the final time with its own clock.
 async function saveTetrisScore(request: NextRequest, user: AuthUser, params: any): Promise<Response> {
   const { nonce, actions } = params;
 
@@ -410,7 +409,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     const { searchParams } = new URL(request.url);
     const wantsMe = searchParams.get("me") === "true";
 
-    // --- Vista "mis scores": el backend decide quién es el usuario ---
+    // --- "My scores" view: the backend decides who the user is ---
     if (wantsMe) {
       const user = await requireAuth(request);
       const gameIdParam = searchParams.get("gameId");
@@ -440,7 +439,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       return Response.json(body, { status: 200 });
     }
 
-    // --- Vista existente: leaderboard de un juego (pública) ---
+    // --- Existing view: a game's leaderboard (public) ---
     await requireAuth(request);
 
     const parsedGameId = parseGameIdParam(searchParams.get("gameId"));

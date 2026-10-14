@@ -1,15 +1,14 @@
 import { vi } from "vitest";
 
-// Mock mínimo de un pool mysql2/promise que modela una única tabla
-// clave-valor indexada por nonce (la forma de game_chess/numbers_games/
-// tetris_games/words_games), con la misma semántica de una fila real: un
-// DELETE por clave primaria solo afecta una fila la primera vez que se
-// ejecuta para ese nonce, igual que haría InnoDB con el locking de una fila
-// por su PK. Sirve para reproducir de forma determinista, con Promise.all,
-// la carrera SELECT-luego-DELETE de dos peticiones "concurrentes" sobre el
-// mismo nonce sin necesitar una MariaDB real: ambas ven la fila en su
-// SELECT si ninguna ha borrado aún, pero solo una de las dos DELETE llega a
-// afectar una fila.
+// Minimal mock of a mysql2/promise pool that models a single key-value
+// table indexed by nonce (the shape of game_chess/numbers_games/
+// tetris_games/words_games), with the same semantics as a real row: a
+// DELETE by primary key only affects a row the first time it runs for that
+// nonce, just as InnoDB would with row locking on its PK. It lets the
+// SELECT-then-DELETE race of two "concurrent" requests on the same nonce
+// be reproduced deterministically with Promise.all, without needing a real
+// MariaDB: both see the row in their SELECT if neither has deleted it yet,
+// but only one of the two DELETEs actually affects a row.
 export function createFakeRowStore<Row extends Record<string, unknown>>(
   initialRows: Record<string, Row> = {}
 ) {

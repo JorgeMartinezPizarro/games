@@ -1,8 +1,8 @@
 import { createTheme } from '@mui/material/styles';
 
-// Tema oscuro común a toda la app. Los colores salen de los tokens CSS de
-// globals.css (--bg, --surface, --accent…): cada juego fija su --accent en
-// su GameShell y los botones "contained" lo heredan sin tema propio.
+// Dark theme shared by the whole app. Colors come from the CSS tokens in
+// globals.css (--bg, --surface, --accent…): each game sets its --accent in
+// its GameShell and "contained" buttons inherit it without a theme of their own.
 const theme = createTheme({
   palette: {
     mode: 'dark',

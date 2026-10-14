@@ -4,7 +4,7 @@ import styles from "./Words.module.css";
 export type SegmentState = "ok" | "bad" | "now" | "todo";
 export type AnswerState = "idle" | "correct" | "wrong" | "reveal" | "dim";
 
-// Una barra por ronda: verde acertada, roja fallada, la actual parpadea.
+// One bar per round: green if right, red if wrong, the current one pulses.
 export function RoundProgress({ segments }: { segments: SegmentState[] }) {
   return (
     <div className={styles.progress} aria-hidden>
@@ -17,7 +17,7 @@ export function RoundProgress({ segments }: { segments: SegmentState[] }) {
 
 const BARS = [22, 44, 70, 52, 30, 58, 26];
 
-// Botón grande para volver a escuchar; la onda se mueve mientras suena.
+// Big button to listen again; the wave moves while the audio plays.
 export function ListenOrb({ playing, onReplay }: { playing: boolean; onReplay: () => void }) {
   return (
     <button
@@ -25,7 +25,7 @@ export function ListenOrb({ playing, onReplay }: { playing: boolean; onReplay: (
       className={styles.orb}
       data-playing={playing}
       onClick={onReplay}
-      aria-label="Volver a escuchar la palabra"
+      aria-label="Listen to the word again"
     >
       <span className={styles.wave}>
         {BARS.map((height, i) => (

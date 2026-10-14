@@ -29,14 +29,14 @@ afterEach(() => {
 });
 
 describe("consumeNumbersGame", () => {
-  it("devuelve null si el nonce no existe", async () => {
+  it("returns null if the nonce does not exist", async () => {
     const store = createFakeRowStore<ReturnType<typeof makeRow>>({});
     vi.mocked(getDb).mockResolvedValue(store as any);
 
     expect(await consumeNumbersGame("missing")).toBeNull();
   });
 
-  it("lee y borra el nonce, devolviendo el tablero parseado", async () => {
+  it("reads and deletes the nonce, returning the parsed board", async () => {
     const store = createFakeRowStore({ n1: makeRow() });
     vi.mocked(getDb).mockResolvedValue(store as any);
 
@@ -50,7 +50,7 @@ describe("consumeNumbersGame", () => {
     expect(store.rows.has("n1")).toBe(false);
   });
 
-  it("un segundo consumo del mismo nonce ya borrado devuelve null", async () => {
+  it("a second consume of the same, already deleted nonce returns null", async () => {
     const store = createFakeRowStore({ n1: makeRow() });
     vi.mocked(getDb).mockResolvedValue(store as any);
 
@@ -58,12 +58,12 @@ describe("consumeNumbersGame", () => {
     expect(await consumeNumbersGame("n1")).toBeNull();
   });
 
-  // Dos peticiones "concurrentes" para el mismo nonce (p.ej. doble-click o un
-  // reintento de red que dispara /api/scores dos veces): ambas ven la fila
-  // en su SELECT antes de que ninguna borre, pero solo la que de verdad
-  // ejecuta el DELETE que afecta una fila debe devolver la partida — la otra
-  // debe tratarse como "nonce ya usado", no puntuar la misma partida dos veces.
-  it("de dos consumos concurrentes del mismo nonce, solo uno tiene éxito", async () => {
+  // Two "concurrent" requests for the same nonce (e.g. a double click or a
+  // network retry that fires /api/scores twice): both see the row in their
+  // SELECT before either one deletes it, but only the one whose DELETE
+  // actually affects a row must return the game — the other must be treated
+  // as "nonce already used", not score the same game twice.
+  it("of two concurrent consumes of the same nonce, only one succeeds", async () => {
     const store = createFakeRowStore({ n1: makeRow() });
     vi.mocked(getDb).mockResolvedValue(store as any);
 
@@ -76,7 +76,7 @@ describe("consumeNumbersGame", () => {
     expect(successes).toHaveLength(1);
   });
 
-  it("nonce justo en el límite de expiración (== MAX_AGE) todavía no cuenta como expirado", async () => {
+  it("a nonce exactly at the expiry limit (== MAX_AGE) does not count as expired yet", async () => {
     const store = createFakeRowStore({
       n1: makeRow({ createdAt: CREATED_AT }),
     });
@@ -86,7 +86,7 @@ describe("consumeNumbersGame", () => {
     expect(await consumeNumbersGame("n1")).not.toBeNull();
   });
 
-  it("nonce un instante después del límite de expiración cuenta como expirado", async () => {
+  it("a nonce one instant past the expiry limit counts as expired", async () => {
     const store = createFakeRowStore({
       n1: makeRow({ createdAt: CREATED_AT }),
     });
@@ -94,7 +94,7 @@ describe("consumeNumbersGame", () => {
     vi.setSystemTime(CREATED_AT + NONCE_MAX_AGE_MS + 1);
 
     expect(await consumeNumbersGame("n1")).toBeNull();
-    // Aun expirado, la fila se borra (no deja huérfanos ni permite reintentar).
+    // Even when expired, the row is deleted (leaves no orphans and allows no retries).
     expect(store.rows.has("n1")).toBe(false);
   });
 });

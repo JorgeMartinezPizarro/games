@@ -1,8 +1,8 @@
-// Motor puro de Tetris, compartido entre cliente (app/hooks/useTetris.ts,
-// para jugar en tiempo real) y servidor (app/lib/tetris/replay.ts, para
-// reproducir y validar la partida). Debe comportarse EXACTAMENTE igual en
-// ambos sitios: cualquier cambio aquí afecta a la vez al juego real y a la
-// validación.
+// Pure Tetris engine, shared between the client (app/hooks/useTetris.ts,
+// for real-time play) and the server (app/lib/tetris/replay.ts, to replay
+// and validate the game). It must behave EXACTLY the same in both places:
+// any change here affects both the real game and the validation at the
+// same time.
 
 export type Cell = [string, string];
 export type Board = Cell[][];

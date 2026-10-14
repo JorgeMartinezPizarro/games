@@ -27,8 +27,8 @@ const NumbersPage = () => {
     onReset: resetScore,
   });
 
-  // La partida no arranca sola: el tablero se pide al pulsar Jugar, que es
-  // cuando arranca el reloj del servidor.
+  // The game does not start by itself: the board is requested when Play is
+  // pressed, which is when the server clock starts.
   useEffect(() => {
     loadScores();
   }, [loadScores]);
@@ -56,7 +56,7 @@ const NumbersPage = () => {
       game="numbers"
       actions={
         <Button variant="outlined" onClick={() => setShowScores((v) => !v)} startIcon={<EmojiEventsOutlined />}>
-          {showScores ? "Volver" : "Ranking"}
+          {showScores ? "Back" : "Leaderboard"}
         </Button>
       }
     >
@@ -65,33 +65,33 @@ const NumbersPage = () => {
       {showScores ? (
         <div style={{ display: "grid", gap: 20 }}>
           <Leaderboard<NumbersScoreEntry>
-            title="Mejor puntuación"
-            subtitle="Pasos³ entre el tiempo"
+            title="Best score"
+            subtitle="Steps³ divided by time"
             rows={byScore}
             userOf={(entry) => entry.userId}
             currentUserId={user.id}
             isRecord={isRecord}
             columns={[
-              { label: "Puntos", value: (entry) => entry.score, align: "right", strong: true },
-              { label: "Pasos", value: (entry) => entry.steps, align: "right" },
+              { label: "Points", value: (entry) => entry.score, align: "right", strong: true },
+              { label: "Steps", value: (entry) => entry.steps, align: "right" },
             ]}
           />
           <Leaderboard<NumbersScoreEntry>
-            title="Más pasos"
+            title="Most steps"
             rows={bySteps}
             userOf={(entry) => entry.userId}
             currentUserId={user.id}
             isRecord={isRecord}
             columns={[
-              { label: "Pasos", value: (entry) => entry.steps, align: "right", strong: true },
-              { label: "Puntos", value: (entry) => entry.score, align: "right" },
+              { label: "Steps", value: (entry) => entry.steps, align: "right", strong: true },
+              { label: "Points", value: (entry) => entry.score, align: "right" },
             ]}
           />
         </div>
       ) : !hasBoard ? (
         <GameIntro
           game="numbers"
-          title="Números"
+          title="Numbers"
           actions={
             <Button
               data-testid="play-btn"
@@ -101,12 +101,12 @@ const NumbersPage = () => {
               disabled={loading}
               startIcon={<PlayArrowRounded />}
             >
-              {loading ? "Cargando…" : "Jugar"}
+              {loading ? "Loading…" : "Play"}
             </Button>
           }
         >
-          Recorre las 20 casillas del anillo saltando exactamente lo que marca la casilla en la que estás,
-          hacia un lado u otro, sin repetir ninguna. El reloj arranca al pulsar Jugar.
+          Visit all 20 squares of the ring, jumping exactly the number shown on the square you are on,
+          in either direction, without stepping on any square twice. The clock starts when you press Play.
         </GameIntro>
       ) : (
         <div className={styles.stage}>
@@ -122,16 +122,16 @@ const NumbersPage = () => {
             <StepsRing steps={steps} />
             {gameOver ? (
               <p className={styles.status} data-testid="status" data-tone={won ? "win" : "lose"}>
-                {won ? "¡Completado!" : "Game over"}
+                {won ? "Completed!" : "Game over"}
               </p>
             ) : (
               <p className={styles.score}>
-                {steps === 0 ? "Empieza por cualquier casilla" : <>Puntos <b className="num" data-testid="score-value">{currentScore}</b></>}
+                {steps === 0 ? "Start on any square" : <>Points <b className="num" data-testid="score-value">{currentScore}</b></>}
               </p>
             )}
             {gameOver && (
               <p className={styles.score}>
-                Puntos <b className="num" data-testid="score-value">{currentScore}</b>
+                Points <b className="num" data-testid="score-value">{currentScore}</b>
               </p>
             )}
             {gameOver && myRank && <RankBadge rank={myRank.rank} total={myRank.total} />}
@@ -141,7 +141,7 @@ const NumbersPage = () => {
               onClick={play}
               startIcon={<ReplayRounded />}
             >
-              {gameOver ? "Jugar otra vez" : "Reiniciar"}
+              {gameOver ? "Play again" : "Restart"}
             </Button>
           </NumbersBoard>
         </div>

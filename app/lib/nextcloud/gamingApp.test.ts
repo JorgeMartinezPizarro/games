@@ -22,9 +22,9 @@ afterEach(() => {
 });
 
 describe("signGamingRequest", () => {
-  // Vector fijo: la app de Nextcloud (PHP, hash_hmac) debe dar el mismo
-  // valor para el mismo secreto, timestamp y body.
-  it("firma HMAC-SHA256 de '<timestamp>.<body>' en hex", () => {
+  // Fixed vector: the Nextcloud app (PHP, hash_hmac) must produce the same
+  // value for the same secret, timestamp and body.
+  it("HMAC-SHA256 signature of '<timestamp>.<body>' in hex", () => {
     expect(signGamingRequest("s3cret", 1700000000, '{"a":1}')).toBe(
       "1698a50bc74d1ff1db85c4e0a5297c2ad9fdba245d5737cdb789e4cc6e098940"
     );
@@ -32,7 +32,7 @@ describe("signGamingRequest", () => {
 });
 
 describe("postToGamingApp", () => {
-  it("sin secreto configurado no llama a Nextcloud", async () => {
+  it("does not call Nextcloud when no secret is configured", async () => {
     vi.stubEnv("NEXTCLOUD_GAMING_SECRET", "");
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -41,7 +41,7 @@ describe("postToGamingApp", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("envía el body exacto firmado, la cookie de sesión y las cabeceras OCS", async () => {
+  it("sends the exact signed body, the session cookie and the OCS headers", async () => {
     const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 

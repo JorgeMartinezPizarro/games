@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-// Clave y formato (dd-mm-yyyy) históricos: así se conserva la fecha que cada
-// navegador ya tenía guardada. Solo vive en localStorage, nunca sale del navegador.
+// Legacy key and format (dd-mm-yyyy): this keeps the date each browser had
+// already saved. It only lives in localStorage and never leaves the browser.
 const STORAGE_KEY = "123213231asdssdadasdas213";
 const DAY_MS = 86_400_000;
 
-// "dd-mm-yyyy" (guardado) → "yyyy-mm-dd" (<input type="date">), o "" si no es válida.
+// "dd-mm-yyyy" (stored) → "yyyy-mm-dd" (<input type="date">), or "" if invalid.
 export function storedToIso(stored: string): string {
   const match = /^(\d{2})-(\d{2})-(\d{4})$/.exec(stored.trim());
   if (!match) return "";
@@ -18,7 +18,7 @@ export function isoToStored(iso: string): string {
   return match ? `${match[3]}-${match[2]}-${match[1]}` : "";
 }
 
-// Días (≈ vueltas de la Tierra sobre sí misma) desde la fecha hasta `now`.
+// Days (≈ rotations of the Earth on its axis) from the date until `now`.
 export function rotationsSince(iso: string, now: number): number | null {
   if (!iso) return null;
   const birth = new Date(`${iso}T00:00:00`).getTime();
@@ -33,7 +33,7 @@ export function useEarthRotations() {
     try {
       setBirthDateState(storedToIso(localStorage.getItem(STORAGE_KEY) ?? ""));
     } catch {
-      // Sin acceso a localStorage (modo privado, iframe restringido): sin fecha.
+      // No access to localStorage (private mode, restricted iframe): no date.
     }
   }, []);
 
@@ -42,7 +42,7 @@ export function useEarthRotations() {
     try {
       localStorage.setItem(STORAGE_KEY, isoToStored(iso));
     } catch {
-      // Igual que arriba: se usa solo en esta visita.
+      // Same as above: it's only used for this visit.
     }
   }, []);
 

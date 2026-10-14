@@ -10,13 +10,13 @@ afterEach(() => {
   localStorage.clear();
 });
 
-describe("conversión de fechas", () => {
-  it("lee el formato histórico dd-mm-yyyy y lo vuelve a escribir igual", () => {
+describe("date conversion", () => {
+  it("reads the legacy dd-mm-yyyy format and writes it back the same way", () => {
     expect(storedToIso("24-06-1985")).toBe("1985-06-24");
     expect(isoToStored("1985-06-24")).toBe("24-06-1985");
   });
 
-  it("ignora valores que no son fechas", () => {
+  it("ignores values that aren't dates", () => {
     expect(storedToIso("")).toBe("");
     expect(storedToIso("1985-06-24")).toBe("");
     expect(storedToIso("hola")).toBe("");
@@ -26,18 +26,18 @@ describe("conversión de fechas", () => {
 describe("rotationsSince", () => {
   const now = new Date("2026-10-13T00:00:00").getTime();
 
-  it("cuenta los días transcurridos", () => {
+  it("counts the elapsed days", () => {
     expect(rotationsSince("2026-10-03", now)).toBe(10);
   });
 
-  it("sin fecha o con fecha futura no hay número", () => {
+  it("no date or a future date yields no number", () => {
     expect(rotationsSince("", now)).toBeNull();
     expect(rotationsSince("2030-01-01", now)).toBeNull();
   });
 });
 
 describe("useEarthRotations", () => {
-  it("recupera la fecha guardada por la versión anterior del menú", () => {
+  it("restores the date saved by the previous version of the menu", () => {
     localStorage.setItem(KEY, "01-01-2000");
 
     const { result } = renderHook(() => useEarthRotations());
@@ -46,7 +46,7 @@ describe("useEarthRotations", () => {
     expect(result.current.rotations).toBeGreaterThan(9000);
   });
 
-  it("guarda la nueva fecha en el formato histórico", () => {
+  it("saves the new date in the legacy format", () => {
     const { result } = renderHook(() => useEarthRotations());
 
     act(() => result.current.setBirthDate("1990-05-17"));

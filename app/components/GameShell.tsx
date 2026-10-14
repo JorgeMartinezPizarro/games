@@ -5,8 +5,8 @@ import GameIcon from "./GameIcon";
 import { GAME_BY_KEY, type GameKey } from "./gameCatalog";
 import styles from "./GameShell.module.css";
 
-// Estructura común de cada juego: barra superior (volver, nombre, acciones)
-// y el área de juego. Fija el color de acento del juego para todo lo de dentro.
+// Common layout of every game: top bar (back, name, actions) and the play
+// area. Sets the game's accent color for everything inside it.
 export default function GameShell({
   game,
   actions,
@@ -21,9 +21,9 @@ export default function GameShell({
   return (
     <div className={`${styles.shell} accent-scope`} style={{ "--accent": info.accent } as CSSProperties}>
       <header className={styles.topbar}>
-        <Link href="/" className={styles.back} aria-label="Volver a los juegos">
+        <Link href="/" className={styles.back} aria-label="Back to games">
           <ArrowBackIosNewRounded sx={{ fontSize: 14 }} />
-          <span className={styles.backLabel}>Juegos</span>
+          <span className={styles.backLabel}>Games</span>
         </Link>
         <span className={styles.tile}>
           <GameIcon game={game} size={22} />

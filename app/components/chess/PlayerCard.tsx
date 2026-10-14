@@ -24,7 +24,7 @@ export function PlayerCard({
         <span className={styles.playerMeta}>{meta}</span>
       </span>
       {thinking && (
-        <span className={styles.thinking} aria-label="Pensando">
+        <span className={styles.thinking} aria-label="Thinking">
           <i />
           <i />
           <i />

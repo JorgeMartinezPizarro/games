@@ -6,10 +6,10 @@ import { requireAuth } from '@/app/lib/auth';
 // -------------------------------------------------------
 // GET handler
 //
-// Solo sirve mp3 ya cacheados en cache/audio/. La generación de la partida
-// (llamar a app.py /challenge, decidir el target de cada ronda, cachear los
-// audios) vive en app/lib/words/challenge.ts y app/api/words/new-game, que
-// nunca exponen el target al cliente.
+// Only serves mp3 files already cached in cache/audio/. Game generation
+// (calling app.py /challenge, picking each round's target, caching the
+// audio) lives in app/lib/words/challenge.ts and app/api/words/new-game,
+// which never expose the target to the client.
 // -------------------------------------------------------
 export async function GET(request: NextRequest): Promise<Response> {
   try {
@@ -22,8 +22,8 @@ export async function GET(request: NextRequest): Promise<Response> {
       return NextResponse.json({ error: 'file is required.' }, { status: 400 });
     }
 
-    // path.basename evita cualquier intento de path traversal (../, rutas
-    // absolutas, etc.) además de exigir la extensión .mp3.
+    // path.basename blocks any path traversal attempt (../, absolute paths,
+    // etc.), on top of requiring the .mp3 extension.
     if (!fileName.endsWith('.mp3') || path.basename(fileName) !== fileName) {
       return NextResponse.json(
         { error: 'Only MP3 files are allowed' },
@@ -40,8 +40,8 @@ export async function GET(request: NextRequest): Promise<Response> {
         'Content-Type': 'audio/mpeg',
         'Content-Disposition': `inline; filename="${fileName}"`,
         'Accept-Ranges': 'bytes',
-        // Los archivos son inmutables (nombrados por palabra): cachear
-        // agresivamente ayuda a que la precarga del cliente no repita red.
+        // The files are immutable (named after the word): caching them
+        // aggressively keeps the client's preloading from re-hitting the network.
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     });

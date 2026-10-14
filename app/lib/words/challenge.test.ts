@@ -34,14 +34,14 @@ function jsonResponse(body: unknown, ok = true, status = 200): Response {
 }
 
 describe("fetchChallenge", () => {
-  it("lanza si app.py /challenge responde con un status no-ok", async () => {
+  it("throws if app.py /challenge responds with a non-ok status", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({}, false, 502)));
 
     await expect(fetchChallenge(10, 4)).rejects.toThrow("app.py /challenge responded 502");
   });
 
-  it("cachea el audio en disco si no existía (fetch + writeFile) y devuelve la URL local", async () => {
-    accessMock.mockRejectedValue(new Error("ENOENT")); // no existe en caché
+  it("caches the audio on disk if it didn't exist (fetch + writeFile) and returns the local URL", async () => {
+    accessMock.mockRejectedValue(new Error("ENOENT")); // not in the cache
     const challengeData = {
       rounds: [{ target: "hola", audio: "/audio/hola.mp3", choices: ["hola", "adios"] }],
     };
@@ -61,8 +61,8 @@ describe("fetchChallenge", () => {
     expect(mkdirMock).toHaveBeenCalledTimes(1);
   });
 
-  it("no vuelve a descargar el audio si ya está cacheado en disco", async () => {
-    accessMock.mockResolvedValue(undefined); // ya existe
+  it("does not download the audio again if it is already cached on disk", async () => {
+    accessMock.mockResolvedValue(undefined); // already exists
     const challengeData = {
       rounds: [{ target: "gato", audio: "/audio/gato.mp3", choices: ["gato", "perro"] }],
     };
@@ -73,10 +73,10 @@ describe("fetchChallenge", () => {
 
     expect(rounds[0].audio).toBe("/bookmarks/api/audio?file=gato.mp3");
     expect(writeFileMock).not.toHaveBeenCalled();
-    expect(fetchMock).toHaveBeenCalledTimes(1); // solo la llamada a /challenge, no al mp3
+    expect(fetchMock).toHaveBeenCalledTimes(1); // only the /challenge call, not the mp3 one
   });
 
-  it("lanza si la descarga del audio responde con un status no-ok", async () => {
+  it("throws if the audio download responds with a non-ok status", async () => {
     accessMock.mockRejectedValue(new Error("ENOENT"));
     const challengeData = {
       rounds: [{ target: "hola", audio: "/audio/hola.mp3", choices: ["hola", "adios"] }],
@@ -92,7 +92,7 @@ describe("fetchChallenge", () => {
 });
 
 describe("stripTargets", () => {
-  it("quita el campo target, dejando solo audio y choices", () => {
+  it("removes the target field, leaving only audio and choices", () => {
     const rounds = [
       { target: "hola", audio: "/a.mp3", choices: ["hola", "adios"] },
       { target: "gato", audio: "/b.mp3", choices: ["gato", "perro"] },

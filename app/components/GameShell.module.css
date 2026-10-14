@@ -6,7 +6,7 @@
   isolation: isolate;
 }
 
-/* Halo del color del juego en la parte superior. */
+/* Glow in the game's color at the top. */
 .shell::before {
   content: "";
   position: absolute;

@@ -7,8 +7,8 @@ vi.mock("@/app/lib/chess/db", () => ({
   appendChessMove: vi.fn(),
   deleteChessGame: vi.fn(),
 }));
-// replayChessMoves/moveToUci se dejan sin mockear: son lógica pura sobre
-// chess.js y probarlas de verdad da más confianza que simularlas.
+// replayChessMoves/moveToUci are left unmocked: they are pure logic on top of
+// chess.js, and testing them for real gives more confidence than faking them.
 
 import { requireAuth } from "@/app/lib/auth";
 import { appendChessMove, deleteChessGame, getChessGame } from "@/app/lib/chess/db";
@@ -53,7 +53,7 @@ afterEach(() => {
 });
 
 describe("POST /api/chess", () => {
-  it("responde 400 si falta el nonce", async () => {
+  it("responds 400 if the nonce is missing", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
 
     const res = await POST(request({ move: { from: "e2", to: "e4" } }));
@@ -61,7 +61,7 @@ describe("POST /api/chess", () => {
     expect((await res.json()).error).toMatch(/nonce/i);
   });
 
-  it("responde 400 si move no tiene from/to", async () => {
+  it("responds 400 if move has no from/to", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
 
     const res = await POST(request({ nonce: "n1", move: { from: "e2" } }));
@@ -69,7 +69,7 @@ describe("POST /api/chess", () => {
     expect((await res.json()).error).toMatch(/move must be an object/);
   });
 
-  it("responde 400 si el nonce no existe o es de otro usuario", async () => {
+  it("responds 400 if the nonce does not exist or belongs to another user", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getChessGame).mockResolvedValue(null);
 
@@ -78,7 +78,7 @@ describe("POST /api/chess", () => {
     expect((await res.json()).error).toMatch(/Invalid or expired nonce/);
   });
 
-  it("responde 400 y borra la partida si supera el máximo de jugadas", async () => {
+  it("responds 400 and deletes the game if it exceeds the maximum number of moves", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getChessGame).mockResolvedValue(makeStoredGame(new Array(MAX_PLIES).fill("e2e4")));
 
@@ -89,7 +89,7 @@ describe("POST /api/chess", () => {
     expect(deleteChessGame).toHaveBeenCalledWith("n1");
   });
 
-  it("responde 500 y borra la partida si el log guardado está corrupto", async () => {
+  it("responds 500 and deletes the game if the stored log is corrupted", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getChessGame).mockResolvedValue(makeStoredGame(["not-a-move"]));
 
@@ -100,9 +100,9 @@ describe("POST /api/chess", () => {
     expect(deleteChessGame).toHaveBeenCalledWith("n1");
   });
 
-  it("responde 400 si la partida guardada ya estaba terminada", async () => {
+  it("responds 400 if the stored game was already over", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    // Mate pastor completo: la partida ya terminó en el log guardado.
+    // Full Scholar's Mate: the game already ended in the stored log.
     vi.mocked(getChessGame).mockResolvedValue(
       makeStoredGame(["e2e4", "e7e5", "d1h5", "b8c6", "f1c4", "g8f6", "h5f7"])
     );
@@ -113,7 +113,7 @@ describe("POST /api/chess", () => {
     expect((await res.json()).error).toMatch(/Game already over/);
   });
 
-  it("responde 400 si la jugada del jugador es ilegal", async () => {
+  it("responds 400 if the player's move is illegal", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getChessGame).mockResolvedValue(makeStoredGame([]));
 
@@ -124,7 +124,7 @@ describe("POST /api/chess", () => {
     expect(appendChessMove).not.toHaveBeenCalled();
   });
 
-  it("responde 409 si appendChessMove falla al grabar la jugada del jugador (CAS)", async () => {
+  it("responds 409 if appendChessMove fails to record the player's move (CAS)", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getChessGame).mockResolvedValue(makeStoredGame([]));
     vi.mocked(appendChessMove).mockResolvedValue(false);
@@ -135,9 +135,9 @@ describe("POST /api/chess", () => {
     expect((await res.json()).error).toMatch(/Game state changed/);
   });
 
-  it("si la jugada del jugador da mate, responde sin consultar a Stockfish", async () => {
+  it("if the player's move delivers mate, responds without querying Stockfish", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
-    // Un movimiento de la IA (negras) antes del mate final del jugador.
+    // One AI (Black) move before the player's final mate.
     vi.mocked(getChessGame).mockResolvedValue(
       makeStoredGame(["e2e4", "e7e5", "d1h5", "b8c6", "f1c4", "g8f6"])
     );
@@ -154,7 +154,7 @@ describe("POST /api/chess", () => {
     expect(appendChessMove).toHaveBeenCalledTimes(1);
   });
 
-  it("flujo normal: graba la jugada del jugador, pide a Stockfish y graba su respuesta", async () => {
+  it("normal flow: records the player's move, asks Stockfish and records its reply", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getChessGame).mockResolvedValue(makeStoredGame([]));
     vi.mocked(appendChessMove).mockResolvedValue(true);
@@ -175,7 +175,7 @@ describe("POST /api/chess", () => {
     );
   });
 
-  it("responde 500 si Stockfish no devuelve una jugada válida", async () => {
+  it("responds 500 if Stockfish does not return a valid move", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getChessGame).mockResolvedValue(makeStoredGame([]));
     vi.mocked(appendChessMove).mockResolvedValue(true);
@@ -187,7 +187,7 @@ describe("POST /api/chess", () => {
     expect((await res.json()).error).toMatch(/bestmove/);
   });
 
-  it("responde 500 si la API de Stockfish no responde ok", async () => {
+  it("responds 500 if the Stockfish API does not respond ok", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getChessGame).mockResolvedValue(makeStoredGame([]));
     vi.mocked(appendChessMove).mockResolvedValue(true);
@@ -202,11 +202,11 @@ describe("POST /api/chess", () => {
     expect((await res.json()).error).toMatch(/Stockfish API error/);
   });
 
-  it("responde 500 si Stockfish propone una jugada ilegal", async () => {
+  it("responds 500 if Stockfish proposes an illegal move", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getChessGame).mockResolvedValue(makeStoredGame([]));
     vi.mocked(appendChessMove).mockResolvedValue(true);
-    // e2e4 no es una jugada legal para las negras en este punto.
+    // e2e4 is not a legal move for Black at this point.
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(stockfishResponse("e2e4")));
 
     const res = await POST(request({ nonce: "n1", move: { from: "e2", to: "e4" } }));
@@ -215,7 +215,7 @@ describe("POST /api/chess", () => {
     expect((await res.json()).error).toMatch(/Stockfish proposed an illegal move/);
   });
 
-  it("responde 409 si appendChessMove falla al grabar la jugada de la IA (CAS)", async () => {
+  it("responds 409 if appendChessMove fails to record the AI's move (CAS)", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getChessGame).mockResolvedValue(makeStoredGame([]));
     vi.mocked(appendChessMove).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
@@ -227,7 +227,7 @@ describe("POST /api/chess", () => {
     expect((await res.json()).error).toMatch(/Game state changed/);
   });
 
-  it("responde 500 si requireAuth lanza", async () => {
+  it("responds 500 if requireAuth throws", async () => {
     vi.mocked(requireAuth).mockRejectedValue(new Error("No session cookie"));
 
     const res = await POST(request({ nonce: "n1", move: { from: "e2", to: "e4" } }));

@@ -14,8 +14,8 @@
   min-width: 0;
 }
 
-/* El tablero es cuadrado: tan ancho como permita la altura disponible.
-   react-chessboard se ajusta solo al ancho de este contenedor. */
+/* The board is square: as wide as the available height allows.
+   react-chessboard fits itself to this container's width. */
 .boardWrap {
   position: relative;
   width: min(calc(100vw - 400px), calc(100dvh - 150px), 720px);
@@ -57,7 +57,7 @@
   text-transform: uppercase;
 }
 
-/* --- Jugadores --- */
+/* --- Players --- */
 .player {
   display: flex;
   align-items: center;
@@ -118,7 +118,7 @@
 .thinking i:nth-child(2) { animation-delay: 150ms; }
 .thinking i:nth-child(3) { animation-delay: 300ms; }
 
-/* --- Jugadas --- */
+/* --- Moves --- */
 .moves {
   flex: 1;
   min-height: 120px;
@@ -156,7 +156,7 @@
   font-size: 14px;
 }
 
-/* --- Dificultad --- */
+/* --- Difficulty --- */
 .presets {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -220,9 +220,9 @@
   font-size: 14px;
 }
 
-/* --- Móvil y tablet: todo en columna --- */
-/* El panel lateral se deshace (display: contents) para reordenar sus piezas:
-   rival encima del tablero, tú debajo, luego acciones, jugadas y dificultad. */
+/* --- Mobile and tablet: everything in one column --- */
+/* The side panel is dissolved (display: contents) so its pieces can be reordered:
+   opponent above the board, you below it, then actions, moves and difficulty. */
 @media (max-width: 900px) {
   .layout {
     display: flex;

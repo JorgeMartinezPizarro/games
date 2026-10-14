@@ -19,7 +19,7 @@ afterEach(() => {
 });
 
 describe("POST /api/words/new-game", () => {
-  it("responde 500 con el mensaje de error si requireAuth falla", async () => {
+  it("responds 500 with the error message if requireAuth fails", async () => {
     vi.mocked(requireAuth).mockRejectedValue(new Error("No session cookie"));
 
     const res = await POST(request("http://localhost/api/words/new-game"));
@@ -30,7 +30,7 @@ describe("POST /api/words/new-game", () => {
     expect(createWordsGame).not.toHaveBeenCalled();
   });
 
-  it("usa rounds/choices por defecto si no vienen en la query", async () => {
+  it("uses default rounds/choices if they are not in the query", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(createWordsGame).mockResolvedValue({ nonce: "n1", timestamp: 1, rounds: [] });
 
@@ -39,7 +39,7 @@ describe("POST /api/words/new-game", () => {
     expect(createWordsGame).toHaveBeenCalledWith("user-1", 10, 4);
   });
 
-  it("usa rounds/choices de la query cuando son enteros válidos", async () => {
+  it("uses rounds/choices from the query when they are valid integers", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(createWordsGame).mockResolvedValue({ nonce: "n1", timestamp: 1, rounds: [] });
 
@@ -48,7 +48,7 @@ describe("POST /api/words/new-game", () => {
     expect(createWordsGame).toHaveBeenCalledWith("user-1", 5, 3);
   });
 
-  it("ignora valores no válidos (negativos, no numéricos) y usa el default", async () => {
+  it("ignores invalid values (negative, non-numeric) and uses the default", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(createWordsGame).mockResolvedValue({ nonce: "n1", timestamp: 1, rounds: [] });
 
@@ -57,7 +57,7 @@ describe("POST /api/words/new-game", () => {
     expect(createWordsGame).toHaveBeenCalledWith("user-1", 10, 4);
   });
 
-  it("responde 200 con la partida creada por createWordsGame", async () => {
+  it("responds 200 with the game created by createWordsGame", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     const game = {
       nonce: "n1",
@@ -73,7 +73,7 @@ describe("POST /api/words/new-game", () => {
     expect(body).toEqual(game);
   });
 
-  it("responde 500 si createWordsGame lanza", async () => {
+  it("responds 500 if createWordsGame throws", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(createWordsGame).mockRejectedValue(new Error("app.py unreachable"));
 

@@ -13,7 +13,7 @@
   flex: 1;
 }
 
-/* --- Marcador y progreso --- */
+/* --- Scoreboard and progress --- */
 .stats {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -54,7 +54,7 @@
 .segment[data-state="bad"] { background: var(--danger); }
 .segment[data-state="now"] { background: var(--accent); animation: breathe 1.4s ease-in-out infinite; }
 
-/* --- Orbe de escucha --- */
+/* --- Listen orb --- */
 .orb {
   display: grid;
   place-items: center;
@@ -127,7 +127,7 @@
   font-size: 12px;
 }
 
-/* --- Respuestas --- */
+/* --- Answers --- */
 .answers {
   display: grid;
   grid-template-columns: 1fr 1fr;

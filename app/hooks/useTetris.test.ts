@@ -2,10 +2,10 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// LINES_TARGET a 2 solo en este fichero: nos permite completar una partida
-// de verdad (2 líneas limpiadas con 5 piezas O) sin tener que resolver
-// Tetris de verdad para llegar a las 25 líneas reales. El resto del motor
-// (colisiones, rotación, limpieza de líneas...) se deja intacto.
+// LINES_TARGET set to 2 in this file only: it lets us complete a real game
+// (2 lines cleared with 5 O pieces) without having to actually solve Tetris
+// to reach the real 25 lines. The rest of the engine (collisions, rotation,
+// line clearing...) is left untouched.
 vi.mock("@/app/lib/tetris/engine", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/app/lib/tetris/engine")>();
   return { ...actual, LINES_TARGET: 2 };
@@ -38,9 +38,9 @@ async function startAndWaitReady(result: { current: ReturnType<typeof useTetris>
   });
 }
 
-// Deja caer la pieza actual justo hasta que bloquea, usando la misma
-// función pura (hardDropDistance) que expone el motor: no depende de
-// adivinar cuántas filas hay libres.
+// Drops the current piece just until it locks, using the same pure
+// function (hardDropDistance) the engine exposes: it doesn't rely on
+// guessing how many rows are free.
 async function dropCurrentPiece(result: { current: ReturnType<typeof useTetris> }) {
   const { board, piece, pos } = result.current;
   const distance = hardDropDistance(board, piece, pos);
@@ -63,7 +63,7 @@ afterEach(() => {
 });
 
 describe("useTetris", () => {
-  it("empieza con el tablero vacío y sin partida en curso", () => {
+  it("starts with an empty board and no game in progress", () => {
     const { result } = renderHook(() => useTetris());
 
     expect(result.current.ready).toBe(false);
@@ -75,7 +75,7 @@ describe("useTetris", () => {
     );
   });
 
-  it("startGame pide un nonce/seed al servidor y coloca la pieza determinada por el seed", async () => {
+  it("startGame requests a nonce/seed from the server and places the piece determined by the seed", async () => {
     const seed = 12345;
     const fetchMock = routeFetch({
       "POST /bookmarks/api/tetris/new-game": () => jsonResponse({ nonce: "n1", timestamp: 1, seed }),
@@ -88,12 +88,12 @@ describe("useTetris", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(result.current.ready).toBe(true);
     expect(result.current.loading).toBe(false);
-    // La primera pieza tiene que ser la que genera el mismo PRNG con ese seed.
+    // The first piece must be the one the same PRNG generates with that seed.
     const expectedFirstPiece = TETROMINOS.some((p) => p === result.current.piece);
     expect(expectedFirstPiece).toBe(true);
   });
 
-  it("moveLeft/moveRight respetan los límites del tablero", async () => {
+  it("moveLeft/moveRight respect the board boundaries", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -109,15 +109,15 @@ describe("useTetris", () => {
     act(() => result.current.moveLeft());
     expect(result.current.pos.x).toBe(startX);
 
-    // Empuja contra el borde izquierdo hasta chocar, y comprueba que un
-    // moveLeft de más ya no mueve la pieza (la colisión lo bloquea).
+    // Push against the left edge until it collides, and check that one
+    // extra moveLeft no longer moves the piece (the collision blocks it).
     for (let i = 0; i < 10; i++) act(() => result.current.moveLeft());
     const leftEdgeX = result.current.pos.x;
     act(() => result.current.moveLeft());
     expect(result.current.pos.x).toBe(leftEdgeX);
   });
 
-  it("rotateLeft/rotateRight cambian la forma de la pieza activa", async () => {
+  it("rotateLeft/rotateRight change the active piece's shape", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -132,7 +132,7 @@ describe("useTetris", () => {
     expect(result.current.piece.shape).not.toBe(originalShape);
   });
 
-  it("softDrop hace descender la pieza y la bloquea al llegar al fondo", async () => {
+  it("softDrop moves the piece down and locks it when it reaches the bottom", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -145,7 +145,7 @@ describe("useTetris", () => {
     const firstPiece = result.current.piece;
     await dropCurrentPiece(result);
 
-    // La pieza se bloqueó: aparece una pieza nueva en la posición de salida.
+    // The piece locked: a new piece appears at the spawn position.
     expect(result.current.pos.y).toBe(0);
     expect(result.current.piece).not.toBe(firstPiece);
     expect(result.current.board.some((row) => row.some((cell) => cell[1] === "filled"))).toBe(
@@ -154,7 +154,7 @@ describe("useTetris", () => {
     expect(result.current.gameOver).toBe(false);
   });
 
-  it("stopGame vuelve al estado inactivo", async () => {
+  it("stopGame returns to the idle state", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -174,20 +174,20 @@ describe("useTetris", () => {
     );
   });
 
-  it("startRepeat repite la acción mientras se mantiene pulsada, stopRepeat la corta", () => {
+  it("startRepeat repeats the action while held down, stopRepeat stops it", () => {
     const { result } = renderHook(() => useTetris());
     const action = vi.fn();
 
     act(() => result.current.startRepeat("left", action));
-    expect(action).toHaveBeenCalledTimes(1); // disparo inmediato
+    expect(action).toHaveBeenCalledTimes(1); // immediate trigger
 
     act(() => {
-      vi.advanceTimersByTime(300); // HOLD_INITIAL_DELAY: arma el intervalo, no llama todavía
+      vi.advanceTimersByTime(300); // HOLD_INITIAL_DELAY: arms the interval, doesn't call yet
     });
     expect(action).toHaveBeenCalledTimes(1);
 
     act(() => {
-      vi.advanceTimersByTime(100 * 4); // HOLD_REPEAT_RATE x4: primeras repeticiones
+      vi.advanceTimersByTime(100 * 4); // HOLD_REPEAT_RATE x4: first repetitions
     });
     expect(action.mock.calls.length).toBeGreaterThanOrEqual(5);
 
@@ -199,7 +199,7 @@ describe("useTetris", () => {
     expect(action.mock.calls.length).toBe(callsWhenStopped);
   });
 
-  it("responde a las teclas del teclado (ArrowLeft mueve la pieza)", async () => {
+  it("responds to keyboard keys (ArrowLeft moves the piece)", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -220,7 +220,7 @@ describe("useTetris", () => {
     });
   });
 
-  it("al completar linesTarget llama a onComplete con el nonce y el log, y adopta el tiempo confirmado", async () => {
+  it("on reaching linesTarget calls onComplete with the nonce and the log, and adopts the confirmed time", async () => {
     const seed = findSeedWithConsecutiveOPieces(5);
     vi.stubGlobal(
       "fetch",
@@ -243,8 +243,8 @@ describe("useTetris", () => {
       await dropCurrentPiece(result);
     }
 
-    // La pieza que completa el objetivo dispara un flash de 80ms antes de
-    // marcar la partida como completada.
+    // The piece that reaches the target triggers an 80ms flash before the
+    // game is marked as completed.
     await act(async () => {
       await vi.advanceTimersByTimeAsync(100);
     });
@@ -258,7 +258,7 @@ describe("useTetris", () => {
     expect(actionsArg[0]).toEqual({ type: "resume", t: 0 });
     expect(actionsArg[actionsArg.length - 1].type).toBe("end");
 
-    // Se adopta el tiempo confirmado por el servidor.
+    // The time confirmed by the server is adopted.
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });

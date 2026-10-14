@@ -5,8 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export const ROUNDS_TOTAL = 10;
 export const CHOICES = 4;
 
-// El backend nunca manda el target: solo audio + choices. La corrección de
-// cada ronda se valida en /api/words/answer, de una en una y de un solo uso.
+// The backend never sends the target: only audio + choices. Each round's
+// correctness is validated at /api/words/answer, one at a time and single-use.
 export type Round = {
   audio: string;
   choices: string[];
@@ -16,27 +16,27 @@ export type WordsGameState = "idle" | "loading" | "playing" | "finished";
 
 export type WordsSaveResult = { score: number; rank: number | null; total: number | null };
 
-// Estimación local con la misma fórmula que el servidor
-// (computeWordsScore en app/lib/words/scoring.ts), para mostrar algo
-// razonable mientras se confirma el score real vía onComplete.
+// Local estimate using the same formula as the server
+// (computeWordsScore in app/lib/words/scoring.ts), to show something
+// reasonable while the real score is confirmed via onComplete.
 function estimateScore(correctAnswers: number, elapsedMs: number): number {
   return elapsedMs <= 0 ? 0 : Math.round((correctAnswers ** 3 * 11000) / elapsedMs);
 }
 
 export interface UseWordsGameOptions {
   /**
-   * Se llama una única vez cuando se completan las ROUNDS_TOTAL rondas, con
-   * el nonce de la partida para que el backend la confirme y calcule el
-   * score. Si devuelve un resultado, se adopta como tiempo/puesto final.
+   * Called exactly once when the ROUNDS_TOTAL rounds are completed, with
+   * the game's nonce so the backend can confirm it and compute the score.
+   * If it returns a result, it is adopted as the final time/position.
    */
   onComplete?: (nonce: string) => Promise<WordsSaveResult | null> | WordsSaveResult | null;
-  /** Se llama cada vez que arranca una partida nueva. */
+  /** Called every time a new game starts. */
   onReset?: () => void;
 }
 
-// Precarga un audio en el navegador (no solo en el servidor) para que la
-// primera reproducción de cada ronda sea instantánea. No bloquea el juego
-// indefinidamente si un archivo tarda o falla.
+// Preloads an audio file in the browser (not just on the server) so the
+// first playback of each round is instant. It doesn't block the game
+// indefinitely if a file is slow or fails.
 function preloadAudio(url: string, timeoutMs = 6000): Promise<void> {
   return new Promise((resolve) => {
     let settled = false;
@@ -61,11 +61,11 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
   const [rounds, setRounds] = useState<Round[]>([]);
   const [currentRound, setCurrentRound] = useState(0);
   const [score, setScore] = useState(0);
-  const [won, setWon] = useState(false); // true = completó las 10
-  const [quit, setQuit] = useState(false); // true = terminada manualmente por el jugador
+  const [won, setWon] = useState(false); // true = completed all 10
+  const [quit, setQuit] = useState(false); // true = ended manually by the player
   const [finishedTime, setFinishedTime] = useState<number | null>(null);
-  // Score final (cubo de aciertos entre tiempo, igual que numbers): solo se
-  // rellena al ganar o perder una ronda, nunca al finalizar con "quit".
+  // Final score (hits cubed divided by time, same as numbers): only filled
+  // in when winning or losing a round, never when ending with "quit".
   const [finishedScore, setFinishedScore] = useState<number | null>(null);
   const [finishedRank, setFinishedRank] = useState<number | null>(null);
   const [finishedTotal, setFinishedTotal] = useState<number | null>(null);
@@ -80,7 +80,7 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Cronómetro
+  // Timer
   useEffect(() => {
     if (gameState === "playing") {
       timerRef.current = setInterval(() => {
@@ -97,7 +97,7 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
     };
   }, [gameState]);
 
-  // Autoplay cuando cambia la ronda
+  // Autoplay when the round changes
   useEffect(() => {
     if (gameState === "playing" && rounds[currentRound]) {
       setTimeout(() => {
@@ -106,7 +106,7 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
     }
   }, [currentRound, gameState, rounds]);
 
-  // Iniciar partida
+  // Start a game
   const startGame = useCallback(async () => {
     setGameState("loading");
     setScore(0);
@@ -131,16 +131,16 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
       const data = await res.json();
       if (!res.ok || !data.rounds?.length) throw new Error("No rounds received");
 
-      // El cronómetro arranca en cuanto el servidor crea la partida (mismo
-      // instante que usará para calcular el tiempo final), no cuando
-      // termina de precargarse el audio.
+      // The timer starts as soon as the server creates the game (the same
+      // instant it will use to compute the final time), not when the audio
+      // finishes preloading.
       startTimeRef.current = Date.now();
       setElapsedMs(0);
       setNonce(data.nonce);
       setRounds(data.rounds);
 
-      // Precachea los 10 audios en el navegador mientras se ve la pantalla
-      // de carga, para que no haya que esperar red al reproducir cada ronda.
+      // Pre-caches the 10 audio files in the browser while the loading screen
+      // is shown, so there's no network wait when playing each round.
       await Promise.all((data.rounds as Round[]).map((r) => preloadAudio(r.audio)));
 
       setGameState("playing");
@@ -150,8 +150,8 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
     }
   }, [onReset]);
 
-  // El jugador elige una palabra: se valida contra el backend, de una ronda
-  // en una y de un solo intento (un fallo termina la partida ahí mismo).
+  // The player picks a word: it's validated against the backend, one round
+  // at a time and with a single attempt (a miss ends the game right there).
   const handleChoice = useCallback(
     async (choice: string) => {
       if (gameState !== "playing" || feedback || checking || !nonce) return;
@@ -182,8 +182,8 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
             setWon(false);
             setGameState("finished");
 
-            // Fallar también puntúa: se guardan los aciertos logrados hasta
-            // aquí (cualquier partida que termine, ganada o perdida, cuenta).
+            // Missing also scores: the hits achieved so far are saved (any
+            // game that ends, won or lost, counts).
             const result = await onComplete?.(nonce);
             if (result) {
               setFinishedScore(result.score);
@@ -225,8 +225,8 @@ export function useWordsGame({ onComplete, onReset }: UseWordsGameOptions = {}) 
     [gameState, feedback, checking, nonce, currentRound, onComplete, score]
   );
 
-  // El jugador decide terminar la partida antes de tiempo: cuenta como
-  // partida no completada, sin guardar puntuación.
+  // The player decides to end the game early: it counts as an uncompleted
+  // game, without saving a score.
   const handleQuit = useCallback(() => {
     if (gameState !== "playing") return;
 

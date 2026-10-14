@@ -47,7 +47,7 @@ afterEach(() => {
 });
 
 describe("POST /api/words/answer", () => {
-  it("responde 400 si falta el nonce", async () => {
+  it("responds 400 if the nonce is missing", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
 
     const res = await POST(request({ roundIndex: 0, answer: "hola" }));
@@ -55,7 +55,7 @@ describe("POST /api/words/answer", () => {
     expect((await res.json()).error).toMatch(/nonce/i);
   });
 
-  it("responde 400 si roundIndex no es un entero >= 0", async () => {
+  it("responds 400 if roundIndex is not an integer >= 0", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
 
     const res = await POST(request({ nonce: "n1", roundIndex: -1, answer: "hola" }));
@@ -63,7 +63,7 @@ describe("POST /api/words/answer", () => {
     expect((await res.json()).error).toMatch(/roundIndex/i);
   });
 
-  it("responde 400 si falta answer", async () => {
+  it("responds 400 if answer is missing", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
 
     const res = await POST(request({ nonce: "n1", roundIndex: 0, answer: "" }));
@@ -71,7 +71,7 @@ describe("POST /api/words/answer", () => {
     expect((await res.json()).error).toMatch(/answer/i);
   });
 
-  it("responde 400 si el nonce no existe o pertenece a otro usuario", async () => {
+  it("responds 400 if the nonce does not exist or belongs to another user", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getWordsGame).mockResolvedValue(null);
 
@@ -80,7 +80,7 @@ describe("POST /api/words/answer", () => {
     expect((await res.json()).error).toMatch(/Invalid or expired nonce/);
   });
 
-  it("responde 400 y borra la partida si se salta una ronda", async () => {
+  it("responds 400 and deletes the game if a round is skipped", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getWordsGame).mockResolvedValue(makeGame({ answeredCount: 0 }));
 
@@ -91,7 +91,7 @@ describe("POST /api/words/answer", () => {
     expect(deleteWordsGame).toHaveBeenCalledWith("n1");
   });
 
-  it("respuesta incorrecta: marca la partida como terminada (no la borra) y revela el target", async () => {
+  it("wrong answer: marks the game as ended (does not delete it) and reveals the target", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getWordsGame).mockResolvedValue(makeGame({ answeredCount: 0 }));
 
@@ -105,7 +105,7 @@ describe("POST /api/words/answer", () => {
     expect(advanceWordsGame).not.toHaveBeenCalled();
   });
 
-  it("responde 400 si la partida ya está marcada como terminada", async () => {
+  it("responds 400 if the game is already marked as ended", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getWordsGame).mockResolvedValue(makeGame({ answeredCount: 0, ended: true }));
 
@@ -116,7 +116,7 @@ describe("POST /api/words/answer", () => {
     expect(advanceWordsGame).not.toHaveBeenCalled();
   });
 
-  it("respuesta correcta pero no es la última ronda: finished false", async () => {
+  it("correct answer but not the last round: finished false", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getWordsGame).mockResolvedValue(makeGame({ answeredCount: 0 }));
     vi.mocked(advanceWordsGame).mockResolvedValue(1);
@@ -129,7 +129,7 @@ describe("POST /api/words/answer", () => {
     expect(deleteWordsGame).not.toHaveBeenCalled();
   });
 
-  it("respuesta correcta en la última ronda: finished true", async () => {
+  it("correct answer on the last round: finished true", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(getWordsGame).mockResolvedValue(makeGame({ answeredCount: 1 }));
     vi.mocked(advanceWordsGame).mockResolvedValue(2);
@@ -141,7 +141,7 @@ describe("POST /api/words/answer", () => {
     expect(body).toEqual({ correct: true, finished: true });
   });
 
-  it("responde 500 si requireAuth lanza", async () => {
+  it("responds 500 if requireAuth throws", async () => {
     vi.mocked(requireAuth).mockRejectedValue(new Error("No session cookie"));
 
     const res = await POST(request({ nonce: "n1", roundIndex: 0, answer: "hola" }));

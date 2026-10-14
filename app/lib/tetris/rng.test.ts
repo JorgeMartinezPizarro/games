@@ -3,7 +3,7 @@ import { createPieceGenerator, randomSeed } from "./rng";
 import { TETROMINOS } from "./engine";
 
 describe("createPieceGenerator", () => {
-  it("la misma seed produce siempre la misma secuencia de piezas", () => {
+  it("the same seed always produces the same piece sequence", () => {
     const gen1 = createPieceGenerator(12345);
     const gen2 = createPieceGenerator(12345);
 
@@ -13,7 +13,7 @@ describe("createPieceGenerator", () => {
     expect(seq1).toEqual(seq2);
   });
 
-  it("seeds distintas producen (con altísima probabilidad) secuencias distintas", () => {
+  it("different seeds produce (with very high probability) different sequences", () => {
     const gen1 = createPieceGenerator(1);
     const gen2 = createPieceGenerator(2);
 
@@ -23,7 +23,7 @@ describe("createPieceGenerator", () => {
     expect(seq1).not.toEqual(seq2);
   });
 
-  it("solo devuelve piezas del set TETROMINOS", () => {
+  it("only returns pieces from the TETROMINOS set", () => {
     const gen = createPieceGenerator(999);
     const pieces = Array.from({ length: 100 }, () => gen());
 
@@ -32,7 +32,7 @@ describe("createPieceGenerator", () => {
     }
   });
 
-  it("es estable frente a seeds negativas o fuera de rango de 32 bits (se normalizan con >>> 0)", () => {
+  it("is stable for negative or out-of-32-bit-range seeds (they are normalized with >>> 0)", () => {
     const gen1 = createPieceGenerator(-1);
     const gen2 = createPieceGenerator(-1);
 
@@ -44,19 +44,19 @@ describe("createPieceGenerator", () => {
 });
 
 describe("randomSeed", () => {
-  it("devuelve un entero de 32 bits sin signo", () => {
+  it("returns an unsigned 32-bit integer", () => {
     const seed = randomSeed();
     expect(Number.isInteger(seed)).toBe(true);
     expect(seed).toBeGreaterThanOrEqual(0);
     expect(seed).toBeLessThanOrEqual(0xffffffff);
   });
 
-  it("dos llamadas seguidas no producen la misma seed (con altísima probabilidad)", () => {
+  it("two consecutive calls don't produce the same seed (with very high probability)", () => {
     const seeds = new Set(Array.from({ length: 20 }, () => randomSeed()));
     expect(seeds.size).toBeGreaterThan(1);
   });
 
-  it("no depende únicamente de Date.now(): con el reloj congelado, sigue variando", () => {
+  it("does not depend solely on Date.now(): with the clock frozen, it still varies", () => {
     vi.useFakeTimers();
     vi.setSystemTime(1_700_000_000_000);
 

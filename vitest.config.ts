@@ -14,11 +14,11 @@ export default defineConfig({
     globals: false,
     include: ["**/*.test.{ts,tsx}"],
     exclude: ["node_modules", ".next"],
-    // El código de producción hace console.error/warn a propósito en sus
-    // rutas de error (app/helpers.ts#errorMessage, catch de los hooks), y
-    // muchos tests disparan esas rutas deliberadamente para comprobarlas.
-    // "passed-only" oculta esos console.log/error mientras el test pasa y
-    // los muestra solo si el test falla, en vez de silenciar stderr siempre.
+    // Production code calls console.error/warn on purpose in its error
+    // paths (app/helpers.ts#errorMessage, the hooks' catch blocks), and
+    // many tests trigger those paths deliberately to check them.
+    // "passed-only" hides those console.log/error while the test passes and
+    // shows them only if the test fails, instead of always silencing stderr.
     silent: "passed-only",
     reporters: ["default"],
   },

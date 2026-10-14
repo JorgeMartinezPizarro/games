@@ -1,8 +1,8 @@
 import { useEffect, useState, type RefObject } from "react";
 
-// true mientras el <audio> del ref está sonando. `source` identifica el audio
-// actual: el elemento se vuelve a montar con cada ronda, así que hay que
-// volver a escucharlo cada vez que cambia.
+// true while the ref's <audio> is playing. `source` identifies the current
+// audio: the element is remounted every round, so we have to re-attach the
+// listeners each time it changes.
 export function useAudioPlaying(audioRef: RefObject<HTMLAudioElement | null>, source: string | undefined) {
   const [playing, setPlaying] = useState(false);
 

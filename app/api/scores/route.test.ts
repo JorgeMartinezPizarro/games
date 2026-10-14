@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// LINES_TARGET a 2 solo en este fichero: nos permite reproducir una partida
-// completa (2 líneas limpiadas con 5 piezas O) sin resolver Tetris de
-// verdad. replayTetris y el resto del motor se dejan sin mockear.
+// LINES_TARGET set to 2 in this file only: it lets us replay a complete game
+// (2 lines cleared with 5 O pieces) without actually solving Tetris.
+// replayTetris and the rest of the engine are left unmocked.
 vi.mock("@/app/lib/tetris/engine", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/app/lib/tetris/engine")>();
   return { ...actual, LINES_TARGET: 2 };
@@ -64,8 +64,8 @@ function makeStoredGame(overrides: Partial<{ userId: string; seed: number; creat
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
-  // Toda partida válida publica en Nextcloud: por defecto, sin récords
-  // batidos y con Nextcloud respondiendo OK.
+  // Every valid game publishes to Nextcloud: by default, with no records
+  // beaten and Nextcloud responding OK.
   vi.mocked(getPlayerBestScoreForGame).mockResolvedValue(null);
   vi.mocked(getPlayersBeatenByScore).mockResolvedValue([]);
   vi.mocked(postToGamingApp).mockResolvedValue(new Response("{}", { status: 200 }));
@@ -77,7 +77,7 @@ afterEach(() => {
 });
 
 describe("POST /api/scores (tetris)", () => {
-  it("responde 400 si gameId no es válido", async () => {
+  it("responds 400 if gameId is not valid", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
 
     const res = await POST(request({ gameId: 99, nonce: "n1", actions: [] }));
@@ -85,7 +85,7 @@ describe("POST /api/scores (tetris)", () => {
     expect((await res.json()).error).toMatch(/gameId/);
   });
 
-  it("responde 400 si falta el nonce", async () => {
+  it("responds 400 if the nonce is missing", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
 
     const res = await POST(request({ gameId: 3, actions: [] }));
@@ -93,7 +93,7 @@ describe("POST /api/scores (tetris)", () => {
     expect((await res.json()).error).toMatch(/nonce/i);
   });
 
-  it("responde 400 si el nonce no existe, expiró o pertenece a otro usuario", async () => {
+  it("responds 400 if the nonce does not exist, has expired or belongs to another user", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeTetrisGame).mockResolvedValue(null);
 
@@ -103,12 +103,12 @@ describe("POST /api/scores (tetris)", () => {
     expect(insertScore).not.toHaveBeenCalled();
   });
 
-  it("responde 400 si el replay no alcanza el objetivo de líneas", async () => {
+  it("responds 400 if the replay does not reach the line target", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeTetrisGame).mockResolvedValue(makeStoredGame());
 
-    // Sin ninguna acción de movimiento real, la partida nunca llega a
-    // LINES_TARGET (solo "resume").
+    // Without any real movement action, the game never reaches
+    // LINES_TARGET (only "resume").
     const res = await POST(request({ gameId: 3, nonce: "n1", actions: [{ type: "resume", t: 0 }] }));
 
     expect(res.status).toBe(400);
@@ -116,7 +116,7 @@ describe("POST /api/scores (tetris)", () => {
     expect(insertScore).not.toHaveBeenCalled();
   });
 
-  it("responde 400 si el log de acciones está mal formado", async () => {
+  it("responds 400 if the action log is malformed", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeTetrisGame).mockResolvedValue(makeStoredGame());
 
@@ -126,7 +126,7 @@ describe("POST /api/scores (tetris)", () => {
     expect((await res.json()).error).toMatch(/Malformed or empty action log/);
   });
 
-  it("partida válida: guarda el score (tiempo transcurrido según el reloj del servidor)", async () => {
+  it("valid game: saves the score (elapsed time according to the server clock)", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     const seed = findSeedWithConsecutiveOPieces(5);
     vi.mocked(consumeTetrisGame).mockResolvedValue(makeStoredGame({ seed }));
@@ -153,7 +153,7 @@ describe("POST /api/scores (tetris)", () => {
     );
   });
 
-  it("responde 500 si requireAuth lanza", async () => {
+  it("responds 500 if requireAuth throws", async () => {
     vi.mocked(requireAuth).mockRejectedValue(new Error("No session cookie"));
 
     const res = await POST(request({ gameId: 3, nonce: "n1", actions: [] }));
@@ -161,9 +161,9 @@ describe("POST /api/scores (tetris)", () => {
   });
 });
 
-// Tablero "anillo" de 4 casillas con salto 1: 0-1-2-3 es un tour legal
-// completo, fácil de razonar a mano para probar validateMoves/boardsMatch
-// de verdad (sin mockear app/lib/numbers/board.ts).
+// 4-cell "ring" board with jump 1: 0-1-2-3 is a complete legal tour, easy
+// to reason about by hand, to test validateMoves/boardsMatch for real
+// (without mocking app/lib/numbers/board.ts).
 function ringBoard(n: number): CellValues[] {
   return Array.from({ length: n }, (_, i) => ({ values: { n: 1, b: false, i } }));
 }
@@ -174,14 +174,14 @@ function makeStoredNumbersGame(
   return { userId: "user-1", board: ringBoard(4), createdAt: CREATED_AT, ...overrides };
 }
 
-// Movimientos con timestamp, espaciados 100ms (por encima del umbral
-// anti-bot de 80ms) desde el arranque del nonce.
+// Timestamped moves, spaced 100ms apart (above the 80ms anti-bot
+// threshold) from when the nonce started.
 function move(i: number, t: number) {
   return { i, t };
 }
 
 describe("POST /api/scores (numbers)", () => {
-  it("responde 400 si falta el nonce", async () => {
+  it("responds 400 if the nonce is missing", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
 
     const res = await POST(
@@ -191,7 +191,7 @@ describe("POST /api/scores (numbers)", () => {
     expect((await res.json()).error).toMatch(/nonce/i);
   });
 
-  it("responde 400 si falta el board", async () => {
+  it("responds 400 if the board is missing", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
 
     const res = await POST(request({ gameId: 2, nonce: "n1", moves: [move(0, 0), move(1, 100)] }));
@@ -199,7 +199,7 @@ describe("POST /api/scores (numbers)", () => {
     expect((await res.json()).error).toMatch(/board/i);
   });
 
-  it("responde 400 si el nonce no existe, expiró o pertenece a otro usuario", async () => {
+  it("responds 400 if the nonce does not exist, has expired or belongs to another user", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeNumbersGame).mockResolvedValue(null);
 
@@ -211,7 +211,7 @@ describe("POST /api/scores (numbers)", () => {
     expect(insertScore).not.toHaveBeenCalled();
   });
 
-  it("responde 400 si el board enviado no coincide con el guardado bajo el nonce", async () => {
+  it("responds 400 if the submitted board does not match the one stored under the nonce", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeNumbersGame).mockResolvedValue(makeStoredNumbersGame());
 
@@ -225,11 +225,11 @@ describe("POST /api/scores (numbers)", () => {
     expect(insertScore).not.toHaveBeenCalled();
   });
 
-  it("responde 400 si los movimientos no son un tour legal", async () => {
+  it("responds 400 if the moves are not a legal tour", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeNumbersGame).mockResolvedValue(makeStoredNumbersGame());
 
-    // Salta directamente de 0 a 2 (distancia 2, pero el salto del tablero es 1).
+    // Jumps straight from 0 to 2 (distance 2, but the board's jump is 1).
     const res = await POST(
       request({ gameId: 2, nonce: "n1", board: ringBoard(4), moves: [move(0, 0), move(2, 100)] })
     );
@@ -238,12 +238,12 @@ describe("POST /api/scores (numbers)", () => {
     expect((await res.json()).error).toMatch(/Invalid game: Illegal move distance/);
   });
 
-  // Clics reales en un tablero pequeño (botones adyacentes, sin
-  // desplazamiento de ratón) caen habitualmente entre 50-80ms de diferencia
-  // (medido con Playwright contra la app real) — un suelo de ritmo por clic
-  // rechazaba partidas legítimas en silencio. No debe rechazarse solo por
-  // ser rápido: la fórmula de score ya acota el incentivo de ir al límite.
-  it("acepta clics muy rápidos (50ms) siempre que el tour sea legal", async () => {
+  // Real clicks on a small board (adjacent buttons, no mouse travel)
+  // typically land 50-80ms apart (measured with Playwright against the real
+  // app) — a per-click pace floor was silently rejecting legitimate games.
+  // A game must not be rejected just for being fast: the score formula
+  // already caps the incentive to push the limit.
+  it("accepts very fast clicks (50ms) as long as the tour is legal", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeNumbersGame).mockResolvedValue(makeStoredNumbersGame());
     vi.mocked(insertScore).mockResolvedValue(1);
@@ -261,7 +261,7 @@ describe("POST /api/scores (numbers)", () => {
     expect(res.status).toBe(200);
   });
 
-  it("responde 400 si los timestamps de los clics no son crecientes", async () => {
+  it("responds 400 if the click timestamps are not increasing", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeNumbersGame).mockResolvedValue(makeStoredNumbersGame());
 
@@ -273,11 +273,11 @@ describe("POST /api/scores (numbers)", () => {
     expect((await res.json()).error).toMatch(/Invalid game: Move timestamps out of order/);
   });
 
-  it("responde 400 si el timestamp de un clic excede el tiempo real transcurrido", async () => {
+  it("responds 400 if a click timestamp exceeds the real elapsed time", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeNumbersGame).mockResolvedValue(makeStoredNumbersGame({ createdAt: CREATED_AT }));
 
-    // elapsed real = 37000ms; tolerancia de reloj = 2000ms => máximo t = 39000.
+    // real elapsed = 37000ms; clock tolerance = 2000ms => max t = 39000.
     const res = await POST(
       request({ gameId: 2, nonce: "n1", board: ringBoard(4), moves: [move(0, 0), move(1, 40000)] })
     );
@@ -286,13 +286,13 @@ describe("POST /api/scores (numbers)", () => {
     expect((await res.json()).error).toMatch(/Invalid game: Move timestamp out of range/);
   });
 
-  it("partida válida: calcula el score con steps/tiempo del servidor y lo guarda", async () => {
+  it("valid game: computes the score from server-side steps/time and saves it", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeNumbersGame).mockResolvedValue(makeStoredNumbersGame({ createdAt: CREATED_AT }));
     vi.mocked(insertScore).mockResolvedValue(55);
     vi.mocked(getScoreRank).mockResolvedValue({ rank: 6, total: 20 });
 
-    // Tour completo de las 4 casillas del anillo: steps=4, elapsed=37000ms
+    // Full tour of the ring's 4 cells: steps=4, elapsed=37000ms
     // (NOW - CREATED_AT). pace = max(37000/4, 150) = 9250 =>
     // round(4^2 * 1000 / 9250) = round(1.7297...) = 2.
     const res = await POST(
@@ -341,7 +341,7 @@ function makeStoredWordsGame(
 }
 
 describe("POST /api/scores (words)", () => {
-  it("responde 400 si falta el nonce", async () => {
+  it("responds 400 if the nonce is missing", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
 
     const res = await POST(request({ gameId: 4, nonce: "" }));
@@ -349,7 +349,7 @@ describe("POST /api/scores (words)", () => {
     expect((await res.json()).error).toMatch(/nonce/i);
   });
 
-  it("responde 400 si el nonce no existe, expiró o pertenece a otro usuario", async () => {
+  it("responds 400 if the nonce does not exist, has expired or belongs to another user", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeWordsGame).mockResolvedValue(null);
 
@@ -359,7 +359,7 @@ describe("POST /api/scores (words)", () => {
     expect(insertScore).not.toHaveBeenCalled();
   });
 
-  it("responde 400 si la partida sigue en curso (ni terminó por fallo ni acertó todas las rondas)", async () => {
+  it("responds 400 if the game is still in progress (neither ended by a miss nor all rounds answered)", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeWordsGame).mockResolvedValue(
       makeStoredWordsGame({ answeredCount: 3, ended: false })
@@ -371,7 +371,7 @@ describe("POST /api/scores (words)", () => {
     expect(insertScore).not.toHaveBeenCalled();
   });
 
-  it("partida perdida (ended, aciertos parciales): puntúa igual que una completa, cubo de aciertos entre tiempo", async () => {
+  it("lost game (ended, partial correct answers): scores like a complete one, correct answers cubed over time", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeWordsGame).mockResolvedValue(
       makeStoredWordsGame({ answeredCount: 4, ended: true })
@@ -399,7 +399,7 @@ describe("POST /api/scores (words)", () => {
     );
   });
 
-  it("partida completa (10/10 aciertos): puntúa sin necesitar el flag ended", async () => {
+  it("complete game (10/10 correct): scores without needing the ended flag", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeWordsGame).mockResolvedValue(
       makeStoredWordsGame({ answeredCount: 10, ended: false })
@@ -428,10 +428,10 @@ describe("POST /api/scores (words)", () => {
   });
 });
 
-// Secuencias reales de ajedrez (UCI) usadas para probar saveChessScore /
-// replayChessMoves de verdad (sin mockear chess.js): el mate del pastor
-// (el jugador, con blancas, da mate) y el mate del necio (el jugador recibe
-// mate en su propia jugada 2, el caso "autoinfligido" que NO debe puntuar).
+// Real chess sequences (UCI) used to test saveChessScore / replayChessMoves
+// for real (without mocking chess.js): Scholar's Mate (the player, as White,
+// delivers mate) and Fool's Mate (the player gets mated on their own move 2,
+// the "self-inflicted" case that must NOT score).
 const SCHOLARS_MATE = ["e2e4", "e7e5", "d1h5", "b8c6", "f1c4", "g8f6", "h5f7"];
 const FOOLS_MATE = ["f2f3", "e7e5", "g2g4", "d8h4"];
 
@@ -449,7 +449,7 @@ function makeStoredChessGame(
 }
 
 describe("POST /api/scores (chess)", () => {
-  it("responde 400 si falta el nonce", async () => {
+  it("responds 400 if the nonce is missing", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
 
     const res = await POST(request({ gameId: 1, nonce: "" }));
@@ -457,7 +457,7 @@ describe("POST /api/scores (chess)", () => {
     expect((await res.json()).error).toMatch(/nonce/i);
   });
 
-  it("responde 400 si el nonce no existe, expiró o pertenece a otro usuario", async () => {
+  it("responds 400 if the nonce does not exist, has expired or belongs to another user", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeChessGame).mockResolvedValue(null);
 
@@ -467,7 +467,7 @@ describe("POST /api/scores (chess)", () => {
     expect(insertScore).not.toHaveBeenCalled();
   });
 
-  it("responde 400 si el log de jugadas guardado tiene una jugada ilegal", async () => {
+  it("responds 400 if the stored move log contains an illegal move", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeChessGame).mockResolvedValue(makeStoredChessGame({ moves: ["e2e5"] }));
 
@@ -477,7 +477,7 @@ describe("POST /api/scores (chess)", () => {
     expect(insertScore).not.toHaveBeenCalled();
   });
 
-  it("responde 400 si la partida guardada no ha terminado", async () => {
+  it("responds 400 if the stored game has not finished", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeChessGame).mockResolvedValue(
       makeStoredChessGame({ moves: ["e2e4", "e7e5"] })
@@ -489,10 +489,10 @@ describe("POST /api/scores (chess)", () => {
     expect(insertScore).not.toHaveBeenCalled();
   });
 
-  // Mate del necio: la partida SÍ termina, pero es el propio jugador (blancas)
-  // quien recibe jaque mate — el caso "autoinfligido" que el comentario de
-  // saveChessScore explícitamente dice que no debe puntuar.
-  it("responde 400 si la partida termina en mate autoinfligido (pierde el jugador)", async () => {
+  // Fool's Mate: the game DOES end, but it's the player themselves (White)
+  // who gets checkmated — the "self-inflicted" case that the saveChessScore
+  // comment explicitly says must not score.
+  it("responds 400 if the game ends in a self-inflicted mate (the player loses)", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeChessGame).mockResolvedValue(makeStoredChessGame({ moves: FOOLS_MATE }));
 
@@ -502,11 +502,11 @@ describe("POST /api/scores (chess)", () => {
     expect(insertScore).not.toHaveBeenCalled();
   });
 
-  // Tablas por triple repetición: replay.gameOver es true (chess.isGameOver()
-  // también lo es en tablas), pero no es checkmate — no debe confundirse con
-  // una victoria del jugador ni puntuar. No depende de Stockfish/docker: es
-  // una partida real jugable con chess.js (ver app/lib/chess/testFixtures.ts).
-  it("responde 400 si la partida termina en tablas (no cuenta como victoria)", async () => {
+  // Draw by threefold repetition: replay.gameOver is true (chess.isGameOver()
+  // is also true on a draw), but it's not checkmate — it must not be mistaken
+  // for a player win nor score. It doesn't depend on Stockfish/docker: it's
+  // a real game playable with chess.js (see app/lib/chess/testFixtures.ts).
+  it("responds 400 if the game ends in a draw (does not count as a win)", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeChessGame).mockResolvedValue(
       makeStoredChessGame({ moves: THREEFOLD_REPETITION_DRAW })
@@ -518,7 +518,7 @@ describe("POST /api/scores (chess)", () => {
     expect(insertScore).not.toHaveBeenCalled();
   });
 
-  it("partida válida (el jugador da mate): guarda el score (elo) y el nº de jugadas", async () => {
+  it("valid game (the player delivers mate): saves the score (elo) and the move count", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     vi.mocked(consumeChessGame).mockResolvedValue(
       makeStoredChessGame({ elo: 1500, moves: SCHOLARS_MATE })
@@ -545,7 +545,7 @@ describe("POST /api/scores (chess)", () => {
     );
   });
 
-  it("responde 500 si requireAuth lanza", async () => {
+  it("responds 500 if requireAuth throws", async () => {
     vi.mocked(requireAuth).mockRejectedValue(new Error("No session cookie"));
 
     const res = await POST(request({ gameId: 1, nonce: "n1" }));
@@ -553,8 +553,8 @@ describe("POST /api/scores (chess)", () => {
   });
 });
 
-describe("POST /api/scores → app gaming de Nextcloud", () => {
-  it("publica la actividad y notifica a los jugadores superados con userId y deeplink al juego", async () => {
+describe("POST /api/scores → Nextcloud gaming app", () => {
+  it("publishes the activity and notifies the beaten players with userId and a deeplink to the game", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     const seed = findSeedWithConsecutiveOPieces(5);
     vi.mocked(consumeTetrisGame).mockResolvedValue(makeStoredGame({ seed }));
@@ -595,7 +595,7 @@ describe("POST /api/scores → app gaming de Nextcloud", () => {
     );
   });
 
-  it("si Nextcloud falla, el score se guarda igualmente", async () => {
+  it("if Nextcloud fails, the score is saved anyway", async () => {
     vi.mocked(requireAuth).mockResolvedValue(user);
     const seed = findSeedWithConsecutiveOPieces(5);
     vi.mocked(consumeTetrisGame).mockResolvedValue(makeStoredGame({ seed }));

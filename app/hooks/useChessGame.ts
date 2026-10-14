@@ -5,7 +5,7 @@ import { Chess, Square } from "chess.js";
 
 export type LastMove = { from: Square; to: Square };
 
-// Casilla del rey del bando al que le toca mover si está en jaque.
+// Square of the king of the side to move, if it is in check.
 function findCheckedKing(game: Chess): Square | null {
   if (!game.inCheck()) return null;
   for (const row of game.board()) {
@@ -18,12 +18,12 @@ function findCheckedKing(game: Chess): Square | null {
 
 export interface UseChessGameOptions {
   /**
-   * Se llama cuando el servidor confirma que la partida terminó y el
-   * jugador (blancas) dio jaque mate, con el nonce de la partida para que
-   * pueda guardarse la puntuación.
+   * Called when the server confirms the game is over and the player
+   * (White) delivered checkmate, with the game's nonce so the score can
+   * be saved.
    */
   onPlayerWin?: (nonce: string) => void;
-  /** Se llama cada vez que arranca una partida nueva (reset manual o por desincronización). */
+  /** Called every time a new game starts (manual reset or after a desync). */
   onReset?: () => void;
 }
 
@@ -37,12 +37,12 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
   const [gameError, setGameError] = useState<string | null>(null);
-  // Solo para pintar: jugadas en SAN y última jugada. No intervienen en la
-  // validación, que sigue siendo cosa del servidor.
+  // Rendering only: moves in SAN and the last move. They play no part in
+  // validation, which is still the server's job.
   const [history, setHistory] = useState<string[]>([]);
   const [lastMove, setLastMove] = useState<LastMove | null>(null);
 
-  // --- Sistema de dos clics ---
+  // --- Two-click system ---
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [optionSquares, setOptionSquares] = useState<Record<string, any>>({});
 
@@ -55,19 +55,19 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
     [gameStarted]
   );
 
-  // Manejar fin de partida
+  // Handle game over
   const handleGameOver = useCallback((game: Chess) => {
     let result = "";
     if (game.isCheckmate()) {
-      result = game.turn() === "w" ? "IA gana (mate)" : "Jugador gana (mate)";
+      result = game.turn() === "w" ? "AI wins (checkmate)" : "Player wins (checkmate)";
     } else if (game.isDraw()) {
-      result = "Empate (tablas)";
+      result = "Draw";
     } else if (game.isStalemate()) {
-      result = "Empate (ahogado)";
+      result = "Draw (stalemate)";
     } else if (game.isThreefoldRepetition()) {
-      result = "Empate (repetición)";
+      result = "Draw (threefold repetition)";
     } else if (game.isInsufficientMaterial()) {
-      result = "Empate (material insuficiente)";
+      result = "Draw (insufficient material)";
     }
     if (result) {
       setGameResult(result);
@@ -75,16 +75,15 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
     }
   }, []);
 
-  // Limpia selección y resaltado de casillas (común a drag y a clic)
+  // Clears selection and square highlighting (shared by drag and click)
   const clearSelection = useCallback(() => {
     setSelectedSquare(null);
     setOptionSquares({});
   }, []);
 
-  // Reiniciar partida. keepError permite conservar el mensaje de error que
-  // acaba de fijar el llamante (p.ej. tras una desincronización con el
-  // servidor): sin esto, el reset lo borraba en el mismo tick en que se
-  // ponía y el usuario nunca llegaba a verlo.
+  // Restart the game. keepError keeps the error message the caller has just
+  // set (e.g. after a desync with the server): without it, the reset cleared
+  // it in the same tick it was set and the user never got to see it.
   const resetGame = useCallback(
     (options?: { keepError?: boolean }) => {
       const newGame = new Chess();
@@ -104,9 +103,9 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
     [clearSelection, onReset]
   );
 
-  // Se llama antes de la primera jugada: pide al servidor un nonce que ata
-  // la partida al elo elegido. A partir de aquí el servidor es la única
-  // autoridad sobre el elo real de la IA y sobre el log de jugadas.
+  // Called before the first move: asks the server for a nonce that binds the
+  // game to the chosen elo. From here on the server is the sole authority
+  // over the AI's actual elo and over the move log.
   const ensureGameSession = useCallback(async (): Promise<string> => {
     if (nonceRef.current) return nonceRef.current;
 
@@ -117,19 +116,19 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
     });
     const data = await response.json();
     if (!response.ok || !data.nonce) {
-      throw new Error(data.error || "No se pudo iniciar la partida.");
+      throw new Error(data.error || "Couldn't start the game.");
     }
     nonceRef.current = data.nonce;
     return data.nonce;
   }, [elo]);
 
-  // Manda la jugada del jugador a /api/chess: el servidor la valida contra
-  // su propia reconstrucción del tablero (nunca confía en el FEN local),
-  // la graba, y si la partida sigue en curso invoca a Stockfish él mismo y
-  // devuelve su respuesta ya grabada también. Si el servidor y el cliente
-  // llegasen a discrepar (nonce caducado, red, etc.) no hay forma segura de
-  // reconciliar el tablero local con el registro del servidor, así que se
-  // trata como error fatal y se reinicia la partida.
+  // Sends the player's move to /api/chess: the server validates it against
+  // its own reconstruction of the board (it never trusts the local FEN),
+  // records it, and if the game is still ongoing it calls Stockfish itself
+  // and returns its reply, also already recorded. If server and client ever
+  // disagree (expired nonce, network, etc.) there is no safe way to
+  // reconcile the local board with the server's record, so it is treated as
+  // a fatal error and the game is restarted.
   const submitPlayerMove = useCallback(
     async (from: string, to: string) => {
       const game = gameRef.current;
@@ -146,7 +145,7 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
         });
         const data = await response.json();
         if (!response.ok) {
-          throw new Error(data.error || "No se pudo validar la jugada.");
+          throw new Error(data.error || "Couldn't validate the move.");
         }
 
         if (data.bestmove) {
@@ -168,26 +167,26 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
               }
             }
           } catch (moveError) {
-            // El servidor ya validó esta jugada con chess.js antes de
-            // devolverla; si aun así no se puede aplicar aquí, el estado
-            // local y el del servidor han divergido.
+            // The server already validated this move with chess.js before
+            // returning it; if it still can't be applied here, the local
+            // state and the server's have diverged.
             throw moveError;
           }
         }
 
-        // El nonce solo puede guardarse una vez el servidor confirma que la
-        // jugada final quedó grabada (data.gameOver, presente tanto si el
-        // mate lo dio el jugador -bestmove null- como si lo dio la IA).
-        // Disparar el guardado antes de esta respuesta es lo que causaba la
-        // carrera: /api/scores consumía el nonce (de un solo uso) mientras
-        // esta petición seguía en vuelo, y luego esta petición fallaba
-        // porque el nonce ya no existía.
+        // The nonce can only be saved once the server confirms the final
+        // move was recorded (data.gameOver, present whether the mate was
+        // delivered by the player -bestmove null- or by the AI).
+        // Triggering the save before this response is what caused the
+        // race: /api/scores consumed the (single-use) nonce while this
+        // request was still in flight, and then this request failed
+        // because the nonce no longer existed.
         //
-        // Solo se llama a onPlayerWin si el jugador (blancas) dio jaque mate:
-        // /api/scores es quien impone esto de verdad (recalcula isCheckmate()
-        // sobre su propio log, nunca confía en este chequeo local), pero
-        // evitamos aquí la llamada -y el error genérico "inténtalo de
-        // nuevo"- en tablas o derrota, que nunca podrán guardarse.
+        // onPlayerWin is only called if the player (White) delivered mate:
+        // /api/scores is what actually enforces this (it recomputes
+        // isCheckmate() over its own log, never trusting this local check),
+        // but here we skip the call -and the generic "try again" error- on
+        // draws or losses, which can never be saved.
         if (data.gameOver) {
           const playerWon = game.isCheckmate() && game.turn() === "b";
           if (playerWon) {
@@ -195,8 +194,8 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
           }
         }
       } catch (error) {
-        console.error("Error validando la jugada con el servidor:", error);
-        setGameError("La partida se desincronizó con el servidor. Reiniciando la partida.");
+        console.error("Error validating the move with the server:", error);
+        setGameError("The game got out of sync with the server. Starting a new game.");
         resetGame({ keepError: true });
       } finally {
         setIsAIThinking(false);
@@ -205,9 +204,9 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
     [ensureGameSession, handleGameOver, resetGame, onPlayerWin]
   );
 
-  // Intenta realizar un movimiento local; ignora silenciosamente si es
-  // inválido (misclick). La validación real y autoritativa ocurre en el
-  // servidor via submitPlayerMove — esto solo da feedback visual instantáneo.
+  // Tries to make a local move; silently ignores it if it's invalid
+  // (misclick). The real, authoritative validation happens on the server
+  // via submitPlayerMove — this only gives instant visual feedback.
   const tryMove = useCallback(
     (from: string, to: string): boolean => {
       const game = gameRef.current;
@@ -221,7 +220,7 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
         });
 
         if (!move) {
-          // chess.js devolvió null/false: movimiento ilegal, lo ignoramos como misclick
+          // chess.js returned null/false: illegal move, ignore it as a misclick
           return false;
         }
 
@@ -237,22 +236,22 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
         } else {
           setIsAIThinking(true);
         }
-        // Siempre se manda la jugada al servidor, incluso si la partida
-        // termina localmente: es la única forma de que quede grabada en el
-        // log autoritativo antes de poder guardar el score.
+        // The move is always sent to the server, even if the game ends
+        // locally: it's the only way it gets recorded in the authoritative
+        // log before the score can be saved.
         setTimeout(() => submitPlayerMove(from, to), isOver ? 0 : 300);
         return true;
       } catch (e) {
-        // chess.js (v1+) lanza excepción en movimientos ilegales: la capturamos
-        // y la tratamos igual que un misclick, sin romper la UI.
-        console.warn("Movimiento inválido ignorado:", e);
+        // chess.js (v1+) throws on illegal moves: we catch it and treat it
+        // just like a misclick, without breaking the UI.
+        console.warn("Ignoring invalid move:", e);
         return false;
       }
     },
     [gameStarted, handleGameOver, submitPlayerMove]
   );
 
-  // Muestra las casillas de destino legales para la pieza seleccionada
+  // Shows the legal destination squares for the selected piece
   const showOptionsForSquare = useCallback((square: Square) => {
     const game = gameRef.current;
     if (!game) return;
@@ -270,7 +269,7 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
         },
       };
 
-      // Punto en casillas vacías, anillo en capturas.
+      // Dot on empty squares, ring on captures.
       moves.forEach((m) => {
         newSquares[m.to] = {
           background: game.get(m.to as Square)
@@ -281,19 +280,19 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
 
       setOptionSquares(newSquares);
     } catch (e) {
-      // Si algo falla al calcular las jugadas legales, simplemente no resaltamos nada
-      console.warn("No se pudieron calcular movimientos legales:", e);
+      // If computing the legal moves fails, we simply don't highlight anything
+      console.warn("Couldn't compute legal moves:", e);
       setOptionSquares({});
     }
   }, []);
 
-  // --- Clic en una casilla (sistema de dos clics) ---
+  // --- Click on a square (two-click system) ---
   const onSquareClick = useCallback(
     (square: Square) => {
       const game = gameRef.current;
       if (!game || isGameOver || isAIThinking) return;
 
-      // Caso 1: no había nada seleccionado todavía
+      // Case 1: nothing was selected yet
       if (!selectedSquare) {
         const piece = game.get(square);
         if (piece && piece.color === game.turn()) {
@@ -303,13 +302,13 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
         return;
       }
 
-      // Caso 2: se hace clic en la misma casilla ya seleccionada -> deseleccionar
+      // Case 2: clicking the already-selected square -> deselect
       if (selectedSquare === square) {
         clearSelection();
         return;
       }
 
-      // Caso 3: ya había una pieza seleccionada, intentamos mover
+      // Case 3: a piece was already selected, try to move
       const moved = tryMove(selectedSquare, square);
 
       if (moved) {
@@ -317,8 +316,8 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
         return;
       }
 
-      // El movimiento no era válido (misclick). Si el clic fue sobre otra
-      // pieza propia, la seleccionamos en su lugar; si no, deseleccionamos.
+      // The move wasn't valid (misclick). If the click was on another own
+      // piece, select that one instead; otherwise, deselect.
       const piece = game.get(square);
       if (piece && piece.color === game.turn()) {
         setSelectedSquare(square);
@@ -330,7 +329,7 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
     [selectedSquare, isGameOver, isAIThinking, tryMove, showOptionsForSquare, clearSelection]
   );
 
-  // --- Drag & drop (sigue disponible junto al sistema de clics) ---
+  // --- Drag & drop (still available alongside the click system) ---
   const onDrop = useCallback(
     (sourceSquare: string, targetSquare: string): boolean => {
       if (isGameOver || isAIThinking) return false;
@@ -344,14 +343,14 @@ export function useChessGame({ onPlayerWin, onReset }: UseChessGameOptions = {})
     [isGameOver, isAIThinking, tryMove, clearSelection]
   );
 
-  // Inicializar partida
+  // Initialize the game
   useEffect(() => {
     const chess = new Chess();
     gameRef.current = chess;
     setFen(chess.fen());
   }, []);
 
-  // Se recalcula con cada posición nueva (fen cambia tras cada jugada).
+  // Recomputed for every new position (fen changes after each move).
   const checkSquare = useMemo(
     () => (gameRef.current ? findCheckedKing(gameRef.current) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps

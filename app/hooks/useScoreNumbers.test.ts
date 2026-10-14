@@ -5,9 +5,9 @@ import type { CellValues } from "@/app/types";
 import type { NumbersMove } from "@/app/lib/numbers/board";
 import { useScoreNumbers } from "./useScoreNumbers";
 
-// saveScore espera NumbersMove[] ({i, t}), no índices sueltos: los
-// timestamps crecientes son arbitrarios, solo hace falta que sean válidos
-// como forma (el servidor real los valida, aquí solo se serializan).
+// saveScore expects NumbersMove[] ({i, t}), not bare indices: the increasing
+// timestamps are arbitrary, they only need to be valid in shape (the real
+// server validates them; here they are only serialized).
 function moves(...indices: number[]): NumbersMove[] {
   return indices.map((i, idx) => ({ i, t: idx * 100 }));
 }
@@ -38,7 +38,7 @@ afterEach(() => {
 });
 
 describe("useScoreNumbers", () => {
-  it("loadScores mapea score/steps/userId/time", async () => {
+  it("loadScores maps score/steps/userId/time", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -65,7 +65,7 @@ describe("useScoreNumbers", () => {
     expect(result.current.error).toBeUndefined();
   });
 
-  it("loadScores expone el mensaje de error si la petición falla", async () => {
+  it("loadScores exposes the error message if the request fails", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockRejectedValue(new Error("network down"))
@@ -79,7 +79,7 @@ describe("useScoreNumbers", () => {
     expect(result.current.error).toBe("network down");
   });
 
-  it("saveScore no llama al servidor si no hay nonce", async () => {
+  it("saveScore doesn't call the server if there's no nonce", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const { result } = renderHook(() => useScoreNumbers());
@@ -93,7 +93,7 @@ describe("useScoreNumbers", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("saveScore manda el nonce/board/moves y adopta el score confirmado por el servidor", async () => {
+  it("saveScore sends the nonce/board/moves and adopts the score confirmed by the server", async () => {
     const fetchMock = routeFetch({
       [GET_SCORES]: () => jsonResponse({ scores: [] }),
       [POST_SCORES]: () => jsonResponse({ message: "ok", id: 1, score: 555, rank: 3, total: 9 }),
@@ -112,7 +112,7 @@ describe("useScoreNumbers", () => {
     expect(body).toEqual({ gameId: 2, nonce: "nonce-1", board, moves: moves(0, 1, 2) });
   });
 
-  it("saveScore solo guarda una vez hasta resetScore", async () => {
+  it("saveScore only saves once until resetScore", async () => {
     const fetchMock = routeFetch({
       [GET_SCORES]: () => jsonResponse({ scores: [] }),
       [POST_SCORES]: () => jsonResponse({ score: 100, rank: 1, total: 1 }),
@@ -141,7 +141,7 @@ describe("useScoreNumbers", () => {
     expect(third).toBe(100);
   });
 
-  it("marca recordEntry solo cuando el score confirmado supera el mejor anterior", async () => {
+  it("sets recordEntry only when the confirmed score beats the previous best", async () => {
     const fetchMock = routeFetch({
       [GET_SCORES]: () =>
         jsonResponse({ scores: [{ score: 500, userId: "u1", gameConfig: {}, createdAt: "t" }] }),
@@ -158,11 +158,11 @@ describe("useScoreNumbers", () => {
       await result.current.saveScore(1, 7, moves(0), "n1", board);
     });
 
-    // 300 no supera el mejor previo (500): no hay récord
+    // 300 doesn't beat the previous best (500): no record
     expect(result.current.recordEntry).toBeNull();
   });
 
-  it("saveScore adopta el rank/total de ESTA partida (no el mejor histórico) tal cual los devuelve el POST", async () => {
+  it("saveScore adopts THIS game's rank/total (not the all-time best) exactly as returned by the POST", async () => {
     const fetchMock = routeFetch({
       [GET_SCORES]: () => jsonResponse({ scores: [] }),
       [POST_SCORES]: () => jsonResponse({ score: 555, rank: 25, total: 37 }),
@@ -176,12 +176,12 @@ describe("useScoreNumbers", () => {
       await result.current.saveScore(10, 5, moves(0, 1, 2), "nonce-1", board);
     });
 
-    // Aunque el jugador ya tuviera un mejor puesto guardado de antes, lo que
-    // se muestra es el resultado de ESTA ronda (posición 25 de 37).
+    // Even if the player already had a better saved position from before,
+    // what's shown is THIS round's result (position 25 of 37).
     expect(result.current.myRank).toEqual({ rank: 25, total: 37 });
   });
 
-  it("saveScore devuelve null si el servidor responde con fallo, sin bloquear reintentos", async () => {
+  it("saveScore returns null if the server responds with a failure, without blocking retries", async () => {
     vi.stubGlobal(
       "fetch",
       routeFetch({
@@ -196,7 +196,7 @@ describe("useScoreNumbers", () => {
     });
     expect(saved).toBeNull();
 
-    // El guard nunca llegó a activarse (no hubo éxito), así que puede reintentar sin resetScore
+    // The guard never got set (there was no success), so it can retry without resetScore
     let secondAttempted = false;
     vi.stubGlobal(
       "fetch",
@@ -211,7 +211,7 @@ describe("useScoreNumbers", () => {
     expect(secondAttempted).toBe(true);
   });
 
-  it("resetScore limpia recordEntry y myRank", async () => {
+  it("resetScore clears recordEntry and myRank", async () => {
     const fetchMock = routeFetch({
       [GET_SCORES]: () => jsonResponse({ scores: [] }),
       [POST_SCORES]: () => jsonResponse({ score: 42, rank: 9, total: 12 }),

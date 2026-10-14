@@ -1,7 +1,7 @@
 #!/bin/sh
-# Deja la app gaming lista en el Nextcloud de dev/e2e. La imagen oficial lo
-# ejecuta como www-data en cada arranque (hook before-starting), después de
-# instalar/actualizar y antes de servir peticiones: todo debe ser idempotente.
+# Gets the gaming app ready in the dev/e2e Nextcloud. The official image runs
+# it as www-data on every startup (before-starting hook), after
+# installing/upgrading and before serving requests: everything must be idempotent.
 set -eu
 
 occ() {
@@ -11,7 +11,7 @@ occ() {
 occ app:enable gaming
 occ config:app:set gaming games_url --value="$GAMING_GAMES_URL"
 occ config:app:set gaming shared_secret --value="$GAMING_SHARED_SECRET" --sensitive
-# Sin asistente de bienvenida tapando el iframe en cada usuario nuevo.
+# No first-run wizard covering the iframe for every new user.
 occ app:disable firstrunwizard || true
 
 for user in $GAMING_TEST_USERS; do

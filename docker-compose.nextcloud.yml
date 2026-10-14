@@ -1,15 +1,15 @@
-# Nextcloud 34 local, SOLO para `make dev` y los e2e: se añade encima de
-# docker-compose.yml (ver Makefile y playwright.config.ts). En prod Nextcloud
-# es otro stack detrás del reverse proxy y games apunta a él vía NEXTCLOUD_URL.
+# Local Nextcloud 34, ONLY for `make dev` and the e2e tests: layered on top of
+# docker-compose.yml (see Makefile and playwright.config.ts). In prod Nextcloud
+# is another stack behind the reverse proxy and games points to it via NEXTCLOUD_URL.
 #
-# - La app gaming se monta en caliente desde nextcloud/custom_apps/gaming: un
-#   cambio en el PHP/JS se ve al recargar, sin reconstruir nada.
-# - nextcloud/dev/before-starting.sh la activa y configura (games_url,
-#   shared_secret) y crea los usuarios de prueba en cada arranque.
-# - games habla con Nextcloud por la red interna de compose (http://nextcloud);
-#   el navegador, por http://localhost:${NEXTCLOUD_PORT}. Como las cookies no
-#   distinguen puertos, la sesión de Nextcloud en localhost vale también para
-#   games en localhost:${PORT}.
+# - The gaming app is hot-mounted from nextcloud/custom_apps/gaming: a
+#   PHP/JS change shows up on reload, without rebuilding anything.
+# - nextcloud/dev/before-starting.sh enables and configures it (games_url,
+#   shared_secret) and creates the test users on every startup.
+# - games talks to Nextcloud over the internal compose network (http://nextcloud);
+#   the browser, via http://localhost:${NEXTCLOUD_PORT}. Since cookies don't
+#   distinguish ports, the Nextcloud session on localhost is also valid for
+#   games on localhost:${PORT}.
 services:
   nextcloud:
     build:
@@ -30,8 +30,8 @@ services:
     volumes:
       - ./nextcloud/custom_apps/gaming:/var/www/html/custom_apps/gaming
     healthcheck:
-      # Apache solo arranca tras instalar y correr el hook, así que "installed"
-      # en status.php significa "app gaming ya configurada".
+      # Apache only starts after installing and running the hook, so "installed"
+      # in status.php means "gaming app already configured".
       test: ["CMD", "php", "-r", "exit(str_contains((string) @file_get_contents('http://localhost/status.php'), '\"installed\":true') ? 0 : 1);"]
       interval: 5s
       timeout: 5s
@@ -40,7 +40,7 @@ services:
   games:
     environment:
       - NEXTCLOUD_URL=http://nextcloud
-      # Para mandar al navegador al login de Nextcloud (proxy.ts).
+      # To send the browser to the Nextcloud login (proxy.ts).
       - NEXTCLOUD_PUBLIC_URL=http://localhost:${NEXTCLOUD_PORT}
     depends_on:
       nextcloud:

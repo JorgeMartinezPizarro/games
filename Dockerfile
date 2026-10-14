@@ -22,13 +22,13 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# solo lo necesario para runtime
+# only what the runtime needs
 COPY package*.json ./
 RUN npm install --omit=dev
 
 COPY run.js ./
 
-# copiar build output
+# copy build output
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/next.config.* ./

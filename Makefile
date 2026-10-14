@@ -15,20 +15,20 @@ push:
 	docker push jorgemartinezpizarro/stockfish:latest && \
 	cd ../../tools/words && \
 	docker push jorgemartinezpizarro/wordlist:latest
-# --- Prod: imágenes publicadas, .env, Nextcloud externo (otro stack, detrás
-# del reverse proxy). Se descargan antes de arrancar: `up -d` solo usa las
-# imágenes que ya hay en el servidor y nunca trae una :latest nueva. Si la
-# imagen cambió, `up -d` recrea ese contenedor.
+# --- Prod: published images, .env, external Nextcloud (another stack, behind
+# the reverse proxy). They are pulled before starting: `up -d` only uses the
+# images already on the server and never fetches a new :latest. If the
+# image changed, `up -d` recreates that container.
 prod:
 	docker compose pull
 	docker compose up -d
-# Alias de compatibilidad: `make start` era el arranque de prod.
+# Compatibility alias: `make start` used to be the prod startup.
 start: prod
 stop:
 	docker compose down --remove-orphans
 
-# --- Dev: build local + Nextcloud 34 con la app gaming montada en caliente,
-# en los puertos de .env.development (README → Desarrollo).
+# --- Dev: local build + Nextcloud 34 with the gaming app hot-mounted,
+# on the ports from .env.development (README → DEV).
 DEV_ENV_FILES := --env-file .env.development $(if $(wildcard .env.development.local),--env-file .env.development.local)
 DEV_COMPOSE := docker compose -f docker-compose.yml -f docker-compose.nextcloud.yml -f docker-compose.dev.yml $(DEV_ENV_FILES) -p games-dev
 
@@ -38,13 +38,13 @@ dev:
 	@echo "Nextcloud: http://localhost:$$(grep -h '^NEXTCLOUD_PORT=' .env.development .env.development.local 2>/dev/null | tail -1 | cut -d= -f2)/apps/gaming/"
 dev-stop:
 	$(DEV_COMPOSE) down --remove-orphans
-# Borra también los datos de dev (Nextcloud, MariaDB): el próximo `make dev`
-# reinstala Nextcloud desde cero.
+# Also wipes the dev data (Nextcloud, MariaDB): the next `make dev`
+# reinstalls Nextcloud from scratch.
 dev-reset:
 	$(DEV_COMPOSE) down -v --remove-orphans
 dev-logs:
 	$(DEV_COMPOSE) logs -f
-# occ contra el Nextcloud de dev, p. ej.: make occ ARGS="user:list"
+# occ against the dev Nextcloud, e.g.: make occ ARGS="user:list"
 occ:
 	$(DEV_COMPOSE) exec -u www-data nextcloud php occ $(ARGS)
 

@@ -1,5 +1,5 @@
-# Imagen usada solo como transporte para respaldar/restaurar ./cache
-# (audio, base de datos, etc). No corre nada, solo empaqueta el contenido.
+# Image used only as a carrier to back up/restore ./cache
+# (audio, database, etc). It runs nothing, it only packages the content.
 FROM scratch
 
 COPY cache/audio/ /cache/audio/

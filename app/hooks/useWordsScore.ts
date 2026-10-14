@@ -20,8 +20,8 @@ export function formatMs(ms: number): string {
 }
 
 /**
- * Hook con toda la lógica de marcador de Wording (carga y guardado de
- * puntuaciones). No contiene nada de UI ni de las reglas del juego.
+ * Hook with all the Wording scoreboard logic (loading and saving scores).
+ * Contains nothing about the UI or the game rules.
  */
 export function useWordsScore() {
   const [topScores, setTopScores] = useState<WordsScoreEntry[]>([]);
@@ -44,10 +44,10 @@ export function useWordsScore() {
     return [];
   }, []);
 
-  // El score final lo calcula siempre el backend (nonce creado en
-  // /api/words/new-game, cada ronda validada en /api/words/answer): esto
-  // solo confirma la partida y adopta el score y puesto que devuelve el
-  // servidor. Cualquier partida terminada puntúa, gane o pierda.
+  // The final score is always computed by the backend (nonce created in
+  // /api/words/new-game, each round validated in /api/words/answer): this
+  // only confirms the game and adopts the score and position the server
+  // returns. Any finished game scores, won or lost.
   const saveScore = useCallback(
     async (nonce: string): Promise<WordsSaveResult | null> => {
       if (scoreSavedRef.current) return null;
@@ -68,8 +68,8 @@ export function useWordsScore() {
         const confirmedScore = typeof data.score === "number" ? data.score : null;
         if (confirmedScore === null) return null;
 
-        // El propio POST ya trae la posición de ESTA partida en el ranking
-        // completo (no el mejor histórico del jugador).
+        // The POST itself already returns THIS game's position in the full
+        // ranking (not the player's all-time best).
         return {
           score: confirmedScore,
           rank: typeof data.rank === "number" ? data.rank : null,
@@ -84,7 +84,7 @@ export function useWordsScore() {
     [loadScores]
   );
 
-  // Se debe llamar al reiniciar partida para permitir guardar de nuevo
+  // Must be called when restarting the game to allow saving again
   const resetSaveGuard = useCallback(() => {
     scoreSavedRef.current = false;
   }, []);

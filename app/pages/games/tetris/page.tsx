@@ -66,17 +66,17 @@ const Tetris: React.FC = () => {
   const mineTimeMs =
     score.lastResult?.rank != null && score.lastResult.rank <= 10 ? score.lastResult.timeMs : null;
 
-  // Lo que se pinta encima del tablero cuando no se está jugando.
+  // What is drawn over the board when no game is running.
   let overlay: React.ReactNode = null;
   if (loading) {
-    overlay = <p className={styles.intro}>Preparando la partida…</p>;
+    overlay = <p className={styles.intro}>Preparing the game…</p>;
   } else if (gameCompleted) {
     overlay = (
       <ResultPanel
         tone="win"
-        title="¡Completado!"
-        subtitle={`${linesTarget} líneas limpias.`}
-        stats={[{ label: "Tiempo", value: formatTimeMs(elapsedMs) }]}
+        title="Completed!"
+        subtitle={`${linesTarget} lines cleared.`}
+        stats={[{ label: "Time", value: formatTimeMs(elapsedMs) }]}
         footer={
           score.lastResult?.rank != null && (
             <RankBadge rank={score.lastResult.rank} total={score.lastResult.total ?? null} />
@@ -85,10 +85,10 @@ const Tetris: React.FC = () => {
         actions={
           <>
             <Button variant="contained" onClick={play} startIcon={<ReplayRounded />}>
-              Jugar otra vez
+              Play again
             </Button>
             <Button variant="outlined" onClick={() => setShowScores(true)}>
-              Ver ranking
+              View leaderboard
             </Button>
           </>
         }
@@ -99,10 +99,10 @@ const Tetris: React.FC = () => {
       <ResultPanel
         tone="lose"
         title="Game over"
-        subtitle={`Llevabas ${shownLines} de ${linesTarget} líneas.`}
+        subtitle={`You had ${shownLines} of ${linesTarget} lines.`}
         actions={
           <Button variant="contained" onClick={play} startIcon={<ReplayRounded />}>
-            Jugar otra vez
+            Play again
           </Button>
         }
       />
@@ -111,9 +111,9 @@ const Tetris: React.FC = () => {
     overlay = (
       <div className={styles.intro}>
         <h2>Tetris</h2>
-        <p>Limpia {linesTarget} líneas lo más rápido posible. El reloj arranca con la primera pieza.</p>
+        <p>Clear {linesTarget} lines as fast as you can. The clock starts with the first piece.</p>
         <Button variant="contained" size="large" onClick={play} startIcon={<PlayArrowRounded />}>
-          Jugar
+          Play
         </Button>
       </div>
     );
@@ -125,45 +125,45 @@ const Tetris: React.FC = () => {
       actions={
         isActive ? (
           <Button variant="outlined" onClick={stopGame} startIcon={<PauseRounded />}>
-            Parar
+            Stop
           </Button>
         ) : (
           <Button variant="outlined" onClick={() => setShowScores((v) => !v)} startIcon={<EmojiEventsOutlined />}>
-            {showScores ? "Volver" : "Ranking"}
+            {showScores ? "Back" : "Leaderboard"}
           </Button>
         )
       }
     >
       {showScores ? (
         <Leaderboard<LeaderboardEntry>
-          title="Ranking"
-          subtitle={`Mejor tiempo en ${linesTarget} líneas`}
+          title="Leaderboard"
+          subtitle={`Best time for ${linesTarget} lines`}
           rows={sortedScores}
           userOf={(entry) => entry.userId}
           currentUserId={user.id}
           isRecord={(entry) => mineTimeMs !== null && entry.timeMs === mineTimeMs && entry.userId === user.id}
           columns={[
-            { label: "Tiempo", value: (entry) => formatTimeMs(entry.timeMs), align: "right", strong: true },
-            { label: "Líneas", value: (entry) => entry.linesTarget, align: "right" },
+            { label: "Time", value: (entry) => formatTimeMs(entry.timeMs), align: "right", strong: true },
+            { label: "Lines", value: (entry) => entry.linesTarget, align: "right" },
           ]}
         />
       ) : (
         <div className={styles.layout}>
           <div className={styles.areaLines}>
-            <StatTile label="Líneas" value={`${shownLines}/${linesTarget}`} testId="lines">
+            <StatTile label="Lines" value={`${shownLines}/${linesTarget}`} testId="lines">
               <div className={styles.bar}>
                 <i style={{ width: `${(shownLines / linesTarget) * 100}%` }} />
               </div>
             </StatTile>
           </div>
           <div className={styles.areaTime}>
-            <StatTile label="Tiempo" value={formatTimeMs(elapsedMs)} />
+            <StatTile label="Time" value={formatTimeMs(elapsedMs)} />
           </div>
           <div className={styles.areaNext}>
-            <StatTile label="Siguiente" value={<NextPiece piece={nextPiece} ready={isActive} />} />
+            <StatTile label="Next" value={<NextPiece piece={nextPiece} ready={isActive} />} />
           </div>
           <div className={`${styles.areaKeys} ${uiStyles.stat}`}>
-            <span className={uiStyles.statLabel}>Controles</span>
+            <span className={uiStyles.statLabel}>Controls</span>
             <KeyHints />
           </div>
 

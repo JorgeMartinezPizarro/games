@@ -2,9 +2,9 @@ import { getDb } from "@/app/lib/scores/db";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import crypto from "node:crypto";
 
-// Nonces caducan a los 60 minutos: a diferencia de numbers/words/tetris,
-// una partida de ajedrez incluye tiempo de pensar del jugador en cada
-// jugada, no solo un log de acciones automatizado.
+// Nonces expire after 60 minutes: unlike numbers/words/tetris, a chess
+// game includes the player's thinking time on every move, not just an
+// automated action log.
 const NONCE_MAX_AGE_MS = 60 * 60 * 1000;
 
 const MIN_ELO = 400;
@@ -98,11 +98,11 @@ export async function getChessGame(nonce: string): Promise<ChessGameState | null
   };
 }
 
-// Append con compare-and-swap: solo escribe si el contenido de `moves`
-// coincide exactamente con lo que se leyó (expectedMovesJson). A diferencia
-// de numbers/words/tetris, aquí hay un await de red (Stockfish) entre la
-// jugada del jugador y la de la IA dentro de la misma petición — dos
-// peticiones concurrentes para el mismo nonce podrían pisarse sin esto.
+// Compare-and-swap append: only writes if the contents of `moves` match
+// exactly what was read (expectedMovesJson). Unlike numbers/words/tetris,
+// here there is a network await (Stockfish) between the player's move and
+// the AI's move within the same request — without this, two concurrent
+// requests for the same nonce could overwrite each other.
 export async function appendChessMove(
   nonce: string,
   expectedMovesJson: string,
@@ -122,12 +122,12 @@ export async function appendChessMove(
   return result.affectedRows === 1;
 }
 
-// Lectura + borrado en un paso: solo puede usarse una vez para guardar el
-// score final, tanto si la partida estaba completa como si no. El DELETE
-// comprueba affectedRows en vez de asumir éxito: si dos peticiones
-// concurrentes leen el mismo nonce antes de que ninguna borre, ambas verían
-// la partida como válida y puntuarían dos veces la misma partida sin esto —
-// solo la que de verdad borra la fila (affectedRows === 1) sigue adelante.
+// Read + delete in one step: can only be used once to save the final
+// score, whether or not the game was complete. The DELETE checks
+// affectedRows instead of assuming success: if two concurrent requests read
+// the same nonce before either one deletes it, without this both would see
+// the game as valid and score the same game twice — only the one that
+// actually deletes the row (affectedRows === 1) goes ahead.
 export async function consumeChessGame(nonce: string): Promise<ChessGameState | null> {
   const game = await getChessGame(nonce);
   if (!game) return null;

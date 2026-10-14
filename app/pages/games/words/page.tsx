@@ -68,7 +68,7 @@ const Wording = () => {
     onReplay: handleReplay,
   });
 
-  // Mayor score es mejor (cubo de aciertos entre tiempo), igual que numbers.
+  // Higher is better (correct answers cubed divided by time), same as numbers.
   const sortedScores = useMemo(
     () => [...score.topScores].sort((a, b) => b.score - a.score),
     [score.topScores]
@@ -98,21 +98,21 @@ const Wording = () => {
   };
 
   const result = won
-    ? { tone: "win" as const, title: "¡Completado!", subtitle: "Diez de diez sin fallar." }
+    ? { tone: "win" as const, title: "Completed!", subtitle: "Ten out of ten, no mistakes." }
     : quit
-    ? { tone: "neutral" as const, title: "Partida terminada", subtitle: "Las partidas abandonadas no puntúan." }
-    : { tone: "lose" as const, title: "Game over", subtitle: `Fallaste en la ronda ${currentRound + 1}.` };
+    ? { tone: "neutral" as const, title: "Game ended", subtitle: "Abandoned games don't score." }
+    : { tone: "lose" as const, title: "Game over", subtitle: `You missed round ${currentRound + 1}.` };
 
   return (
     <GameShell
       game="words"
       actions={
         <Button variant="outlined" onClick={() => setShowScores((v) => !v)} startIcon={<EmojiEventsOutlined />}>
-          {showScores ? "Volver" : "Ranking"}
+          {showScores ? "Back" : "Leaderboard"}
         </Button>
       }
     >
-      {/* El <audio> vive fuera de las vistas para que el ranking no corte la ronda. */}
+      {/* The <audio> lives outside the views so opening the leaderboard does not cut the round. */}
       {round && (
         <audio ref={audioRef} key={round.audio}>
           <source src={round.audio} type="audio/mpeg" />
@@ -122,47 +122,47 @@ const Wording = () => {
       {showScores ? (
         <Leaderboard<WordsScoreEntry>
           testId="leaderboard"
-          title="Ranking"
-          subtitle="Aciertos³ entre el tiempo"
+          title="Leaderboard"
+          subtitle="Correct answers³ divided by time"
           rows={sortedScores}
           userOf={(entry) => entry.userId}
           currentUserId={user.id}
           columns={[
-            { label: "Puntos", value: (entry) => entry.score, align: "right", strong: true },
-            { label: "Aciertos", value: (entry) => `${entry.correctAnswers}/${entry.wordsTotal}`, align: "right" },
+            { label: "Points", value: (entry) => entry.score, align: "right", strong: true },
+            { label: "Correct", value: (entry) => `${entry.correctAnswers}/${entry.wordsTotal}`, align: "right" },
           ]}
         />
       ) : gameState === "idle" ? (
         <GameIntro
           game="words"
-          title="Palabras"
+          title="Words"
           actions={
             <Button variant="contained" size="large" onClick={startGame} startIcon={<PlayArrowRounded />}>
-              Jugar
+              Play
             </Button>
           }
         >
-          Escucha cada palabra y elige la correcta entre cuatro. Diez rondas: un fallo termina la partida.
-          Puntúan los aciertos y la rapidez.
+          Listen to each word and pick the right one out of four. Ten rounds: one mistake ends the game.
+          Your score depends on correct answers and speed.
         </GameIntro>
       ) : gameState === "loading" ? (
         <div className={styles.center}>
           <div className={styles.loading}>
             <div className={styles.spinner} />
-            Preparando las palabras…
+            Preparing the words…
           </div>
         </div>
       ) : (
         <div className={styles.play}>
           <div className={styles.stats}>
             <span>
-              Ronda <b className="num">{Math.min(currentRound + 1, ROUNDS_TOTAL)}</b>/{ROUNDS_TOTAL}
+              Round <b className="num">{Math.min(currentRound + 1, ROUNDS_TOTAL)}</b>/{ROUNDS_TOTAL}
             </span>
             <span className={`num ${styles.time}`}>
               {formatMs(gameState === "finished" && finishedTime !== null ? finishedTime : elapsedMs)}
             </span>
             <span>
-              Aciertos <b className="num">{correctCount}</b>
+              Correct <b className="num">{correctCount}</b>
             </span>
           </div>
           <RoundProgress segments={segments} />
@@ -170,14 +170,14 @@ const Wording = () => {
           {playing && round ? (
             <>
               <ListenOrb playing={audioPlaying} onReplay={handleReplay} />
-              <p className={`${styles.hint} ${styles.hintTouch}`}>Toca el círculo para volver a escuchar</p>
+              <p className={`${styles.hint} ${styles.hintTouch}`}>Tap the circle to listen again</p>
               <p className={`${styles.hint} ${styles.hintKeys}`}>
-                Pulsa el círculo o <kbd>espacio</kbd> para volver a escuchar · responde con <kbd>1</kbd>–<kbd>4</kbd>
+                Click the circle or press <kbd>space</kbd> to listen again · answer with <kbd>1</kbd>–<kbd>4</kbd>
               </p>
               <AnswerGrid choices={round.choices} states={answerStates} disabled={locked} onChoice={handleChoice} />
               <div className={styles.footer}>
                 <Button variant="text" onClick={handleQuit} startIcon={<FlagOutlined />}>
-                  Terminar partida
+                  End game
                 </Button>
               </div>
             </>
@@ -188,18 +188,18 @@ const Wording = () => {
                 title={result.title}
                 subtitle={result.subtitle}
                 stats={[
-                  { label: "Tiempo", value: finishedTime !== null ? formatMs(finishedTime) : "—" },
-                  { label: "Aciertos", value: `${correctCount}/${ROUNDS_TOTAL}` },
-                  ...(finishedScore !== null ? [{ label: "Puntos", value: finishedScore }] : []),
+                  { label: "Time", value: finishedTime !== null ? formatMs(finishedTime) : "—" },
+                  { label: "Correct", value: `${correctCount}/${ROUNDS_TOTAL}` },
+                  ...(finishedScore !== null ? [{ label: "Points", value: finishedScore }] : []),
                 ]}
                 footer={!quit && <RankBadge rank={finishedRank} total={finishedTotal} />}
                 actions={
                   <>
                     <Button variant="contained" onClick={newGame} startIcon={<ReplayRounded />}>
-                      Jugar otra vez
+                      Play again
                     </Button>
                     <Button variant="outlined" onClick={() => setShowScores(true)}>
-                      Ver ranking
+                      View leaderboard
                     </Button>
                   </>
                 }

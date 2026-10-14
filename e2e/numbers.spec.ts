@@ -2,29 +2,29 @@ import { expect, test } from "@playwright/test";
 
 const BOARD_SIZE = 20;
 
-// Numbers es el único de los 4 juegos cuyo endpoint de guardado acepta una
-// partida incompleta (ver app/api/scores/route.ts#saveNumbersScore): basta
-// con que los pasos jugados sean legales, no hace falta completar el
-// tablero. Por eso es el candidato natural para una "derrota real con
-// score analizable" — en chess/words/tetris solo se guarda al ganar.
+// Numbers is the only one of the 4 games whose save endpoint accepts an
+// incomplete game (see app/api/scores/route.ts#saveNumbersScore): it's enough
+// for the steps played to be legal, the board doesn't have to be completed.
+// That's why it's the natural candidate for a "real loss with a checkable
+// score" — in chess/words/tetris a score is only saved on a win.
 test.describe("Numbers", () => {
-  test("una partida real termina en derrota y el score queda guardado y visible en el ranking", async ({
+  test("a real game ends in a loss and the score is saved and visible on the leaderboard", async ({
     page,
   }) => {
     await page.goto("/bookmarks/pages/games/numbers");
 
-    // Los números quedan ocultos hasta pulsar PLAY (ver page.tsx): el
-    // tablero real se pide a /api/numbers/new-game (con Docker real) solo
-    // al pulsar el botón.
+    // The numbers stay hidden until PLAY is pressed (see page.tsx): the real
+    // board is requested from /api/numbers/new-game (with real Docker) only
+    // when the button is pressed.
     await expect(page.locator('[data-testid="play-btn"]')).toBeVisible({ timeout: 15_000 });
     await page.locator('[data-testid="play-btn"]').click();
 
     await expect(page.locator('[data-testid="cell-0"]')).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('[data-testid^="cell-"]')).toHaveCount(BOARD_SIZE);
 
-    // El primer clic siempre es válido; leemos el salto real de la celda 0
-    // para elegir a propósito una segunda celda que NO sea alcanzable desde
-    // ahí, y así forzar una derrota determinista en el segundo clic.
+    // The first click is always valid; we read cell 0's real jump to
+    // deliberately pick a second cell that is NOT reachable from there, and
+    // so force a deterministic loss on the second click.
     const jump0 = Number(await page.locator('[data-testid="cell-0"]').innerText());
     const validFromZero = new Set([jump0 % BOARD_SIZE, (BOARD_SIZE - jump0) % BOARD_SIZE]);
     let wrongIndex = 1;
@@ -39,24 +39,24 @@ test.describe("Numbers", () => {
 
     await page.locator(`[data-testid="cell-${wrongIndex}"]`).click();
 
-    // Derrota reflejada en la UI real (estado "Game over" del marcador central).
+    // Loss reflected in the real UI ("Game over" state of the center scoreboard).
     await expect(page.getByTestId("status")).toBeVisible();
     await expect(page.locator('[data-testid="steps-value"]')).toHaveText("1");
 
-    // El backend real (Docker) valida el paso y calcula/guarda el score.
+    // The real backend (Docker) validates the step and computes/saves the score.
     const response = await saveScoreResponse;
     expect(response.ok()).toBe(true);
     const body = await response.json();
     expect(typeof body.score).toBe("number");
     expect(body.score).toBeGreaterThan(0);
 
-    // El score guardado aparece en el ranking real (misma sesión, se recarga solo).
-    await page.getByRole("button", { name: "Ranking" }).click();
-    await expect(page.getByRole("heading", { name: "Mejor puntuación" })).toBeVisible();
+    // The saved score shows up on the real leaderboard (same session, it reloads by itself).
+    await page.getByRole("button", { name: "Leaderboard" }).click();
+    await expect(page.getByRole("heading", { name: "Best score" })).toBeVisible();
 
-    // La tabla "Mejor puntuación" es la primera; localizamos la fila cuya
-    // celda de Score coincide EXACTO con el score que confirmó el backend,
-    // y comprobamos que su columna Steps (última celda) sea 1.
+    // The "Best score" table is the first one; we find the row whose Score
+    // cell matches EXACTLY the score the backend confirmed, and check that
+    // its Steps column (last cell) is 1.
     const highestScoresTable = page.locator("table").first();
     const targetRow = highestScoresTable.locator("tbody tr").filter({
       has: page.locator("td", { hasText: new RegExp(`^${body.score}$`) }),
@@ -65,13 +65,13 @@ test.describe("Numbers", () => {
     await expect(targetRow.first().locator("td").last()).toHaveText("1");
   });
 
-  // El test anterior deja un único score (1 paso) en un leaderboard que
-  // empieza vacío (ver global-setup.ts): cualquier partida con más pasos lo
-  // bate. Encadenamos unos cuantos saltos válidos de verdad (mismo cálculo
-  // de vecinos que arriba, aplicado paso a paso) para conseguir un score
-  // mayor y comprobar el resaltado de récord (fondo dorado) y el "Tu
-  // posición: #1" reales, no solo que el score se guarda.
-  test("una partida con más pasos bate el récord anterior y queda resaltada en el ranking", async ({
+  // The previous test leaves a single score (1 step) on a leaderboard that
+  // starts empty (see global-setup.ts): any game with more steps beats it.
+  // We chain a few genuinely valid jumps (same neighbor calculation as
+  // above, applied step by step) to get a higher score and check the real
+  // record highlight (gold background) and "Your rank: #1", not just that
+  // the score is saved.
+  test("a game with more steps beats the previous record and is highlighted on the leaderboard", async ({
     page,
   }) => {
     await page.goto("/bookmarks/pages/games/numbers");
@@ -87,11 +87,11 @@ test.describe("Numbers", () => {
     await page.locator('[data-testid="cell-0"]').click();
     await expect(page.locator('[data-testid="steps-value"]')).toHaveText("1");
 
-    // Encadena saltos válidos leyendo, en cada celda, su número real y
-    // calculando sus dos vecinos legales (misma fórmula que isBlocked en
-    // useNumbers.ts), evitando revisitar. Si un tablero concreto topara con
-    // un callejón sin salida antes, la partida ya habría terminado sola
-    // ("Game over") y el bucle simplemente no seguiría forzando más clics.
+    // Chains valid jumps by reading each cell's real number and computing
+    // its two legal neighbors (same formula as isBlocked in useNumbers.ts),
+    // avoiding revisits. If a particular board hit a dead end earlier, the
+    // game would already have ended on its own ("Game over") and the loop
+    // simply wouldn't keep forcing more clicks.
     const visited = new Set([0]);
     let lastIndex = 0;
     const TARGET_STEPS = 3;
@@ -112,9 +112,9 @@ test.describe("Numbers", () => {
     const stepsSoFar = Number(await page.locator('[data-testid="steps-value"]').innerText());
     expect(stepsSoFar).toBeGreaterThan(1);
 
-    // Si la partida no ha terminado sola, se fuerza la derrota con un clic
-    // deliberadamente inválido: una celda ni visitada ni alcanzable desde
-    // la posición actual (mismo truco que en el test anterior).
+    // If the game hasn't ended on its own, force the loss with a
+    // deliberately invalid click: a cell neither visited nor reachable from
+    // the current position (same trick as in the previous test).
     if (!(await page.getByTestId("status").isVisible())) {
       const jumpLast = Number(await page.locator(`[data-testid="cell-${lastIndex}"]`).innerText());
       const validFromLast = new Set([
@@ -133,25 +133,25 @@ test.describe("Numbers", () => {
     const body = await response.json();
     expect(body.score).toBeGreaterThan(0);
 
-    // Nueva posición #1 (bate el récord del test anterior) reflejada en la UI real.
-    await expect(page.getByText(/Tu posición: #1 de/)).toBeVisible();
+    // New #1 rank (beats the previous test's record) reflected in the real UI.
+    await expect(page.getByText(/Your rank: #1 of/)).toBeVisible();
     await expect(page.getByTestId("rank")).toHaveAttribute("data-top10", "true");
 
-    // La fila de este score en "Mejor puntuación" queda resaltada como récord real.
-    await page.getByRole("button", { name: "Ranking" }).click();
+    // This score's row in "Best score" is highlighted as a real record.
+    await page.getByRole("button", { name: "Leaderboard" }).click();
     const highestScoresTable = page.locator("table").first();
     const targetRow = highestScoresTable.locator("tbody tr").filter({
       has: page.locator("td", { hasText: new RegExp(`^${body.score}$`) }),
     });
     await expect(targetRow.first()).toHaveAttribute("data-record", "true");
 
-    // La portada (app/page.tsx) también debe cargar este score recién
-    // jugado en la tarjeta de Números, no solo el ranking del propio juego.
+    // The home page (app/page.tsx) must also load this just-played score
+    // into the Numbers card, not only the game's own leaderboard.
     await page.goto("/bookmarks");
     const numbersBadge = page.getByTestId("best-numbers");
-    // "not Sin registro" no basta: mientras useBestScores carga, el badge
-    // muestra "…" (tampoco es "Sin registro"), así que hay que esperar de
-    // verdad al patrón final "<score> · #<rank>", no solo a que cambie.
+    // "not No score yet" is not enough: while useBestScores loads, the badge
+    // shows "…" (which isn't "No score yet" either), so we really have to
+    // wait for the final "<score> · #<rank>" pattern, not just for a change.
     const scorePattern = /[\d.,]+\s*·\s*#\d+/;
     await expect(numbersBadge).toHaveText(scorePattern, { timeout: 15_000 });
     const badgeMatch = (await numbersBadge.innerText()).match(/([\d.,]+)\s*·\s*#(\d+)/);

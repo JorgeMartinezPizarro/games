@@ -4,9 +4,8 @@ import styles from "./Numbers.module.css";
 
 const SIZE = 20;
 
-// Posición en la rejilla 6×6 de la casilla i del anillo, en el sentido de las
-// agujas del reloj desde la esquina superior izquierda (mismo orden que el
-// tablero del servidor).
+// Position in the 6×6 grid of ring square i, clockwise from the top-left
+// corner (same order as the server board).
 export function ringPosition(i: number): { row: number; col: number } {
   if (i < 6) return { row: 1, col: i + 1 };
   if (i < 10) return { row: i - 4, col: 6 };
@@ -27,7 +26,7 @@ export function NumbersBoard({
   children,
 }: {
   numbers: CellValues[];
-  // Paso (1, 2, …) en que se pisó cada casilla.
+  // Step (1, 2, …) at which each square was visited.
   order: Map<number, number>;
   current: number | null;
   lost: boolean;
@@ -83,7 +82,7 @@ export function StepsRing({ steps, total = SIZE }: { steps: number; total?: numb
         <b className={`num ${styles.steps}`} data-testid="steps-value">
           {steps}
         </b>
-        <span className={styles.stepsLabel}>de {total} pasos</span>
+        <span className={styles.stepsLabel}>of {total} steps</span>
       </span>
     </div>
   );

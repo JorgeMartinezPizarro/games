@@ -43,7 +43,7 @@ class Notifier implements INotifier {
 		$previousScoreLabel = $params['previousScoreLabel'] ?? $params['previousScore'] ?? '?';
 
 		$notification->setParsedSubject($l->t(
-			'%1$s ha superado tu récord en %2$s con %3$s (tu récord: %4$s)',
+			'%1$s beat your %2$s record with %3$s (your best: %4$s)',
 			[
 				$authorName,
 				$params['game'] ?? '?',

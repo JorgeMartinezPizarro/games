@@ -1,4 +1,4 @@
-/* Tokens del sistema visual. Cada juego redefine --accent (ver GameShell). */
+/* Design system tokens. Each game redefines --accent (see GameShell). */
 :root {
   --bg: #0b0e14;
   --surface: #131823;
@@ -38,8 +38,8 @@
   color-scheme: dark;
 }
 
-/* Los derivados de --accent se recalculan en el elemento que lo redefine:
-   una custom property con var() se resuelve donde se declara, no donde se usa. */
+/* Values derived from --accent are recomputed on the element that redefines it:
+   a custom property using var() resolves where it is declared, not where it is used. */
 .accent-scope {
   --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
   --accent-line: color-mix(in srgb, var(--accent) 45%, transparent);
@@ -75,7 +75,7 @@ p {
   margin: 0;
 }
 
-/* Cifras que cambian (tiempos, puntos): ancho fijo para que no bailen. */
+/* Changing figures (times, points): fixed width so they don't jitter. */
 .num {
   font-family: var(--font-display), var(--font-sans), sans-serif;
   font-variant-numeric: tabular-nums;
