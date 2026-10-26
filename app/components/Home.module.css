@@ -3,6 +3,8 @@
   min-height: 100dvh;
   padding: clamp(28px, 7vh, 72px) clamp(16px, 6vw, 96px) 48px;
   isolation: isolate;
+  /* The glow below is wider than the page (see GameShell.module.css). */
+  overflow-x: clip;
 }
 
 .page::before {

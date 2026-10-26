@@ -4,6 +4,10 @@
   flex-direction: column;
   min-height: 100dvh;
   isolation: isolate;
+  /* The glow below is wider than the page: without this, phones get a
+     horizontal scroll and an empty strip on the right. `clip`, unlike
+     `hidden`, doesn't create a scroll container. */
+  overflow-x: clip;
 }
 
 /* Glow in the game's color at the top. */
@@ -56,9 +60,12 @@
 }
 
 .title {
+  min-width: 0;
+  overflow: hidden;
   font-size: 20px;
   font-weight: 650;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .spacer {
@@ -100,5 +107,16 @@
 
   .title {
     font-size: 18px;
+  }
+}
+
+/* Small phones (iPhone SE): the actions don't fit next to the icon tile. */
+@media (max-width: 380px) {
+  .topbar {
+    gap: 8px;
+  }
+
+  .tile {
+    display: none;
   }
 }
