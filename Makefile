@@ -61,10 +61,17 @@ save:
 	docker compose unpause
 	docker push $(VOLUMES_IMAGE):gaming-app-latest
 	docker push $(VOLUMES_IMAGE):gaming-app-$(DATE)
+# The database is replaced with MariaDB STOPPED, not paused: a paused MariaDB keeps the database it has in memory
+# and overwrites the copied files when it resumes (on a fresh server the restored scores were lost that way).
+# The backup (save) can pause: a paused copy is consistent, like after a power cut, and MariaDB recovers it.
+# cache/database is emptied, not removed: a bind mount keeps pointing at the same folder (Docker Desktop needs it).
 load:
 	docker pull $(VOLUMES_IMAGE):gaming-app-latest
+	docker rm -f gaming-app-volumes-tmp >/dev/null 2>&1 || true
 	docker create --name gaming-app-volumes-tmp $(VOLUMES_IMAGE):gaming-app-latest
-	docker compose pause
+	docker compose stop
+	mkdir -p ./cache/database
+	find ./cache/database -mindepth 1 -delete
 	docker cp gaming-app-volumes-tmp:/cache/. ./cache
-	docker compose unpause
 	docker rm gaming-app-volumes-tmp
+	docker compose up -d
