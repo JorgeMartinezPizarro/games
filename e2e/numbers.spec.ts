@@ -52,11 +52,11 @@ test.describe("Numbers", () => {
 
     // The saved score shows up on the real leaderboard (same session, it reloads by itself).
     await page.getByRole("button", { name: "Leaderboard" }).click();
-    await expect(page.getByRole("heading", { name: "Best score" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Leaderboard" })).toBeVisible();
 
-    // The "Best score" table is the first one; we find the row whose Score
-    // cell matches EXACTLY the score the backend confirmed, and check that
-    // its Steps column (last cell) is 1.
+    // A single table, ranked by points: we find the row whose Points cell
+    // matches EXACTLY the score the backend confirmed, and check that its
+    // Steps column (last cell) is 1.
     const highestScoresTable = page.locator("table").first();
     const targetRow = highestScoresTable.locator("tbody tr").filter({
       has: page.locator("td", { hasText: new RegExp(`^${body.score}$`) }),
@@ -137,7 +137,7 @@ test.describe("Numbers", () => {
     await expect(page.getByText(/Your rank: #1 of/)).toBeVisible();
     await expect(page.getByTestId("rank")).toHaveAttribute("data-top10", "true");
 
-    // This score's row in "Best score" is highlighted as a real record.
+    // This score's row in the leaderboard is highlighted as a real record.
     await page.getByRole("button", { name: "Leaderboard" }).click();
     const highestScoresTable = page.locator("table").first();
     const targetRow = highestScoresTable.locator("tbody tr").filter({

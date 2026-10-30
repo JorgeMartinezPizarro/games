@@ -8,3 +8,10 @@ export function computeWordsScore(correctAnswers: number, elapsedMs: number): nu
   if (elapsedMs <= 0) return 0;
   return Math.round((correctAnswers ** 3 * 11000) / elapsedMs);
 }
+
+// Inverse of computeWordsScore, for games saved before the time was stored in
+// gameConfig (timeMs). Only approximate: the score was rounded to an integer.
+export function estimateWordsTimeMs(correctAnswers: number, score: number): number | null {
+  if (correctAnswers <= 0 || score <= 0) return null;
+  return Math.round((correctAnswers ** 3 * 11000) / score);
+}

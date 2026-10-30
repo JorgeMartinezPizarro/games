@@ -21,7 +21,7 @@ import styles from "@/app/components/words/Words.module.css";
 import { useAudioPlaying } from "@/app/hooks/useAudioPlaying";
 import { ROUNDS_TOTAL, useWordsGame } from "@/app/hooks/useWordsGame";
 import { useWordsKeyboard } from "@/app/hooks/useWordsKeyboard";
-import { formatMs, useWordsScore, type WordsScoreEntry } from "@/app/hooks/useWordsScore";
+import { formatMs, formatWordsTime, useWordsScore, type WordsScoreEntry } from "@/app/hooks/useWordsScore";
 import { useUser } from "@/app/hooks/useUser";
 
 const Wording = () => {
@@ -129,7 +129,21 @@ const Wording = () => {
           currentUserId={user.id}
           columns={[
             { label: "Points", value: (entry) => entry.score, align: "right", strong: true },
-            { label: "Correct", value: (entry) => `${entry.correctAnswers}/${entry.wordsTotal}`, align: "right" },
+            {
+              label: "Time",
+              // Almost every row is 10/10: the count is only worth showing on lost games.
+              value: (entry) => (
+                <>
+                  {entry.correctAnswers < entry.wordsTotal && (
+                    <span className={styles.lbCorrect}>
+                      {entry.correctAnswers}/{entry.wordsTotal}
+                    </span>
+                  )}
+                  {formatWordsTime(entry)}
+                </>
+              ),
+              align: "right",
+            },
           ]}
         />
       ) : gameState === "idle" ? (

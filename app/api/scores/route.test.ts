@@ -395,7 +395,7 @@ describe("POST /api/scores (words)", () => {
       user,
       4,
       19,
-      JSON.stringify({ wordsTotal: 10, correctAnswers: 4 })
+      JSON.stringify({ wordsTotal: 10, correctAnswers: 4, timeMs: 37000 })
     );
   });
 
@@ -423,7 +423,7 @@ describe("POST /api/scores (words)", () => {
       user,
       4,
       297,
-      JSON.stringify({ wordsTotal: 10, correctAnswers: 10 })
+      JSON.stringify({ wordsTotal: 10, correctAnswers: 10, timeMs: 37000 })
     );
   });
 });

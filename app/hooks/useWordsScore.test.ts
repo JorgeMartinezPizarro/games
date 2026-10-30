@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { formatMs, useWordsScore } from "./useWordsScore";
+import { formatMs, formatWordsTime, useWordsScore } from "./useWordsScore";
 
 function jsonResponse(body: unknown, ok = true): Response {
   return { ok, status: ok ? 200 : 500, json: async () => body } as unknown as Response;
@@ -36,6 +36,21 @@ describe("formatMs", () => {
   });
 });
 
+describe("formatWordsTime", () => {
+  it("shows the exact ms of a stored time", () => {
+    expect(formatWordsTime({ timeMs: 21_987, timeEstimated: false })).toBe("21.987s");
+  });
+
+  it("shows an estimated time as approximate, to the tenth", () => {
+    expect(formatWordsTime({ timeMs: 21_957, timeEstimated: true })).toBe("≈22.0s");
+    expect(formatWordsTime({ timeMs: 65_432, timeEstimated: true })).toBe("≈1m 5.4s");
+  });
+
+  it("shows a dash when there is no time at all", () => {
+    expect(formatWordsTime({ timeMs: null, timeEstimated: true })).toBe("—");
+  });
+});
+
 describe("useWordsScore", () => {
   it("loads the scores on mount", async () => {
     vi.stubGlobal(
@@ -62,13 +77,43 @@ describe("useWordsScore", () => {
       expect(result.current.topScores).toHaveLength(1);
     });
 
+    // Saved before timeMs was stored: estimated from the score, 8^3*11000/5000.
     expect(result.current.topScores[0]).toEqual({
       score: 5000,
       userId: "u1",
       wordsTotal: 10,
       correctAnswers: 8,
+      timeMs: 1126,
+      timeEstimated: true,
       createdAt: "t1",
     });
+  });
+
+  it("uses the server-measured time when the game stored it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        [GET_SCORES]: () =>
+          jsonResponse({
+            scores: [
+              {
+                score: 500,
+                userId: "u1",
+                username: "u1",
+                gameConfig: { wordsTotal: 10, correctAnswers: 10, timeMs: 21_987 },
+                createdAt: "t1",
+              },
+            ],
+          }),
+      })
+    );
+
+    const { result } = renderHook(() => useWordsScore());
+
+    await waitFor(() => {
+      expect(result.current.topScores).toHaveLength(1);
+    });
+    expect(result.current.topScores[0]).toMatchObject({ timeMs: 21_987, timeEstimated: false });
   });
 
   it("saveScore adopts THIS game's rank/total (not the all-time best) exactly as returned by the POST", async () => {

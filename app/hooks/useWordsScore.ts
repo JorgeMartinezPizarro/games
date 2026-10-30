@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GAME_IDS } from "@/app/lib/scores/types";
 import { fetchTopScores } from "@/app/lib/scores/client";
+import { estimateWordsTimeMs } from "@/app/lib/words/scoring";
 import { ROUNDS_TOTAL, WordsSaveResult } from "./useWordsGame";
 
 export type WordsScoreEntry = {
@@ -10,6 +11,10 @@ export type WordsScoreEntry = {
   userId: string;
   wordsTotal: number;
   correctAnswers: number;
+  // Server-measured game time. Games saved before it was stored only have
+  // an estimate derived from the score (timeEstimated).
+  timeMs: number | null;
+  timeEstimated: boolean;
   createdAt?: string;
 };
 
@@ -17,6 +22,15 @@ export function formatMs(ms: number): string {
   return ms < 60000
     ? `${(ms / 1000).toFixed(3)}s`
     : `${Math.floor(ms / 60000)}m ${((ms % 60000) / 1000).toFixed(3)}s`;
+}
+
+// Leaderboard time: exact to the ms, or "≈" with tenths when it was estimated
+// (the score's rounding makes the ms meaningless).
+export function formatWordsTime(entry: Pick<WordsScoreEntry, "timeMs" | "timeEstimated">): string {
+  if (entry.timeMs === null) return "—";
+  if (!entry.timeEstimated) return formatMs(entry.timeMs);
+  const tenths = Math.round(entry.timeMs / 100) * 100;
+  return `≈${formatMs(tenths).replace(/(\.\d)00s$/, "$1s")}`;
 }
 
 /**
@@ -29,13 +43,20 @@ export function useWordsScore() {
 
   const loadScores = useCallback(async (): Promise<WordsScoreEntry[]> => {
     try {
-      const mapped = await fetchTopScores(GAME_IDS.WORDS, (s) => ({
-        score: s.score,
-        userId: s.userId ?? s.username,
-        wordsTotal: (s.gameConfig?.wordsTotal as number | undefined) ?? ROUNDS_TOTAL,
-        correctAnswers: (s.gameConfig?.correctAnswers as number | undefined) ?? 0,
-        createdAt: s.createdAt,
-      }));
+      const mapped = await fetchTopScores(GAME_IDS.WORDS, (s) => {
+        const correctAnswers = (s.gameConfig?.correctAnswers as number | undefined) ?? 0;
+        const storedTime = s.gameConfig?.timeMs;
+        const timeEstimated = typeof storedTime !== "number";
+        return {
+          score: s.score,
+          userId: s.userId ?? s.username,
+          wordsTotal: (s.gameConfig?.wordsTotal as number | undefined) ?? ROUNDS_TOTAL,
+          correctAnswers,
+          timeMs: timeEstimated ? estimateWordsTimeMs(correctAnswers, s.score) : storedTime,
+          timeEstimated,
+          createdAt: s.createdAt,
+        };
+      });
       setTopScores(mapped);
       return mapped;
     } catch (e) {

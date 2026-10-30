@@ -263,6 +263,7 @@ async function saveWordsScore(request: NextRequest, user: AuthUser, params: any)
   const serializedConfig = serializeGameConfig({
     wordsTotal: stored.rounds.length,
     correctAnswers: stored.answeredCount,
+    timeMs: elapsed,
   });
   if (!serializedConfig.ok) {
     return Response.json({ error: serializedConfig.error }, { status: 400 });

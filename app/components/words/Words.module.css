@@ -211,6 +211,13 @@
   color: var(--text-muted);
 }
 
+/* Correct answers of a lost game, before its time in the leaderboard. */
+.lbCorrect {
+  margin-right: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
 @media (max-width: 560px) {
   .answer {
     min-height: 64px;

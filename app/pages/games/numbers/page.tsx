@@ -44,7 +44,6 @@ const NumbersPage = () => {
   const current = !lost && moves.length > 0 ? moves[moves.length - 1].i : null;
 
   const byScore = useMemo(() => [...topScores].sort((a, b) => b.score - a.score), [topScores]);
-  const bySteps = useMemo(() => [...topScores].sort((a, b) => b.steps - a.steps), [topScores]);
 
   const play = () => {
     setShowScores(false);
@@ -63,31 +62,18 @@ const NumbersPage = () => {
       {error && <Notice>{errorMessage(error)}</Notice>}
 
       {showScores ? (
-        <div style={{ display: "grid", gap: 20 }}>
-          <Leaderboard<NumbersScoreEntry>
-            title="Best score"
-            subtitle="Steps³ divided by time"
-            rows={byScore}
-            userOf={(entry) => entry.userId}
-            currentUserId={user.id}
-            isRecord={isRecord}
-            columns={[
-              { label: "Points", value: (entry) => entry.score, align: "right", strong: true },
-              { label: "Steps", value: (entry) => entry.steps, align: "right" },
-            ]}
-          />
-          <Leaderboard<NumbersScoreEntry>
-            title="Most steps"
-            rows={bySteps}
-            userOf={(entry) => entry.userId}
-            currentUserId={user.id}
-            isRecord={isRecord}
-            columns={[
-              { label: "Steps", value: (entry) => entry.steps, align: "right", strong: true },
-              { label: "Points", value: (entry) => entry.score, align: "right" },
-            ]}
-          />
-        </div>
+        <Leaderboard<NumbersScoreEntry>
+          title="Leaderboard"
+          subtitle="Steps³ divided by time"
+          rows={byScore}
+          userOf={(entry) => entry.userId}
+          currentUserId={user.id}
+          isRecord={isRecord}
+          columns={[
+            { label: "Points", value: (entry) => entry.score, align: "right", strong: true },
+            { label: "Steps", value: (entry) => entry.steps, align: "right" },
+          ]}
+        />
       ) : !hasBoard ? (
         <GameIntro
           game="numbers"
