@@ -47,6 +47,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+      # The first start initializes an empty data dir, which on a slow disk
+      # (WSL on an external drive) took ~2.5 min. Failures during this window
+      # don't count, and the first passing probe marks it healthy right away.
+      start_period: 5m
   wordlist:
     image: jorgemartinezpizarro/wordlist:latest
     # Exposed locally to comunicate with node

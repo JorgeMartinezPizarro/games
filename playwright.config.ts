@@ -66,7 +66,11 @@ export default defineConfig({
     // is to tear it down first (`npm run test:e2e` already does that, see
     // package.json).
     reuseExistingServer: false,
-    timeout: 5 * 60_000,
+    // Includes the image build and a from-scratch MariaDB + Nextcloud install:
+    // with a cold build cache on a slow disk (Docker on an external drive)
+    // the build alone took over 5 min. With a warm cache it's a few minutes,
+    // and the tests start as soon as the URL answers.
+    timeout: 10 * 60_000,
     stdout: "ignore",
     stderr: "ignore",
   },
