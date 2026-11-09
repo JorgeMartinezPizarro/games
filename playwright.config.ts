@@ -68,9 +68,10 @@ export default defineConfig({
     reuseExistingServer: false,
     // Includes the image build and a from-scratch MariaDB + Nextcloud install:
     // with a cold build cache on a slow disk (Docker on an external drive)
-    // the build alone took over 5 min. With a warm cache it's a few minutes,
-    // and the tests start as soon as the URL answers.
-    timeout: 10 * 60_000,
+    // the build alone took over 5 min, and a fresh Nextcloud install ~6.5 min.
+    // With a warm cache it's a few minutes, and the tests start as soon as the
+    // URL answers.
+    timeout: 15 * 60_000,
     stdout: "ignore",
     stderr: "ignore",
   },

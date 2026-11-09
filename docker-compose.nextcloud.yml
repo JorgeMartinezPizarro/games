@@ -36,7 +36,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 60
-      start_period: 30s
+      # A fresh volume first copies the whole Nextcloud source into it: on a
+      # slow disk (Docker on an external drive) that copy alone took ~5 min and
+      # the full install ~6.5 min. Failures during this window don't count, and
+      # the first passing probe marks it healthy right away.
+      start_period: 10m
   games:
     environment:
       - NEXTCLOUD_URL=http://nextcloud

@@ -7,10 +7,20 @@
 # What it isolates from your normal development stack:
 #  - local build of the Dockerfile (not the published :latest image), so the
 #    tests always run the code in your working tree.
-#  - its own cache/e2e/* (audio + MariaDB data) so test games never get
-#    mixed with your real dev data.
+#  - its own cache/e2e/audio, and MariaDB/Nextcloud data in memory (tmpfs),
+#    so test games never get mixed with your real dev data.
 #  - different ports: taken from .env.e2e (PORT/STOCKFISH_PORT/WORDLIST_PORT),
 #    so it can coexist with a dev `docker compose up` that is already running.
+#
+# Why tmpfs: every e2e run starts from scratch (`down` + `up`), so MariaDB
+# initializes an empty data dir and Nextcloud copies its whole source into
+# /var/www/html and installs itself, every time. On a slow disk (Docker on an
+# external drive) the Nextcloud part alone took ~6.5 min. In RAM those writes
+# are nearly free, and the data is thrown away when the container is removed
+# anyway (what a clean run wants). Cost: a few hundred MB of RAM while the
+# stack is up. Not a host bind mount on purpose: on Docker Desktop for Windows
+# /var/lib/mysql over the gRPC-FUSE/VirtioFS layer made MariaDB see a database
+# it had just created as "nonexistent" ("Unknown database 'games'").
 services:
   games:
     build:
@@ -20,19 +30,17 @@ services:
     volumes:
       - ./cache/e2e/audio/:/app/cache/audio
   mariadb:
-    # Named volume (not a bind mount to cache/e2e/): on Docker Desktop for
-    # Windows, a host bind mount for /var/lib/mysql goes through the
-    # gRPC-FUSE/VirtioFS translation layer, and there MariaDB may see a database
-    # it has just created as "nonexistent" for the first real connection
-    # (seen as "Unknown database 'games'" right after Playwright's webServer
-    # `up --build`, reproducibly). A named volume lives natively on the
-    # Docker VM's filesystem, without that layer, which is exactly what both
-    # Docker and MariaDB recommend for database data.
+    # Same target as the base bind mount (./cache/database), so compose
+    # replaces it instead of adding a second mount.
     volumes:
-      - mariadb-e2e-data:/var/lib/mysql
+      - type: tmpfs
+        target: /var/lib/mysql
+  nextcloud:
+    # Replaces the image's anonymous /var/www/html volume. The gaming app bind
+    # mount (docker-compose.nextcloud.yml) is nested inside and still applies.
+    volumes:
+      - type: tmpfs
+        target: /var/www/html
   wordlist:
     volumes:
       - ./cache/e2e/audio/:/app/audio
-
-volumes:
-  mariadb-e2e-data:

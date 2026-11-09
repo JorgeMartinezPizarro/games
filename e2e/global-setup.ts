@@ -7,10 +7,10 @@ import path from "node:path";
 // the dev MariaDB volume, only the isolated subdirectory used by
 // docker-compose.e2e.yml.
 //
-// The e2e MariaDB data is NO LONGER a bind mount to cache/e2e/ (see the
-// comment in docker-compose.e2e.yml about why), so wiping it to get a
-// deterministic run is the job of `docker compose down -v` (see
-// "test:e2e:down" in package.json), not of this file.
+// The e2e MariaDB and Nextcloud data live in tmpfs (see the comment in
+// docker-compose.e2e.yml about why), so they vanish when `docker compose down`
+// removes the containers (see "test:e2e:down" in package.json); this file
+// doesn't need to wipe them.
 //
 // IMPORTANT: tearing down an e2e stack that might be left over from a
 // previous run is NOT done here. Playwright doesn't guarantee that this hook
