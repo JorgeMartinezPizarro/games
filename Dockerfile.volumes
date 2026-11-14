@@ -1,8 +1,10 @@
-# Image used only as a carrier to back up/restore ./cache
+# Image used only as a carrier to back up/restore VOLUMES_DIR
 # (audio, database, etc). It runs nothing, it only packages the content.
+# Built with VOLUMES_DIR as the context (see `make save`); inside the image
+# the data stays under /cache/, so older backups still restore.
 FROM scratch
 
-COPY cache/audio/ /cache/audio/
-COPY cache/database/ /cache/database/
+COPY audio/ /cache/audio/
+COPY database/ /cache/database/
 
 CMD ["true"]

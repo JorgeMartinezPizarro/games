@@ -1,8 +1,6 @@
-node_modules
-.next
-.git
-npm-debug.log
-Dockerfile
-docker-compose.yml
-.env
-.env.local
+# The build context of Dockerfile.volumes is VOLUMES_DIR (see `make save`):
+# send only the two folders it packages, not logs or the dev/e2e data that
+# may live under the default ./cache.
+*
+!audio
+!database

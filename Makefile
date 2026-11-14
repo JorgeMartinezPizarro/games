@@ -2,6 +2,9 @@
 
 DATE := $(shell date +%d-%m-%Y)
 VOLUMES_IMAGE := $(VOLUMES_DOCKER_USER)/$(VOLUMES_IMAGE_NAME)
+# Host folder for the prod data (audio/, database/), from .env; same default
+# as docker-compose.yml.
+VOLUMES_DIR ?= ./cache
 
 build:
 	docker build -t jorgemartinezpizarro/games:latest . && \
@@ -57,21 +60,21 @@ save:
 	docker compose pause
 	docker build -f Dockerfile.volumes \
 		-t $(VOLUMES_IMAGE):gaming-app-latest \
-		-t $(VOLUMES_IMAGE):gaming-app-$(DATE) .
+		-t $(VOLUMES_IMAGE):gaming-app-$(DATE) $(VOLUMES_DIR)
 	docker compose unpause
 	docker push $(VOLUMES_IMAGE):gaming-app-latest
 	docker push $(VOLUMES_IMAGE):gaming-app-$(DATE)
 # The database is replaced with MariaDB STOPPED, not paused: a paused MariaDB keeps the database it has in memory
 # and overwrites the copied files when it resumes (on a fresh server the restored scores were lost that way).
 # The backup (save) can pause: a paused copy is consistent, like after a power cut, and MariaDB recovers it.
-# cache/database is emptied, not removed: a bind mount keeps pointing at the same folder (Docker Desktop needs it).
+# VOLUMES_DIR/database is emptied, not removed: a bind mount keeps pointing at the same folder (Docker Desktop needs it).
 load:
 	docker pull $(VOLUMES_IMAGE):gaming-app-latest
 	docker rm -f gaming-app-volumes-tmp >/dev/null 2>&1 || true
 	docker create --name gaming-app-volumes-tmp $(VOLUMES_IMAGE):gaming-app-latest
 	docker compose stop
-	mkdir -p ./cache/database
-	find ./cache/database -mindepth 1 -delete
-	docker cp gaming-app-volumes-tmp:/cache/. ./cache
+	mkdir -p $(VOLUMES_DIR)/database
+	find $(VOLUMES_DIR)/database -mindepth 1 -delete
+	docker cp gaming-app-volumes-tmp:/cache/. $(VOLUMES_DIR)
 	docker rm gaming-app-volumes-tmp
 	docker compose up -d
