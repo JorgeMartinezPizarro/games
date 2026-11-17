@@ -23,7 +23,8 @@ services:
     volumes:
       - ${VOLUMES_DIR:-./cache}/audio/:/app/cache/audio
   mariadb:
-    image: mariadb:11
+    # Exact version, no floating tag: bump it by hand (12.3 is LTS until 2029)
+    image: mariadb:12.3.3
     restart: always
     # Exposed locally so `games` can run outside docker (npm run
     # dev/start) against the same MariaDB the dockerized stack uses.
@@ -34,6 +35,8 @@ services:
       - MARIADB_DATABASE=${MARIADB_DATABASE}
       - MARIADB_USER=${MARIADB_USER}
       - MARIADB_PASSWORD=${MARIADB_PASSWORD}
+      # After a version bump, upgrade the system tables on start (backs them up first)
+      - MARIADB_AUTO_UPGRADE=1
     volumes:
       - ${VOLUMES_DIR:-./cache}/database:/var/lib/mysql
     healthcheck:
